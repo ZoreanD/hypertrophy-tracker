@@ -18,8 +18,21 @@ enum FitnessGoal {
   MAINTAIN
 }
 
+// 1. NEW: The isolated authentication table
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  passwordHash String
+  profile      Profile?
+  createdAt    DateTime  @default(now())
+}
+
 model Profile {
   id             String        @id @default(uuid())
+  // 2. NEW: Link the profile to a specific user
+  userId         String        @unique
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   role           Role          @default(ADMIN)
   birthDate      DateTime
   heightCm       Float
