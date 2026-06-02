@@ -2,20 +2,37 @@ import prisma from '../../lib/prisma';
 import ProgressChart from './ProgressChart';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { verifyToken } from '../../lib/auth';
 import LogoutButton from './LogoutButton';
 
 export default async function Dashboard() {
-  // 1. Get the user profile
-  const profile = await prisma.profile.findFirst();
-  
-  if (!profile) return redirect('/setup'); // If no profile, send to setup page;
+  // 1. Grab the secure cookie and verify the user
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
 
-  // 2. Grab an exercise from the database to test the chart
+  if (!token) {
+    return redirect('/login');
+  }
+
+  const decodedToken = await verifyToken(token);
+  if (!decodedToken) {
+    return redirect('/login');
+  }
+
+  // 2. Get THIS specific user's profile
+  const profile = await prisma.profile.findUnique({
+    where: { userId: decodedToken.userId },
+  });
+  
+  if (!profile) return redirect('/setup'); 
+
+  // 3. Grab an exercise from the database to test the chart
   const testExercise = await prisma.exercise.findFirst({
     orderBy: { name: 'asc' }
   });
 
-  // 3. Fetch today's metrics or the most recent one
+  // 4. Fetch today's metrics or the most recent one for THIS profile
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -24,7 +41,7 @@ export default async function Dashboard() {
     orderBy: { date: 'desc' },
   });
 
-  // 4. Fetch the last 7 days of workouts for the activity log
+  // 5. Fetch the last 7 days of workouts for THIS profile
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -36,7 +53,7 @@ export default async function Dashboard() {
     orderBy: { date: 'desc' },
   });
 
-  // 5. Render the Dashboard
+  // 6. Render the Dashboard
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
@@ -50,7 +67,6 @@ export default async function Dashboard() {
             </p>
           </div>
           
-          {/* Wrap the buttons in a div with a gap so they sit nicely side-by-side */}
           <div className="flex items-center gap-4">
             <LogoutButton />
             <Link 
