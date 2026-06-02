@@ -6,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql" // Or "supabase" depending on your Vercel integration
-  url      = env("DATABASE_URL")
+  url      = env("postgresql://neondb_owner:npg_QYEk68bytfcL@ep-restless-resonance-aqoe4fj4-pooler.c-8.us-east-1.aws.neon.tech/neondb?channel_binding=require&connect_timeout=15&sslmode=require")
 }
 
 // ---------------------------------------------------------
