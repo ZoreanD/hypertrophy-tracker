@@ -91,7 +91,7 @@ export default function WorkoutForm({
           />
         </div>
         <div className="flex flex-col">
-          <label className="mb-1 text-sm font-medium text-zinc-400">Current Bodyweight (kg)</label>
+          <label className="mb-1 text-sm font-medium text-zinc-400">Current Bodyweight (lbs)</label>
           <input 
             type="number" 
             step="0.1"
