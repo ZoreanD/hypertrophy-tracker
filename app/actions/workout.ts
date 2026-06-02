@@ -18,7 +18,7 @@ type WorkoutData = {
   sets: SetData[];
 };
 
-export async function createWorkout(data: WorkoutData) {
+export async function logWorkout(data: WorkoutData) {
   try {
     // 1. Authenticate the User via Cookie
     const cookieStore = await cookies();
