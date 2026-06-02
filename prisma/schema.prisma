@@ -1,22 +1,15 @@
-// schema.prisma
-
 generator client {
-  provider = "prisma-client-js"
-  previewFeatures - ["driverAdapters"]
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql" // Or "supabase" depending on your Vercel integration
-  url      = env("postgresql://neondb_owner:npg_QYEk68bytfcL@ep-restless-resonance-aqoe4fj4-pooler.c-8.us-east-1.aws.neon.tech/neondb?channel_binding=require&connect_timeout=15&sslmode=require")
+  provider = "postgresql"
 }
-
-// ---------------------------------------------------------
-// 1. USER & METABOLIC PROFILE
-// ---------------------------------------------------------
 
 enum Role {
   USER
-  ADMIN  // Useful for RBAC to hide your personal logs from public views
+  ADMIN
 }
 
 enum FitnessGoal {
@@ -28,56 +21,36 @@ enum FitnessGoal {
 model Profile {
   id             String        @id @default(uuid())
   role           Role          @default(ADMIN)
-  
-  // Static/Slow-changing metrics for Mifflin-St Jeor equation
   birthDate      DateTime
   heightCm       Float
-  gender         String        // 'M' or 'F' for metabolic baseline constants
-  
-  // Dynamic Goals
+  gender         String
   currentGoal    FitnessGoal   @default(MAINTAIN)
-  weeklyGoalRate Float         // e.g., 0.5 for losing/gaining 0.5kg per week
-  
-  // Relationships
+  weeklyGoalRate Float
   metrics        BodyMetric[]
   workouts       Workout[]
-  
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
-
-// ---------------------------------------------------------
-// 2. DAILY METABOLIC LOGS (The "Check")
-// ---------------------------------------------------------
 
 model BodyMetric {
   id               String   @id @default(uuid())
   profileId        String
   date             DateTime @default(now())
-  
   weightKg         Float
-  bodyFatPct       Float?   // Optional: useful if tracking body comp shifts
-  
-  // App-Calculated Snapshot Data (Saved daily to preserve history)
-  calculatedTdee   Float    // Calculated from BMR + Recent Workout Frequency
-  targetCalories   Int      // Adjusted based on TDEE and currentGoal
-  targetProtein    Int      // Typically 1.6-2.2g per kg of bodyweight
-  
+  bodyFatPct       Float?
+  calculatedTdee   Float
+  targetCalories   Int
+  targetProtein    Int
   profile          Profile  @relation(fields: [profileId], references: [id])
 
-  @@unique([profileId, date]) // Ensures only one weigh-in/calculation per day
+  @@unique([profileId, date])
 }
-
-// ---------------------------------------------------------
-// 3. HYPERTROPHY TRACKING
-// ---------------------------------------------------------
 
 model Exercise {
   id             String   @id @default(uuid())
   name           String   @unique
-  muscleGroup    String   // e.g., 'Chest', 'Quads', 'Side Delts'
+  muscleGroup    String
   isCompound     Boolean  @default(false)
-  
   sets           Set[]
 }
 
@@ -85,11 +58,9 @@ model Workout {
   id             String   @id @default(uuid())
   profileId      String
   date           DateTime @default(now())
-  
-  focus          String?  // e.g., 'Push', 'Pull', 'Upper'
-  durationMins   Int?     // Fed into TDEE calculations to determine daily caloric burn
+  focus          String?
+  durationMins   Int?
   notes          String?
-
   profile        Profile  @relation(fields: [profileId], references: [id])
   sets           Set[]
 }
@@ -98,13 +69,10 @@ model Set {
   id             String   @id @default(uuid())
   workoutId      String
   exerciseId     String
-  
-  weightLbs      Float    // Or kg depending on your plates
+  weightLbs      Float
   reps           Int
-  rir            Int      // Reps in Reserve (Proximity to failure)
-  
+  rir            Int
   workout        Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exercise       Exercise @relation(fields: [exerciseId], references: [id])
-  
   createdAt      DateTime @default(now())
 }
