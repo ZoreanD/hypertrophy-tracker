@@ -5,12 +5,12 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 
 export async function createProfile(data: {
-  heightCm: number;
-  weightLbs: number;
-  age: number;
+  heightCm: number | string;
+  weightLbs: number | string;
+  age: number | string;
   gender: string;
   goal: string;
-  weeklyGoalRate: number;
+  weeklyGoalRate: number | string;
 }) {
   try {
     // 1. Grab the secure cookie to identify the current user
@@ -27,25 +27,48 @@ export async function createProfile(data: {
       throw new Error('Invalid or expired token');
     }
 
-    // 3. Calculate birthDate from age
-    const birthDate = new Date();
-    birthDate.setFullYear(birthDate.getFullYear() - data.age);
+    // 3. Clean up the data types from the form
+    const numericAge = Number(data.age);
+    const numericHeight = Number(data.heightCm);
+    const numericWeeklyRate = Number(data.weeklyGoalRate);
+    const weightKg = Number(data.weightLbs) / 2.20462; // Convert Lbs to Kg for standard storage
+    
+    // Force uppercase to strictly match the Prisma FitnessGoal Enum
+    const safeGoal = data.goal.toUpperCase(); 
 
-    // 4. Create the profile and link it to the verified user!
-    await prisma.profile.create({
-      data: {
-        userId: decodedToken.userId, // This is the missing piece!
-        heightCm: data.heightCm,
-        birthDate,
-        gender: data.gender,
-        currentGoal: data.goal as any,
-        weeklyGoalRate: data.weeklyGoalRate,
-      },
+    const birthDate = new Date();
+    birthDate.setFullYear(birthDate.getFullYear() - numericAge);
+
+    // 4. Create the profile AND the initial BodyMetric together
+    await prisma.$transaction(async (tx) => {
+      // Create the profile linked to the secure user
+      const profile = await tx.profile.create({
+        data: {
+          userId: decodedToken.userId,
+          heightCm: numericHeight,
+          birthDate,
+          gender: data.gender,
+          currentGoal: safeGoal as any,
+          weeklyGoalRate: numericWeeklyRate,
+        },
+      });
+
+      // Insert the first weigh-in so the dashboard charts work immediately
+      await tx.bodyMetric.create({
+        data: {
+          profileId: profile.id,
+          weightKg: weightKg,
+          targetCalories: 2500, // Safe baseline, can implement TDEE math later
+          targetProtein: 150,   // Safe baseline
+          calculatedTdee: 2500, 
+        }
+      });
     });
 
     return { success: true };
   } catch (error) {
     console.error('Failed to create profile:', error);
-    return { success: false };
+    // Returning success false triggers the frontend "Something went wrong" message safely
+    return { success: false }; 
   }
 }
