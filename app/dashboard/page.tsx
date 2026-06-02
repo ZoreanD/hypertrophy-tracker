@@ -1,8 +1,8 @@
-// app/dashboard/page.tsx
 import prisma from '../../lib/prisma';
 import ProgressChart from './ProgressChart';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import LogoutButton from './LogoutButton';
 
 export default async function Dashboard() {
   // 1. Get the user profile
@@ -49,12 +49,17 @@ export default async function Dashboard() {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <Link 
-            href="/workout/new" 
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
-          >
-            + Log Workout
-          </Link>
+          
+          {/* Wrap the buttons in a div with a gap so they sit nicely side-by-side */}
+          <div className="flex items-center gap-4">
+            <LogoutButton />
+            <Link 
+              href="/workout/new" 
+              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
+            >
+              + Log Workout
+            </Link>
+          </div>
         </header>
 
         {/* Daily Macros Grid */}
