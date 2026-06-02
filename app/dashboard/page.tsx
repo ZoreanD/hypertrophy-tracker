@@ -107,7 +107,7 @@ export default async function Dashboard() {
           ) : (
             <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
               <ul className="divide-y divide-zinc-800">
-                {recentWorkouts.map((workout) => (
+                {recentWorkouts.map((workout: any) => (
                   <li key={workout.id} className="flex items-center justify-between p-4 hover:bg-zinc-800/50">
                     <div>
                       <p className="font-medium text-white">{workout.focus} Day</p>
