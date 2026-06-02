@@ -17,6 +17,7 @@ export default function WorkoutForm({
 
   const [focus, setFocus] = useState('Push');
   const [duration, setDuration] = useState(60);
+  const [currentWeightLbs, setCurrentWeightLbs] = useState(180);
   
   const [sets, setSets] = useState<SetInput[]>([
     { exerciseId: exercises[0]?.id || '', weightLbs: 0, reps: 0, rir: 0 }
@@ -43,6 +44,7 @@ export default function WorkoutForm({
     const result = await logWorkout({
       focus,
       durationMins: duration,
+      currentWeightLbs,
       sets,
     });
 
@@ -57,7 +59,7 @@ export default function WorkoutForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col">
           <label className="mb-1 text-sm font-medium text-zinc-400">Focus / Split</label>
           <input 
@@ -74,6 +76,17 @@ export default function WorkoutForm({
             type="number" 
             value={duration} 
             onChange={(e) => setDuration(Number(e.target.value))}
+            className="rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none" 
+            required
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="mb-1 text-sm font-medium text-zinc-400">Bodyweight (lbs)</label>
+          <input 
+            type="number" 
+            step="0.1"
+            value={currentWeightLbs} 
+            onChange={(e) => setCurrentWeightLbs(Number(e.target.value))}
             className="rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none" 
             required
           />
