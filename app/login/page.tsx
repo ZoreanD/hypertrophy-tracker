@@ -22,11 +22,10 @@ export default function LoginPage() {
       if (result?.error) {
         setError(result.error);
         setIsLoading(false);
-      } else if (result?.success) {
-        // Success! The secure cookie is set. 
-        // Route them to the root page, which will smart-route them to /setup or /dashboard
-        router.push('/');
-        router.refresh(); // Force Next.js to re-evaluate the layout with the new cookie
+      } else if (result?.success && result.redirectTo) {
+        // Force the router directly to the correct page, bypassing the root cache!
+        router.push(result.redirectTo);
+        router.refresh(); 
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -49,7 +48,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-md bg-red-500/10 p-3 text-sm text-red-400 border border-red-500/20">
+          <div className="mb-6 rounded-md bg-red-500/10 p-3 text-sm border border-red-500/20 text-red-400">
             {error}
           </div>
         )}
@@ -89,7 +88,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 w-full rounded-lg bg-emerald-600 py-3 font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:opacity-50 transition-colors"
+            className="mt-2 w-full rounded-lg bg-emerald-600 py-3 font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-50 transition-colors"
           >
             {isLoading 
               ? 'Processing...' 
