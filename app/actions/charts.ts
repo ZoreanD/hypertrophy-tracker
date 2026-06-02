@@ -19,7 +19,7 @@ export async function getExerciseHistory(profileId: string, exerciseId: string) 
   // Group by date and calculate the max e1RM and total volume per session
   const historyMap = new Map();
 
-  sets.forEach(set => {
+  sets.forEach((set: any) => {
     const dateStr = set.workout.date.toISOString().split('T')[0];
     const e1RM = Math.round(set.weightLbs * (1 + set.reps / 30));
     const volume = set.weightLbs * set.reps; // simplified 1-set volume
