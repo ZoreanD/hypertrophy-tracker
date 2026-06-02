@@ -1,138 +1,63 @@
 'use server';
 
 import prisma from '../../lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+import { verifyToken } from '../../lib/auth';
 
-function calculateTargets(
-  weightLbs: number,
-  heightCm: number,
-  birthDate: Date,
-  gender: string,
-  goal: string,
-  weeklyGoalRate: number,
-  recentWorkoutCount: number,
-  durationMins: number,
-) {
-  const weightKg = weightLbs * 0.453592;
-  const age = Math.floor(
-    (Date.now() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-  );
+type SetData = {
+  exerciseId: string;
+  weightLbs: number;
+  reps: number;
+  rir: number;
+};
 
-  // Mifflin-St Jeor BMR
-  let bmr = 10 * weightKg + 6.25 * heightCm - 5 * age;
-  bmr = gender === 'F' ? bmr - 161 : bmr + 5;
+type WorkoutData = {
+  focus: string;
+  durationMins: number;
+  notes?: string;
+  sets: SetData[];
+};
 
-  // Dynamic activity multiplier based on logged workout frequency
-  let activityMultiplier = 1.2;
-  if (recentWorkoutCount >= 5) activityMultiplier = 1.725;
-  else if (recentWorkoutCount >= 3) activityMultiplier = 1.55;
-  else if (recentWorkoutCount >= 1) activityMultiplier = 1.375;
-
-  // Add direct workout burn (weightlifting ~5 kcal/min)
-  const workoutBurn = durationMins * 5;
-  const tdee = Math.round(bmr * activityMultiplier + workoutBurn);
-
-  // Calorie adjustment based on goal
-  // 1kg of tissue ≈ 7700 kcal, spread over 7 days
-  const dailyAdjustment = goal === 'MAINTAIN'
-    ? 0
-    : Math.round((weeklyGoalRate * 7700) / 7) * (goal === 'CUT' ? -1 : 1);
-
-  const targetCalories = tdee + dailyAdjustment;
-
-  // Protein: higher end when cutting to preserve muscle (2.2g/kg), 
-  // moderate when bulking (1.8g/kg)
-  const proteinMultiplier = goal === 'CUT' ? 2.2 : 1.8;
-  const targetProtein = Math.round(weightKg * proteinMultiplier);
-
-  return { tdee, targetCalories, targetProtein };
-}
-
-export async function logWorkout(
-  profileId: string,
-  currentWeightLbs: number,
-  focus: string,
-  durationMins: number,
-  sets: any[]
-) {
+export async function createWorkout(data: WorkoutData) {
   try {
+    // 1. Authenticate the User via Cookie
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) throw new Error('Not authenticated');
+
+    const decodedToken = await verifyToken(token);
+    if (!decodedToken) throw new Error('Invalid token');
+
+    // 2. Find THIS specific user's physical profile
     const profile = await prisma.profile.findUnique({
-      where: { id: profileId },
+      where: { userId: decodedToken.userId },
     });
 
     if (!profile) throw new Error('Profile not found');
 
-    // Count workouts in last 7 days for activity multiplier
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const recentWorkoutCount = await prisma.workout.count({
-      where: {
-        profileId,
-        date: { gte: sevenDaysAgo },
-      },
-    });
-
-    const { tdee, targetCalories, targetProtein } = calculateTargets(
-      currentWeightLbs,
-      profile.heightCm,
-      profile.birthDate,
-      profile.gender,
-      profile.currentGoal,
-      profile.weeklyGoalRate,
-      recentWorkoutCount,
-      durationMins,
-    );
-
-    // Save workout and sets
-    await prisma.workout.create({
+    // 3. Create the Workout and all its Sets in one safe transaction
+    const workout = await prisma.workout.create({
       data: {
-        profileId,
-        date: new Date(),
-        focus,
-        durationMins,
+        profileId: profile.id, // Securely linked!
+        focus: data.focus,
+        durationMins: data.durationMins,
+        notes: data.notes,
+        // Prisma allows us to create the child 'sets' at the exact same time
         sets: {
-          create: sets.map((s: any) => ({
-            exerciseId: s.exerciseId,
-            weightLbs: s.weightLbs,
-            reps: s.reps,
-            rir: s.rir,
+          create: data.sets.map((set) => ({
+            exerciseId: set.exerciseId,
+            weightLbs: set.weightLbs,
+            reps: set.reps,
+            rir: set.rir,
           })),
         },
       },
     });
 
-    // Upsert today's metrics (fixes the duplicate day crash)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    await prisma.bodyMetric.upsert({
-      where: {
-        profileId_date: {
-          profileId,
-          date: today,
-        },
-      },
-      update: {
-        weightKg: currentWeightLbs * 0.453592,
-        calculatedTdee: tdee,
-        targetCalories,
-        targetProtein,
-      },
-      create: {
-        profileId,
-        date: today,
-        weightKg: currentWeightLbs * 0.453592,
-        calculatedTdee: tdee,
-        targetCalories,
-        targetProtein,
-      },
-    });
-
-    revalidatePath('/dashboard');
-    return { success: true };
+    return { success: true, workoutId: workout.id };
   } catch (error) {
     console.error('Failed to log workout:', error);
-    return { success: false, error: 'Database error' };
+    return { success: false, error: 'Failed to save workout data' };
   }
 }
