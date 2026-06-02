@@ -2,12 +2,13 @@
 import prisma from '../../lib/prisma';
 import ProgressChart from './ProgressChart';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export default async function Dashboard() {
   // 1. Get the user profile
   const profile = await prisma.profile.findFirst();
   
-  if (!profile) return <div className="p-12 text-white">No profile found.</div>;
+  if (!profile) return redirect('/setup'); // If no profile, send to setup page;
 
   // 2. Grab an exercise from the database to test the chart
   const testExercise = await prisma.exercise.findFirst({
