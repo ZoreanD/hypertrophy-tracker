@@ -1,11 +1,15 @@
-// lib/prisma.ts
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 const prismaClientSingleton = () => {
-  // In the live app, we let Next.js read the environment variable automatically
-  const pool = new Pool({ connectionString: process.env.POSTGRES_PRISMA_URL });
+  const connectionString = process.env.POSTGRES_PRISMA_URL;
+  
+  if (!connectionString) {
+    throw new Error("Missing POSTGRES_PRISMA_URL environment variable");
+  }
+
+  const pool = new Pool({ connectionString });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 };
