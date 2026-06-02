@@ -1,30 +1,23 @@
-// app/workout/new/WorkoutForm.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { logWorkout } from '../../actions/workout';
 
-// Defining the shape of our data
 type Exercise = { id: string; name: string; muscleGroup: string };
 type SetInput = { exerciseId: string; weightLbs: number; reps: number; rir: number };
 
 export default function WorkoutForm({ 
-  profileId, 
   exercises 
 }: { 
-  profileId: string; 
   exercises: Exercise[];
 }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form State
   const [focus, setFocus] = useState('Push');
   const [duration, setDuration] = useState(60);
-  const [currentWeight, setCurrentWeight] = useState(80); // kg
   
-  // Sets State (Starts with one empty set by default)
   const [sets, setSets] = useState<SetInput[]>([
     { exerciseId: exercises[0]?.id || '', weightLbs: 0, reps: 0, rir: 0 }
   ]);
@@ -47,17 +40,13 @@ export default function WorkoutForm({
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Call the Server Action
-    const result = await logWorkout(
-      profileId,
-      currentWeight,
+    const result = await logWorkout({
       focus,
-      duration,
-      sets
-    );
+      durationMins: duration,
+      sets,
+    });
 
     if (result.success) {
-      // If successful, boot the user back to the dashboard to see their updated macros
       router.push('/dashboard');
     } else {
       alert('Failed to save workout. Check terminal for errors.');
@@ -68,8 +57,7 @@ export default function WorkoutForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       
-      {/* Top Level Workout Details */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col">
           <label className="mb-1 text-sm font-medium text-zinc-400">Focus / Split</label>
           <input 
@@ -90,20 +78,8 @@ export default function WorkoutForm({
             required
           />
         </div>
-        <div className="flex flex-col">
-          <label className="mb-1 text-sm font-medium text-zinc-400">Current Bodyweight (lbs)</label>
-          <input 
-            type="number" 
-            step="0.1"
-            value={currentWeight} 
-            onChange={(e) => setCurrentWeight(Number(e.target.value))}
-            className="rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none" 
-            required
-          />
-        </div>
       </div>
 
-      {/* The Sets Tracker */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-zinc-200">Tracked Sets</h2>
         
@@ -175,9 +151,9 @@ export default function WorkoutForm({
       <button 
         type="submit" 
         disabled={isSubmitting}
-        className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-50"
+        className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50"
       >
-        {isSubmitting ? 'Saving...' : 'Save Workout & Update Macros'}
+        {isSubmitting ? 'Saving...' : 'Save Workout'}
       </button>
 
     </form>

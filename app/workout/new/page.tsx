@@ -25,7 +25,7 @@ export default async function NewWorkoutPage() {
         </header>
 
         {/* Pass the server-fetched data into our Client Component */}
-        <WorkoutForm profileId={profile.id} exercises={exercises} />
+        <WorkoutForm exercises={exercises} />
       </div>
     </main>
   );
