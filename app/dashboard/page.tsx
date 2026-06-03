@@ -9,7 +9,6 @@ import ProgressionChart from './ProgressionChart';
 
 export const dynamic = 'force-dynamic';
 
-// Muscle group MEV/MAV landmarks from RP research
 const VOLUME_LANDMARKS: Record<string, { mev: number; mav: number; label: string }> = {
   CHEST: { mev: 8, mav: 18, label: 'Chest' },
   BACK: { mev: 8, mav: 20, label: 'Back' },
@@ -71,13 +70,11 @@ export default async function Dashboard() {
   });
   if (!profile) return redirect('/setup');
 
-  // Current metric
   const currentMetric = await prisma.bodyMetric.findFirst({
     where: { profileId: profile.id },
     orderBy: { date: 'desc' },
   });
 
-  // Last 7 days of workouts with sets
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -95,7 +92,6 @@ export default async function Dashboard() {
     orderBy: { date: 'desc' },
   });
 
-  // Calculate weekly sets per muscle group
   const weeklySetsByGroup: Record<string, number> = {};
   recentWorkouts.forEach((workout) => {
     workout.sets.forEach((set) => {
@@ -104,7 +100,6 @@ export default async function Dashboard() {
     });
   });
 
-  // Build volume data for chart
   const volumeData = Object.entries(VOLUME_LANDMARKS).map(([key, landmark]) => ({
     muscle: key,
     label: landmark.label,
@@ -117,7 +112,6 @@ export default async function Dashboard() {
       : 'above_mav',
   }));
 
-  // Last 8 weeks of workouts for mesocycle tracking
   const eightWeeksAgo = new Date();
   eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
 
@@ -132,7 +126,6 @@ export default async function Dashboard() {
     orderBy: { date: 'asc' },
   });
 
-  // Group into weeks for mesocycle view
   const weeklyVolume: { week: string; sets: number; workouts: number }[] = [];
   for (let i = 7; i >= 0; i--) {
     const weekStart = new Date();
@@ -154,7 +147,6 @@ export default async function Dashboard() {
     });
   }
 
-  // Exercises the user has logged for the progression chart selector
   const loggedExerciseIds = await prisma.set.findMany({
     where: { workout: { profileId: profile.id } },
     select: { exerciseId: true },
@@ -167,7 +159,6 @@ export default async function Dashboard() {
     orderBy: { name: 'asc' },
   });
 
-  // Progressive overload history for first exercise (default)
   const defaultExercise = loggedExercises[0] ?? null;
   let progressionData: { date: string; e1RM: number; weight: number; reps: number }[] = [];
 
@@ -183,7 +174,6 @@ export default async function Dashboard() {
       take: 100,
     });
 
-    // Group by workout date, take best e1RM per session
     const byDate = new Map<string, typeof sets>();
     sets.forEach((s) => {
       const key = s.workout.date.toISOString().split('T')[0];
@@ -204,7 +194,6 @@ export default async function Dashboard() {
     });
   }
 
-  // Mesocycle position — weeks since first workout
   const firstWorkout = await prisma.workout.findFirst({
     where: { profileId: profile.id },
     orderBy: { date: 'asc' },
@@ -218,7 +207,6 @@ export default async function Dashboard() {
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
 
-        {/* Header */}
         <header className="flex items-center justify-between border-b border-zinc-800 pb-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">Command Center</h1>
@@ -228,6 +216,9 @@ export default async function Dashboard() {
           </div>
           <div className="flex items-center gap-4">
             <LogoutButton />
+            <Link href="/settings" className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+              Settings
+            </Link>
             <Link href="/routines" className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
               Routines
             </Link>
@@ -240,7 +231,6 @@ export default async function Dashboard() {
           </div>
         </header>
 
-        {/* Daily Macros + Mesocycle */}
         <section className="grid gap-4 sm:grid-cols-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
             <p className="text-sm font-medium text-zinc-400">Target Calories</p>
@@ -278,7 +268,6 @@ export default async function Dashboard() {
           </div>
         </section>
 
-        {/* Weekly Volume vs Landmarks */}
         <section>
           <h2 className="mb-4 text-xl font-semibold text-zinc-200">Weekly Volume</h2>
           <p className="mb-4 text-sm text-zinc-500">
@@ -287,7 +276,6 @@ export default async function Dashboard() {
           <VolumeChart data={volumeData} />
         </section>
 
-        {/* Progressive Overload Chart */}
         <section>
           <h2 className="mb-2 text-xl font-semibold text-zinc-200">Progressive Overload</h2>
           <p className="mb-4 text-sm text-zinc-500">
@@ -308,7 +296,6 @@ export default async function Dashboard() {
           )}
         </section>
 
-        {/* 8-Week Volume Trend */}
         <section>
           <h2 className="mb-4 text-xl font-semibold text-zinc-200">8-Week Volume Trend</h2>
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
@@ -322,9 +309,7 @@ export default async function Dashboard() {
                   <div key={week.week} className={`flex flex-col items-center p-3 ${isCurrentWeek ? 'bg-zinc-800/50' : ''}`}>
                     <div className="flex h-20 w-full items-end justify-center">
                       <div
-                        className={`w-4 rounded-t transition-all ${
-                          isCurrentWeek ? 'bg-emerald-500' : 'bg-zinc-700'
-                        }`}
+                        className={`w-4 rounded-t transition-all ${isCurrentWeek ? 'bg-emerald-500' : 'bg-zinc-700'}`}
                         style={{ height: `${heightPct}%` }}
                       />
                     </div>
@@ -337,7 +322,6 @@ export default async function Dashboard() {
           </div>
         </section>
 
-        {/* Recent Activity */}
         <section>
           <h2 className="mb-4 text-xl font-semibold text-zinc-200">Recent Sessions</h2>
           {recentWorkouts.length === 0 ? (

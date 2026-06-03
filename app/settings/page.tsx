@@ -1,0 +1,63 @@
+import prisma from '../../lib/prisma';
+import { cookies } from 'next/headers';
+import { verifyToken } from '../../lib/auth';
+import { redirect } from 'next/navigation';
+import SettingsForm from './SettingsForm';
+
+export const dynamic = 'force-dynamic';
+
+export default async function SettingsPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  if (!token) return redirect('/login');
+
+  const decoded = await verifyToken(token);
+  if (!decoded) return redirect('/login');
+
+  const profile = await prisma.profile.findUnique({
+    where: { userId: decoded.userId },
+  });
+  if (!profile) return redirect('/setup');
+
+  // Convert stored values back to display format
+  const birthDate = new Date(profile.birthDate);
+  const age = Math.floor(
+    (Date.now() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+  );
+
+  const heightCm = profile.heightCm;
+  const totalInches = Math.round(heightCm / 2.54);
+  const heightFt = Math.floor(totalInches / 12);
+  const heightIn = totalInches % 12;
+
+  // Get most recent weight
+  const latestMetric = await prisma.bodyMetric.findFirst({
+    where: { profileId: profile.id },
+    orderBy: { date: 'desc' },
+  });
+  const weightLbs = latestMetric
+    ? Math.round(latestMetric.weightKg * 2.20462 * 10) / 10
+    : 180;
+
+  return (
+    <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
+      <div className="mx-auto max-w-xl space-y-8">
+        <header className="border-b border-zinc-800 pb-6">
+          <h1 className="text-3xl font-bold tracking-tight text-white">Settings</h1>
+          <p className="mt-1 text-zinc-400">Update your profile and training goals.</p>
+        </header>
+        <SettingsForm
+          initialValues={{
+            heightFt: String(heightFt),
+            heightIn: String(heightIn),
+            weightLbs: String(weightLbs),
+            age: String(age),
+            gender: profile.gender,
+            goal: profile.currentGoal,
+            weeklyGoalRate: String(profile.weeklyGoalRate),
+          }}
+        />
+      </div>
+    </main>
+  );
+}
