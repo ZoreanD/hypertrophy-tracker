@@ -2,6 +2,7 @@ import prisma from '../../../lib/prisma';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../../lib/auth';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import RoutineBuilder from './RoutineBuilder';
 
 export default async function NewRoutinePage() {
@@ -33,6 +34,9 @@ export default async function NewRoutinePage() {
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-3xl space-y-8">
         <header className="border-b border-zinc-800 pb-6">
+          <Link href="/routines" className="mb-3 inline-block text-sm text-zinc-500 hover:text-zinc-300">
+            ← Back to Routines
+          </Link>
           <h1 className="text-3xl font-bold tracking-tight text-white">New Routine</h1>
           <p className="mt-1 text-zinc-400">
             Build your training template. Set targets for each exercise.

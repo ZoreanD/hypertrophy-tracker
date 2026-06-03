@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import CalendarView from './CalendarView';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,12 @@ export default async function CalendarPage() {
             <h1 className="text-3xl font-bold tracking-tight text-white">Training Calendar</h1>
             <p className="mt-1 text-zinc-400">Tap a day to assign a routine.</p>
           </div>
+          <Link
+            href="/dashboard"
+            className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white"
+          >
+            ← Dashboard
+          </Link>
         </header>
         <CalendarView
           year={year}
