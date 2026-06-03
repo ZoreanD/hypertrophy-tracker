@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createRoutine } from '../../actions/routine';
+import { createRoutine, updateRoutine, deleteRoutine } from '../../actions/routine';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -26,6 +26,13 @@ type RoutineExerciseEntry = {
   targetRir: number;
   restTimerSecs: number;
   progressionStyle: string;
+};
+type EditMode = {
+  routineId: string;
+  initialName: string;
+  initialFocus: string;
+  initialNotes: string;
+  initialExercises: RoutineExerciseEntry[];
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -205,21 +212,27 @@ const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSet
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export default function RoutineBuilder({ exercises }: { exercises: Exercise[] }) {
+export default function RoutineBuilder({
+  exercises,
+  editMode,
+}: {
+  exercises: Exercise[];
+  editMode?: EditMode;
+}) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Routine metadata
-  const [name, setName] = useState('');
-  const [focus, setFocus] = useState('Push');
-  const [notes, setNotes] = useState('');
+  const [name, setName] = useState(editMode?.initialName ?? '');
+  const [focus, setFocus] = useState(editMode?.initialFocus ?? 'Push');
+  const [notes, setNotes] = useState(editMode?.initialNotes ?? '');
 
   // Exercise search
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
   // Selected exercises
-  const [entries, setEntries] = useState<RoutineExerciseEntry[]>([]);
+  const [entries, setEntries] = useState<RoutineExerciseEntry[]>(editMode?.initialExercises ?? []);
 
   // Filter exercises by search query and current split
   const filtered = useMemo(() => {
@@ -300,19 +313,24 @@ export default function RoutineBuilder({ exercises }: { exercises: Exercise[] })
   }
 
   async function handleSubmit() {
-    if (!name.trim()) return alert('Give your routine a name.');
-    if (entries.length === 0) return alert('Add at least one exercise.');
-    setIsSubmitting(true);
+  if (!name.trim()) return alert('Give your routine a name.');
+  if (entries.length === 0) return alert('Add at least one exercise.');
+  setIsSubmitting(true);
 
-    const result = await createRoutine({ name, focus, notes, exercises: entries });
-
-    if (result.success) {
-      router.push('/routines');
-    } else {
-      alert('Failed to save routine.');
-      setIsSubmitting(false);
-    }
+  let result;
+  if (editMode) {
+    result = await updateRoutine(editMode.routineId, { name, focus, notes, exercises: entries });
+  } else {
+    result = await createRoutine({ name, focus, notes, exercises: entries });
   }
+
+  if (result.success) {
+    router.push('/routines');
+  } else {
+    alert('Failed to save routine.');
+    setIsSubmitting(false);
+  }
+}
 
   return (
     <div className="space-y-8">
@@ -585,6 +603,20 @@ export default function RoutineBuilder({ exercises }: { exercises: Exercise[] })
         </div>
       </div>
 
+      {editMode && (
+      <button
+        type="button"
+        onClick={async () => {
+          if (!confirm('Delete this routine? This cannot be undone.')) return;
+          const result = await deleteRoutine(editMode.routineId);
+          if (result.success) router.push('/routines');
+    }}
+        className="w-full rounded-md border border-red-800 py-3 text-sm font-semibold text-red-400 hover:bg-red-950/30"
+      >
+        Delete Routine
+      </button>
+)}
+
       {/* ── Save Button ── */}
       <button
         type="button"
@@ -592,7 +624,7 @@ export default function RoutineBuilder({ exercises }: { exercises: Exercise[] })
         disabled={isSubmitting}
         className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
       >
-        {isSubmitting ? 'Saving...' : 'Save Routine'}
+        {isSubmitting ? 'Saving...' : editMode ? 'Save Changes' : 'Save Routine'}
       </button>
 
     </div>
