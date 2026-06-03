@@ -100,39 +100,106 @@ const REST_PRESETS = [
 
 // ── Muscle volume requirements per split ──────────────────────────────────
 
-const SPLIT_REQUIREMENTS: Record<string, { muscle: string; min: number }[]> = {
-  Legs: [
-    { muscle: 'QUAD_VASTUS_LATERALIS', min: 1 },
-    { muscle: 'QUAD_RECTUS_FEMORIS', min: 1 },
-    { muscle: 'HAMSTRING_BICEPS_FEMORIS', min: 1 },
-    { muscle: 'HAMSTRING_MEDIAL', min: 1 },
-    { muscle: 'GASTROCNEMIUS', min: 1 },
-  ],
+const MUSCLE_GROUP_MAP: Record<string, string> = {
+  CHEST_UPPER: 'CHEST',
+  CHEST_MID_LOWER: 'CHEST',
+  FRONT_DELT: 'FRONT_DELT',
+  SIDE_DELT: 'SIDE_REAR_DELT',
+  REAR_DELT: 'SIDE_REAR_DELT',
+  LATS: 'BACK',
+  TRAPS_MID: 'BACK',
+  TRAPS_UPPER: 'BACK',
+  TRAPS_LOWER: 'BACK',
+  RHOMBOIDS: 'BACK',
+  TERES_MAJOR: 'BACK',
+  LOWER_BACK: 'BACK',
+  BICEPS_LONG_HEAD: 'BICEPS',
+  BICEPS_SHORT_HEAD: 'BICEPS',
+  BRACHIALIS: 'BICEPS',
+  BRACHIORADIALIS: 'BICEPS',
+  TRICEPS_LONG_HEAD: 'TRICEPS',
+  TRICEPS_LATERAL_HEAD: 'TRICEPS',
+  TRICEPS_MEDIAL_HEAD: 'TRICEPS',
+  QUAD_VASTUS_LATERALIS: 'QUADS',
+  QUAD_VASTUS_MEDIALIS: 'QUADS',
+  QUAD_RECTUS_FEMORIS: 'QUADS',
+  HAMSTRING_BICEPS_FEMORIS: 'HAMSTRINGS',
+  HAMSTRING_MEDIAL: 'HAMSTRINGS',
+  GLUTE_MAX: 'GLUTES',
+  GLUTE_MED: 'GLUTES',
+  HIP_ABDUCTOR: 'GLUTES',
+  HIP_ADDUCTOR: 'GLUTES',
+  GASTROCNEMIUS: 'CALVES',
+  SOLEUS: 'CALVES',
+  ABS: 'ABS',
+  OBLIQUES: 'ABS',
+};
+
+// Volume requirements per split type
+// MEV = minimum to appear in routine for this split to be valid
+// Based on RP volume landmarks and Schoenfeld meta-analysis
+const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSets: number; mev: number; mav: number }[]> = {
   Push: [
-    { muscle: 'CHEST_MID_LOWER', min: 1 },
-    { muscle: 'FRONT_DELT', min: 1 },
-    { muscle: 'TRICEPS_LONG_HEAD', min: 1 },
+    { muscle: 'CHEST', label: 'Chest', minSets: 2, mev: 8, mav: 18 },
+    { muscle: 'SIDE_REAR_DELT', label: 'Side/Rear Delts', minSets: 1, mev: 8, mav: 22 },
+    { muscle: 'TRICEPS', label: 'Triceps', minSets: 1, mev: 4, mav: 12 },
   ],
   Pull: [
-    { muscle: 'LATS', min: 1 },
-    { muscle: 'TRAPS_MID', min: 1 },
-    { muscle: 'BICEPS_LONG_HEAD', min: 1 },
+    { muscle: 'BACK', label: 'Back / Lats', minSets: 2, mev: 8, mav: 20 },
+    { muscle: 'BICEPS', label: 'Biceps', minSets: 1, mev: 6, mav: 14 },
+    { muscle: 'SIDE_REAR_DELT', label: 'Rear Delt', minSets: 1, mev: 8, mav: 22 },
+  ],
+  Legs: [
+    { muscle: 'QUADS', label: 'Quads', minSets: 2, mev: 8, mav: 18 },
+    { muscle: 'HAMSTRINGS', label: 'Hamstrings', minSets: 2, mev: 6, mav: 16 },
+    { muscle: 'CALVES', label: 'Calves', minSets: 1, mev: 6, mav: 16 },
+    { muscle: 'GLUTES', label: 'Glutes', minSets: 1, mev: 0, mav: 12 },
   ],
   Upper: [
-    { muscle: 'CHEST_MID_LOWER', min: 1 },
-    { muscle: 'LATS', min: 1 },
-    { muscle: 'FRONT_DELT', min: 1 },
+    { muscle: 'CHEST', label: 'Chest', minSets: 1, mev: 8, mav: 18 },
+    { muscle: 'BACK', label: 'Back', minSets: 1, mev: 8, mav: 20 },
+    { muscle: 'SIDE_REAR_DELT', label: 'Delts', minSets: 1, mev: 8, mav: 22 },
+    { muscle: 'BICEPS', label: 'Biceps', minSets: 1, mev: 6, mav: 14 },
+    { muscle: 'TRICEPS', label: 'Triceps', minSets: 1, mev: 4, mav: 12 },
   ],
   Lower: [
-    { muscle: 'QUAD_VASTUS_LATERALIS', min: 1 },
-    { muscle: 'HAMSTRING_MEDIAL', min: 1 },
-    { muscle: 'GLUTE_MAX', min: 1 },
+    { muscle: 'QUADS', label: 'Quads', minSets: 2, mev: 8, mav: 18 },
+    { muscle: 'HAMSTRINGS', label: 'Hamstrings', minSets: 1, mev: 6, mav: 16 },
+    { muscle: 'GLUTES', label: 'Glutes', minSets: 1, mev: 0, mav: 12 },
+    { muscle: 'CALVES', label: 'Calves', minSets: 1, mev: 6, mav: 16 },
   ],
   Fullbody: [
-    { muscle: 'QUAD_VASTUS_LATERALIS', min: 1 },
-    { muscle: 'HAMSTRING_MEDIAL', min: 1 },
-    { muscle: 'CHEST_MID_LOWER', min: 1 },
-    { muscle: 'LATS', min: 1 },
+    { muscle: 'QUADS', label: 'Quads', minSets: 1, mev: 8, mav: 18 },
+    { muscle: 'HAMSTRINGS', label: 'Hamstrings', minSets: 1, mev: 6, mav: 16 },
+    { muscle: 'CHEST', label: 'Chest', minSets: 1, mev: 8, mav: 18 },
+    { muscle: 'BACK', label: 'Back', minSets: 1, mev: 8, mav: 20 },
+    { muscle: 'SIDE_REAR_DELT', label: 'Delts', minSets: 1, mev: 8, mav: 22 },
+  ],
+  Chest: [
+    { muscle: 'CHEST', label: 'Chest', minSets: 3, mev: 8, mav: 18 },
+  ],
+  Back: [
+    { muscle: 'BACK', label: 'Back / Lats', minSets: 3, mev: 8, mav: 20 },
+  ],
+  Shoulders: [
+    { muscle: 'SIDE_REAR_DELT', label: 'Side/Rear Delts', minSets: 2, mev: 8, mav: 22 },
+    { muscle: 'FRONT_DELT', label: 'Front Delt', minSets: 1, mev: 0, mav: 6 },
+  ],
+  Arms: [
+    { muscle: 'BICEPS', label: 'Biceps', minSets: 2, mev: 6, mav: 14 },
+    { muscle: 'TRICEPS', label: 'Triceps', minSets: 2, mev: 4, mav: 12 },
+  ],
+  Chest_Back: [
+    { muscle: 'CHEST', label: 'Chest', minSets: 2, mev: 8, mav: 18 },
+    { muscle: 'BACK', label: 'Back', minSets: 2, mev: 8, mav: 20 },
+  ],
+  Shoulders_Arms: [
+    { muscle: 'SIDE_REAR_DELT', label: 'Side/Rear Delts', minSets: 2, mev: 8, mav: 22 },
+    { muscle: 'BICEPS', label: 'Biceps', minSets: 1, mev: 6, mav: 14 },
+    { muscle: 'TRICEPS', label: 'Triceps', minSets: 1, mev: 4, mav: 12 },
+  ],
+  Core: [
+    { muscle: 'ABS', label: 'Abs / Core', minSets: 2, mev: 0, mav: 12 },
   ],
 };
 
@@ -162,13 +229,33 @@ export default function RoutineBuilder({ exercises }: { exercises: Exercise[] })
 
   // Volume checker against split requirements
   const volumeCheck = useMemo(() => {
-    const requirements = SPLIT_REQUIREMENTS[focus] || [];
-    const covered = new Set(entries.map((e) => e.primaryMuscle));
-    return requirements.map((req) => ({
+  const requirements = SPLIT_REQUIREMENTS[focus] || [];
+  if (requirements.length === 0) return [];
+
+  // Count sets per muscle group using the mapping
+  const setsByGroup: Record<string, number> = {};
+  entries.forEach((entry) => {
+    const group = MUSCLE_GROUP_MAP[entry.primaryMuscle] || entry.primaryMuscle;
+    setsByGroup[group] = (setsByGroup[group] || 0) + entry.targetSets;
+  });
+
+  return requirements.map((req) => {
+    const sets = setsByGroup[req.muscle] || 0;
+    return {
       muscle: req.muscle,
-      met: covered.has(req.muscle),
-    }));
-  }, [entries, focus]);
+      label: req.label,
+      sets,
+      minSets: req.minSets,
+      mev: req.mev,
+      mav: req.mav,
+      met: sets >= req.minSets,
+      status: sets === 0 ? 'none'
+        : sets < req.mev ? 'below_mev'
+        : sets <= req.mav ? 'in_mav'
+        : 'above_mav',
+    };
+  });
+}, [entries, focus]);
 
   const allRequirementsMet = volumeCheck.every((v) => v.met);
 
@@ -247,15 +334,6 @@ export default function RoutineBuilder({ exercises }: { exercises: Exercise[] })
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-400">Split Focus</label>
             <select
-              value={focus}
-              onChange={(e) => setFocus(e.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none"
-            >
-              {SPLITS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <select
             value={focus}
             onChange={(e) => setFocus(e.target.value)}
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none"
@@ -289,32 +367,41 @@ export default function RoutineBuilder({ exercises }: { exercises: Exercise[] })
       </div>
 
       {/* ── Volume Requirements Checker ── */}
-      {SPLIT_REQUIREMENTS[focus] && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-          <p className="mb-3 text-sm font-medium text-zinc-400">
-            {focus} Volume Requirements
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {volumeCheck.map((v) => (
-              <span
-                key={v.muscle}
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  v.met
-                    ? 'bg-emerald-900/50 text-emerald-400'
-                    : 'bg-zinc-800 text-zinc-500'
-                }`}
-              >
-                {v.met ? '✓' : '○'} {v.muscle.replace(/_/g, ' ')}
-              </span>
-            ))}
+      {SPLIT_REQUIREMENTS[focus] && volumeCheck.length > 0 && (
+  <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+    <p className="mb-3 text-sm font-medium text-zinc-400">
+      Volume Check — {focus}
+    </p>
+    <div className="space-y-2">
+      {volumeCheck.map((v) => (
+        <div key={v.muscle} className="flex items-center justify-between">
+          <span className={`text-sm ${v.met ? 'text-zinc-200' : 'text-zinc-500'}`}>
+            {v.label}
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-600">
+              {v.sets} sets
+            </span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              v.status === 'none' ? 'bg-zinc-800 text-zinc-500'
+              : v.status === 'below_mev' ? 'bg-yellow-900/50 text-yellow-400'
+              : v.status === 'in_mav' ? 'bg-emerald-900/50 text-emerald-400'
+              : 'bg-red-900/50 text-red-400'
+            }`}>
+              {v.status === 'none' ? '○ Missing'
+              : v.status === 'below_mev' ? '⚠ Below MEV'
+              : v.status === 'in_mav' ? '✓ In MAV'
+              : '↑ Near MRV'}
+            </span>
           </div>
-          {allRequirementsMet && entries.length > 0 && (
-            <p className="mt-3 text-xs text-emerald-400">
-              ✓ All minimum volume requirements met for this split.
-            </p>
-          )}
         </div>
-      )}
+      ))}
+    </div>
+    <p className="mt-3 text-xs text-zinc-600">
+      MEV = minimum for growth · MAV = optimal range · MRV = recovery limit
+    </p>
+  </div>
+)}
 
       {/* ── Exercise List ── */}
       <div className="space-y-4">
