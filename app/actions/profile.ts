@@ -133,8 +133,9 @@ export async function updateProfile(data: {
       });
     }
 
-    revalidatePath('/dashboard');
-    revalidatePath('/settings');
+    const { revalidatePath: revalidate } = await import('next/cache');
+    revalidate('/dashboard');
+    revalidate('/settings');
     return { success: true };
   } catch (error) {
     console.error('Failed to update profile:', error);
