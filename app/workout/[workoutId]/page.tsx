@@ -9,8 +9,10 @@ export const dynamic = 'force-dynamic';
 export default async function LiveWorkoutPage({
   params,
 }: {
-  params: { workoutId: string };
+  params: Promise<{ workoutId: string }>;
 }) {
+  const { workoutId } = await params;
+
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
   if (!token) return redirect('/login');
@@ -24,7 +26,7 @@ export default async function LiveWorkoutPage({
   if (!profile) return redirect('/setup');
 
   const workout = await prisma.workout.findUnique({
-    where: { id: params.workoutId },
+    where: { id: workoutId },
     include: {
       routine: {
         include: {
@@ -43,7 +45,6 @@ export default async function LiveWorkoutPage({
 
   if (!workout || workout.profileId !== profile.id) return redirect('/calendar');
 
-  // For each planned exercise, get the last session history
   const exerciseHistories: Record<string, any> = {};
 
   for (const re of workout.routine?.exercises ?? []) {
@@ -64,7 +65,6 @@ export default async function LiveWorkoutPage({
       continue;
     }
 
-    // Group by workout to get last session
     const byWorkout = new Map<string, typeof lastSets>();
     lastSets.forEach((s) => {
       const wid = s.workout.date.toISOString();
@@ -115,15 +115,15 @@ export default async function LiveWorkoutPage({
           history: exerciseHistories[re.exerciseId] ?? null,
         }))}
         loggedSets={workout.sets.map((s) => ({
-            id: s.id,
-            exerciseId: s.exerciseId,
-            weightLbs: s.weightLbs,
-            reps: s.reps,
-            rir: s.rir,
-            isWarmup: s.isWarmup,
-            executionOrder: s.executionOrder,
-            setType: s.setType ?? 'STRAIGHT',
-            setGroupId: s.setGroupId ?? null,
+          id: s.id,
+          exerciseId: s.exerciseId,
+          weightLbs: s.weightLbs,
+          reps: s.reps,
+          rir: s.rir,
+          isWarmup: s.isWarmup,
+          executionOrder: s.executionOrder,
+          setType: s.setType ?? 'STRAIGHT',
+          setGroupId: s.setGroupId ?? null,
         }))}
         profileId={profile.id}
       />

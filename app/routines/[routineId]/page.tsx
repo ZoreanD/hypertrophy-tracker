@@ -9,8 +9,10 @@ export const dynamic = 'force-dynamic';
 export default async function EditRoutinePage({
   params,
 }: {
-  params: { routineId: string };
+  params: Promise<{ routineId: string }>;
 }) {
+  const { routineId } = await params;
+
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
   if (!token) return redirect('/login');
@@ -24,7 +26,7 @@ export default async function EditRoutinePage({
   if (!profile) return redirect('/setup');
 
   const routine = await prisma.routine.findUnique({
-    where: { id: params.routineId },
+    where: { id: routineId },
     include: {
       exercises: {
         include: { exercise: true },
