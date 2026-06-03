@@ -1,6 +1,6 @@
 {
-  "name": "Hypertrophy Tracker",
-  "short_name": "Hypertrophy",
+  "name": "Zorean Hypertrophy",
+  "short_name": "ZHyper",
   "description": "Science-based volume and overload tracking.",
   "start_url": "/dashboard",
   "display": "standalone",
