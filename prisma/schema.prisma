@@ -217,7 +217,8 @@ model RoutineExercise {
   targetRepMax  Int
   targetRir     Float
   restTimerSecs Int?
-
+  progressionStyle String @default("DOUBLE_PROGRESSION")
+  
   routine       Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
   exercise      Exercise @relation(fields: [exerciseId], references: [id])
 }
