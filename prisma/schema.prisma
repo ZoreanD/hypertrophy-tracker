@@ -1,91 +1,261 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  USER
-  ADMIN
-}
+// -----------------------------------------------------------------------------
+// USER & PROFILE
+// -----------------------------------------------------------------------------
 
-enum FitnessGoal {
-  CUT
-  BULK
-  MAINTAIN
-}
-
-// 1. NEW: The isolated authentication table
 model User {
   id           String    @id @default(uuid())
   username     String    @unique
   passwordHash String
-  profile      Profile?
   createdAt    DateTime  @default(now())
+  profile      Profile?
 }
 
 model Profile {
-  id             String        @id @default(uuid())
-  // 2. NEW: Link the profile to a specific user
-  userId         String        @unique
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  role           Role          @default(ADMIN)
-  birthDate      DateTime
+  id             String       @id @default(uuid())
+  userId         String       @unique
   heightCm       Float
+  birthDate      DateTime
   gender         String
-  currentGoal    FitnessGoal   @default(MAINTAIN)
-  weeklyGoalRate Float
-  metrics        BodyMetric[]
+  currentGoal    FitnessGoal  @default(MAINTAIN)
+  weeklyGoalRate Float        @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bodyMetrics    BodyMetric[]
   workouts       Workout[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  routines       Routine[]
 }
 
 model BodyMetric {
-  id               String   @id @default(uuid())
-  profileId        String
-  date             DateTime @default(now())
-  weightKg         Float
-  bodyFatPct       Float?
-  calculatedTdee   Float
-  targetCalories   Int
-  targetProtein    Int
-  profile          Profile  @relation(fields: [profileId], references: [id])
+  id             String   @id @default(uuid())
+  profileId      String
+  date           DateTime @default(now())
+  weightKg       Float
+  calculatedTdee Int?
+  targetCalories Int?
+  targetProtein  Int?
+
+  profile        Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, date])
 }
 
-model Exercise {
-  id             String   @id @default(uuid())
-  name           String   @unique
-  muscleGroup    String
-  isCompound     Boolean  @default(false)
-  sets           Set[]
+// -----------------------------------------------------------------------------
+// SCIENTIFIC EXERCISE DICTIONARY (THE ANATOMY ENGINE)
+//
+// Granular muscle enum based on EMG literature:
+//
+// BICEPS:
+//   Long head (lateral/outer): peak — narrow grip, incline, Bayesian curls
+//   Short head (medial/inner): width — wide grip, preacher, spider curls
+//   Brachialis: deep elbow flexor — neutral/pronated grip (hammer, reverse)
+//   Brachioradialis: forearm flexor — hammer curls, reverse curls
+//   Sources: Myomax EMG (2025), ACE (2014), Oliveira et al. (2009)
+//
+// TRICEPS:
+//   Long head: crosses shoulder — overhead extensions, kickbacks
+//   Lateral head: outer horseshoe — pushdowns with bar
+//   Medial head: deep, type I dominant, recruited first in all movements
+//   Sources: Boehren's & Buskies (2000), ACE (2012), Kim et al. (2011)
+//
+// QUADS:
+//   Rectus femoris: crosses hip — leg extensions are primary developer
+//   Vastus lateralis: outer sweep — squats grow mid-to-knee region
+//   Vastus medialis: teardrop — deep squats, hack squats
+//   Sources: Strengthlog (2025), squat vs extension ultrasound studies
+//
+// HAMSTRINGS:
+//   Biceps femoris (lateral): prone/supine leg curls
+//   Medial (semi-T + semi-M): RDLs, kettlebell swings, good mornings
+//   Sources: McAllister et al. (2014), Zebis et al. (2013)
+//
+// CALVES:
+//   Gastrocnemius: crosses knee, standing raises — 2x more hypertrophy
+//   Soleus: single-joint, seated raises (bent knee)
+//   Sources: Kinoshita et al. (2025), Schoenfeld & Contreras
+//
+// BACK:
+//   Lats: single unit (grip width doesn't significantly alter activation)
+//   Traps split: upper (shrugs), mid (rows), lower (pulldowns)
+//   Rhomboids: retraction during rows
+//   Sources: Lehman et al. (2004), NCBI PMC12452428 (2025)
+// -----------------------------------------------------------------------------
+
+enum Muscle {
+  // Chest
+  CHEST_UPPER
+  CHEST_MID_LOWER
+
+  // Shoulders
+  FRONT_DELT
+  SIDE_DELT
+  REAR_DELT
+
+  // Back
+  LATS
+  TRAPS_UPPER
+  TRAPS_MID
+  TRAPS_LOWER
+  RHOMBOIDS
+  LOWER_BACK
+  TERES_MAJOR
+
+  // Arms — Biceps complex
+  BICEPS_LONG_HEAD
+  BICEPS_SHORT_HEAD
+  BRACHIALIS
+  BRACHIORADIALIS
+
+  // Arms — Triceps complex
+  TRICEPS_LONG_HEAD
+  TRICEPS_LATERAL_HEAD
+  TRICEPS_MEDIAL_HEAD
+
+  // Arms — Forearms
+  FOREARMS
+
+  // Core
+  ABS
+  OBLIQUES
+
+  // Quads
+  QUAD_RECTUS_FEMORIS
+  QUAD_VASTUS_LATERALIS
+  QUAD_VASTUS_MEDIALIS
+
+  // Hamstrings
+  HAMSTRING_BICEPS_FEMORIS
+  HAMSTRING_MEDIAL
+
+  // Glutes
+  GLUTE_MAX
+  GLUTE_MED
+
+  // Calves
+  GASTROCNEMIUS
+  SOLEUS
+
+  // Hip
+  HIP_ABDUCTOR
+  HIP_ADDUCTOR
+
+  // Neck
+  NECK
 }
 
+enum Equipment {
+  BARBELL
+  DUMBBELL
+  CABLE
+  MACHINE_SELECTORIZED
+  MACHINE_PLATE_LOADED
+  SMITH_MACHINE
+  BODYWEIGHT
+  ASSISTED_BODYWEIGHT
+  KETTLEBELL
+  FREEMOTION
+  OTHER
+}
+
+enum MovementPattern {
+  VERTICAL_PUSH
+  VERTICAL_PULL
+  HORIZONTAL_PUSH
+  HORIZONTAL_PULL
+  SQUAT
+  HINGE
+  LUNGE
+  ISOLATION
+  CARRY
+}
+
+model Exercise {
+  id               String           @id @default(uuid())
+  name             String           @unique
+  primaryMuscle    Muscle
+  secondaryMuscles Muscle[]
+  equipment        Equipment
+  movementPattern  MovementPattern
+  sets             Set[]
+  routineExercises RoutineExercise[]
+}
+
+// -----------------------------------------------------------------------------
+// ROUTINE PLANNING
+// -----------------------------------------------------------------------------
+
+model Routine {
+  id          String   @id @default(uuid())
+  profileId   String
+  name        String
+  focus       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  exercises   RoutineExercise[]
+  workouts    Workout[]
+}
+
+model RoutineExercise {
+  id            String   @id @default(uuid())
+  routineId     String
+  exerciseId    String
+  order         Int
+  targetSets    Int
+  targetRepMin  Int
+  targetRepMax  Int
+  targetRir     Float
+  restTimerSecs Int?
+
+  routine       Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercise      Exercise @relation(fields: [exerciseId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// WORKOUT LOGGING
+// -----------------------------------------------------------------------------
+
 model Workout {
-  id             String   @id @default(uuid())
-  profileId      String
-  date           DateTime @default(now())
-  focus          String?
-  durationMins   Int?
-  notes          String?
-  profile        Profile  @relation(fields: [profileId], references: [id])
-  sets           Set[]
+  id           String   @id @default(uuid())
+  profileId    String
+  routineId    String?
+  focus        String
+  durationMins Int
+  notes        String?
+  date         DateTime @default(now())
+
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  routine      Routine? @relation(fields: [routineId], references: [id])
+  sets         Set[]
 }
 
 model Set {
-  id             String   @id @default(uuid())
-  workoutId      String
-  exerciseId     String
-  weightLbs      Float
-  reps           Int
-  rir            Int
-  workout        Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  exercise       Exercise @relation(fields: [exerciseId], references: [id])
-  createdAt      DateTime @default(now())
+  id         String   @id @default(uuid())
+  workoutId  String
+  exerciseId String
+  weightLbs  Float
+  reps       Int
+  rir        Float
+  isWarmup   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+}
+
+enum FitnessGoal {
+  BULK
+  CUT
+  MAINTAIN
 }
