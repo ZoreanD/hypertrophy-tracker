@@ -39,12 +39,20 @@ export default async function RoutinesPage() {
             <h1 className="text-3xl font-bold tracking-tight text-white">Routines</h1>
             <p className="mt-1 text-zinc-400">Your saved training templates.</p>
           </div>
-          <Link
-            href="/routines/new"
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
-          >
-            + New Routine
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white"
+            >
+              ← Dashboard
+            </Link>
+            <Link
+              href="/routines/new"
+              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+            >
+              + New Routine
+            </Link>
+          </div>
         </header>
 
         {routines.length === 0 ? (
