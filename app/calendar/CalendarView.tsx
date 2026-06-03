@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { assignRoutineToDay, removeRoutineFromDay } from '../actions/calendar';
+import { assignRoutineToDay, removeRoutineFromDay, moveScheduledWorkout } from '../actions/calendar';
+import { startWorkout } from '../actions/workout-session';
 
 type ScheduledItem = {
   id: string;
@@ -54,13 +55,12 @@ export default function CalendarView({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedRoutineId, setSelectedRoutineId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [movingItem, setMovingItem] = useState<ScheduledItem | null>(null);
 
-  // Build calendar grid
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
   const today = new Date().toISOString().split('T')[0];
 
-  // Map scheduled items by date string
   const scheduledByDate: Record<string, ScheduledItem[]> = {};
   scheduled.forEach((s) => {
     const dateKey = s.date.split('T')[0];
@@ -76,17 +76,20 @@ export default function CalendarView({
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
     else setMonth(m => m - 1);
     setSelectedDate(null);
+    setMovingItem(null);
   }
 
   function nextMonth() {
     if (month === 12) { setYear(y => y + 1); setMonth(1); }
     else setMonth(m => m + 1);
     setSelectedDate(null);
+    setMovingItem(null);
   }
 
   function handleDayClick(dateStr: string) {
     setSelectedDate(dateStr === selectedDate ? null : dateStr);
     setSelectedRoutineId(routines[0]?.id ?? '');
+    setMovingItem(null);
   }
 
   async function handleAssign() {
@@ -101,6 +104,22 @@ export default function CalendarView({
   async function handleRemove(scheduledId: string) {
     setIsLoading(true);
     await removeRoutineFromDay(scheduledId);
+    setIsLoading(false);
+    router.refresh();
+  }
+
+  async function handleStart(item: ScheduledItem) {
+    const result = await startWorkout(item.routineId, selectedDate!);
+    if (result.success && result.workoutId) {
+      router.push(`/workout/${result.workoutId}`);
+    }
+  }
+
+  async function handleMove(itemId: string, newDate: string) {
+    setIsLoading(true);
+    await moveScheduledWorkout(itemId, newDate);
+    setMovingItem(null);
+    setSelectedDate(null);
     setIsLoading(false);
     router.refresh();
   }
@@ -203,19 +222,54 @@ export default function CalendarView({
               {selectedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-800/50 px-3 py-2"
+                  className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3 space-y-2"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-white">{item.routineName}</p>
-                    <p className="text-xs text-zinc-500">{item.routineFocus}</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-white">{item.routineName}</p>
+                      <p className="text-xs text-zinc-500">{item.routineFocus}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleStart(item)}
+                        className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                      >
+                        Start
+                      </button>
+                      <button
+                        onClick={() => setMovingItem(movingItem?.id === item.id ? null : item)}
+                        className={`rounded-md border px-3 py-1 text-xs font-semibold ${
+                          movingItem?.id === item.id
+                            ? 'border-yellow-600 text-yellow-400'
+                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                        }`}
+                      >
+                        {movingItem?.id === item.id ? 'Cancel' : 'Move'}
+                      </button>
+                      <button
+                        onClick={() => handleRemove(item.id)}
+                        disabled={isLoading}
+                        className="text-xs text-zinc-600 hover:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleRemove(item.id)}
-                    disabled={isLoading}
-                    className="text-xs text-zinc-600 hover:text-red-400"
-                  >
-                    Remove
-                  </button>
+
+                  {/* Move date picker */}
+                  {movingItem?.id === item.id && (
+                    <div className="rounded-md border border-yellow-700/50 bg-yellow-900/10 p-3 space-y-2">
+                      <p className="text-xs text-yellow-400">Pick a new date</p>
+                      <input
+                        type="date"
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-sm text-white focus:border-yellow-500 focus:outline-none"
+                        onChange={async (e) => {
+                          if (!e.target.value) return;
+                          await handleMove(item.id, e.target.value);
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

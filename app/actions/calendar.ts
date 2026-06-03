@@ -90,3 +90,20 @@ export async function getScheduledWorkouts(year: number, month: number) {
     return [];
   }
 }
+export async function moveScheduledWorkout(scheduledWorkoutId: string, newDate: string) {
+  try {
+    const profile = await getProfile();
+    if (!profile) throw new Error('Not authenticated');
+
+    await prisma.scheduledWorkout.update({
+      where: { id: scheduledWorkoutId },
+      data: { date: new Date(newDate) },
+    });
+
+    revalidatePath('/calendar');
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to move scheduled workout:', error);
+    return { success: false };
+  }
+}
