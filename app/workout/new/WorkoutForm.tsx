@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { logWorkout } from '../../actions/workout';
 
-type Exercise = { id: string; name: string; muscleGroup: string };
+type Exercise = { id: string; name: string; primaryMuscle: string; equipment: string; movementPattern: string };
 type SetInput = { exerciseId: string; weightLbs: number; reps: number; rir: number };
 
 export default function WorkoutForm({ 
