@@ -295,3 +295,31 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
     return { success: false };
   }
 }
+// Get substitute exercises matching same primaryMuscle + movementPattern
+export async function getSubstituteExercises(
+  exerciseId: string,
+  primaryMuscle: string,
+  movementPattern: string
+) {
+  try {
+    const substitutes = await prisma.exercise.findMany({
+      where: {
+        primaryMuscle: primaryMuscle as any,
+        movementPattern: movementPattern as any,
+        NOT: { id: exerciseId },
+      },
+      select: {
+        id: true,
+        name: true,
+        primaryMuscle: true,
+        equipment: true,
+        movementPattern: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+    return { success: true, substitutes };
+  } catch (error) {
+    console.error('Failed to fetch substitutes:', error);
+    return { success: true, substitutes: [] };
+  }
+}

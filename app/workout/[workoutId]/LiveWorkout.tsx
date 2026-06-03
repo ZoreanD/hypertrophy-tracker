@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { logSet, deleteSet, finishWorkout } from '../../actions/workout-session';
+import { logSet, deleteSet, finishWorkout, getSubstituteExercises } from '../../actions/workout-session';
 
 type PlannedExercise = {
   routineExerciseId: string;
@@ -44,6 +44,21 @@ type Summary = {
   durationMins: number;
 };
 
+type Substitute = {
+  id: string;
+  name: string;
+  primaryMuscle: string;
+  equipment: string;
+  movementPattern: string;
+};
+
+// Tracks swaps made during this session: original exerciseId -> replacement exercise
+type SwapRecord = {
+  originalId: string;
+  originalName: string;
+  replacement: Substitute;
+};
+
 export default function LiveWorkout({
   workout,
   plannedExercises,
@@ -65,7 +80,7 @@ export default function LiveWorkout({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
 
-  // Rest timer state
+  // Rest timer
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [restTarget, setRestTarget] = useState(120);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,7 +93,15 @@ export default function LiveWorkout({
     isWarmup: boolean;
   }>>({});
 
-  // Execution order counter
+  // Pivot state
+  const [pivotingExerciseId, setPivotingExerciseId] = useState<string | null>(null);
+  const [substitutes, setSubstitutes] = useState<Substitute[]>([]);
+  const [loadingSubstitutes, setLoadingSubstitutes] = useState(false);
+  const [swaps, setSwaps] = useState<SwapRecord[]>([]);
+
+  // Active exercises — starts as planned, can be swapped
+  const [activeExercises, setActiveExercises] = useState<PlannedExercise[]>(plannedExercises);
+
   const executionOrderRef = useRef(0);
 
   useEffect(() => {
@@ -160,7 +183,6 @@ export default function LiveWorkout({
         },
       ]);
 
-      // Clear reps and RIR, keep weight for next set
       setInputs((prev) => ({
         ...prev,
         [ex.exerciseId]: {
@@ -195,6 +217,50 @@ export default function LiveWorkout({
     }
   }
 
+  // Open pivot panel for an exercise
+  async function handleOpenPivot(ex: PlannedExercise) {
+    setPivotingExerciseId(ex.exerciseId);
+    setLoadingSubstitutes(true);
+    const result = await getSubstituteExercises(
+      ex.exerciseId,
+      ex.primaryMuscle,
+      ex.equipment // we pass equipment so UI can show it, but query uses primaryMuscle + movementPattern
+    );
+    setSubstitutes(result.substitutes ?? []);
+    setLoadingSubstitutes(false);
+  }
+
+  // Confirm the swap — replaces the exercise in activeExercises for this session only
+  function handleConfirmSwap(originalEx: PlannedExercise, substitute: Substitute) {
+    setSwaps((prev) => [
+      ...prev,
+      {
+        originalId: originalEx.exerciseId,
+        originalName: originalEx.exerciseName,
+        replacement: substitute,
+      },
+    ]);
+
+    setActiveExercises((prev) =>
+      prev.map((ex) =>
+        ex.exerciseId === originalEx.exerciseId
+          ? {
+              ...ex,
+              exerciseId: substitute.id,
+              exerciseName: substitute.name,
+              primaryMuscle: substitute.primaryMuscle,
+              equipment: substitute.equipment,
+              history: null, // no history for swapped exercise yet
+            }
+          : ex
+      )
+    );
+
+    setPivotingExerciseId(null);
+    setSubstitutes([]);
+    setExpandedExercise(substitute.id);
+  }
+
   function getProgressionHint(ex: PlannedExercise, currentOrder: number) {
     if (!ex.history) return null;
 
@@ -221,7 +287,7 @@ export default function LiveWorkout({
     };
   }
 
-  // ── Summary Screen ────────────────────────────────────────────────────────
+  // ── Summary Screen ──────────────────────────────────────────────────────
 
   if (summary) {
     const improved = summary.exerciseSummaries.filter((e) => e.progressionFlag === 'improved').length;
@@ -254,6 +320,25 @@ export default function LiveWorkout({
             {skipped > 0 && <span className="text-zinc-600">○ {skipped} skipped</span>}
           </div>
         </div>
+
+        {/* Swaps made this session */}
+        {swaps.length > 0 && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <p className="mb-2 text-sm font-medium text-zinc-400">Exercise Swaps This Session</p>
+            <div className="space-y-1">
+              {swaps.map((swap, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-zinc-500">
+                  <span className="text-red-400/70 line-through">{swap.originalName}</span>
+                  <span>→</span>
+                  <span className="text-emerald-400">{swap.replacement.name}</span>
+                  <span className="text-zinc-600">
+                    (same muscle · {swap.replacement.equipment.replace(/_/g, ' ').toLowerCase()})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {summary.deloadRecommended && (
           <div className="rounded-xl border border-yellow-700 bg-yellow-900/20 p-4">
@@ -312,7 +397,7 @@ export default function LiveWorkout({
     );
   }
 
-  // ── Live Workout Screen ───────────────────────────────────────────────────
+  // ── Live Workout Screen ─────────────────────────────────────────────────
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 pb-32 md:p-8">
@@ -335,6 +420,20 @@ export default function LiveWorkout({
           {isSubmitting ? 'Saving...' : 'Finish'}
         </button>
       </header>
+
+      {/* Swap banner — shows active swaps */}
+      {swaps.length > 0 && (
+        <div className="rounded-lg border border-zinc-700 bg-zinc-900/50 px-4 py-2">
+          <p className="text-xs text-zinc-500">
+            {swaps.length} swap{swaps.length > 1 ? 's' : ''} this session
+            {swaps.map((s, i) => (
+              <span key={i} className="ml-2 text-zinc-400">
+                · <span className="line-through text-zinc-600">{s.originalName}</span> → {s.replacement.name}
+              </span>
+            ))}
+          </p>
+        </div>
+      )}
 
       {/* Rest Timer Banner */}
       {restTimer !== null && (
@@ -374,12 +473,14 @@ export default function LiveWorkout({
       )}
 
       {/* Exercise List */}
-      {plannedExercises.map((ex, index) => {
+      {activeExercises.map((ex, index) => {
         const setsForExercise = loggedSets.filter(
           (s) => s.exerciseId === ex.exerciseId && !s.isWarmup
         );
         const isComplete = setsForExercise.length >= ex.targetSets;
         const isExpanded = expandedExercise === ex.exerciseId;
+        const isPivoting = pivotingExerciseId === ex.exerciseId;
+        const wasSwapped = swaps.some((s) => s.replacement.id === ex.exerciseId);
         const input = getInput(ex.exerciseId, ex.history);
         const hint = getProgressionHint(ex, index);
 
@@ -389,39 +490,114 @@ export default function LiveWorkout({
             className={`rounded-xl border transition-colors ${
               isComplete
                 ? 'border-emerald-700 bg-emerald-950/20'
+                : isPivoting
+                ? 'border-yellow-600 bg-yellow-950/10'
                 : isExpanded
                 ? 'border-zinc-600 bg-zinc-900'
                 : 'border-zinc-800 bg-zinc-900/30'
             }`}
           >
-            {/* Exercise Header — tap to expand */}
-            <button
-              className="flex w-full items-center justify-between p-4 text-left"
-              onClick={() => setExpandedExercise(isExpanded ? null : ex.exerciseId)}
-            >
-              <div className="flex items-center gap-3">
-                <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+            {/* Exercise Header */}
+            <div className="flex items-center justify-between p-4">
+              <button
+                className="flex flex-1 items-center gap-3 text-left"
+                onClick={() => {
+                  setExpandedExercise(isExpanded ? null : ex.exerciseId);
+                  setPivotingExerciseId(null);
+                }}
+              >
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                   isComplete ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400'
                 }`}>
                   {isComplete ? '✓' : index + 1}
                 </span>
                 <div>
-                  <p className={`font-semibold ${isComplete ? 'text-emerald-300' : 'text-white'}`}>
-                    {ex.exerciseName}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className={`font-semibold ${isComplete ? 'text-emerald-300' : 'text-white'}`}>
+                      {ex.exerciseName}
+                    </p>
+                    {wasSwapped && (
+                      <span className="rounded-full bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-400">
+                        swapped
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-zinc-500">
                     {setsForExercise.length}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR
                   </p>
                 </div>
+              </button>
+
+              {/* Swap button — only shown if no sets logged yet for this exercise */}
+              {setsForExercise.length === 0 && !isComplete && (
+                <button
+                  onClick={() => {
+                    if (isPivoting) {
+                      setPivotingExerciseId(null);
+                      setSubstitutes([]);
+                    } else {
+                      handleOpenPivot(ex);
+                      setExpandedExercise(null);
+                    }
+                  }}
+                  className={`ml-2 shrink-0 rounded-md border px-2 py-1 text-xs ${
+                    isPivoting
+                      ? 'border-yellow-600 text-yellow-400'
+                      : 'border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  {isPivoting ? 'Cancel' : 'Swap'}
+                </button>
+              )}
+
+              <span className="ml-2 text-zinc-600 text-sm">
+                {isExpanded ? '▲' : '▼'}
+              </span>
+            </div>
+
+            {/* Pivot Panel */}
+            {isPivoting && (
+              <div className="border-t border-zinc-800 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-yellow-400">Find a substitute</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Same primary muscle · same movement pattern · different equipment
+                  </p>
+                </div>
+
+                {loadingSubstitutes ? (
+                  <p className="text-xs text-zinc-500">Loading substitutes...</p>
+                ) : substitutes.length === 0 ? (
+                  <p className="text-xs text-zinc-500">
+                    No substitutes found for this exact muscle + movement combination.
+                    You can still log any exercise manually.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {substitutes.map((sub) => (
+                      <button
+                        key={sub.id}
+                        onClick={() => handleConfirmSwap(ex, sub)}
+                        className="flex w-full items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-2.5 text-left hover:border-emerald-600 hover:bg-emerald-950/20"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-white">{sub.name}</p>
+                          <p className="text-xs text-zinc-500">
+                            {sub.equipment.replace(/_/g, ' ').toLowerCase()}
+                          </p>
+                        </div>
+                        <span className="text-xs text-emerald-400">Use this →</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span className="text-zinc-600">{isExpanded ? '▲' : '▼'}</span>
-            </button>
+            )}
 
             {/* Expanded Content */}
-            {isExpanded && (
+            {isExpanded && !isPivoting && (
               <div className="space-y-4 border-t border-zinc-800 p-4">
 
-                {/* History / Progression Hint */}
                 {hint && (
                   <div className={`rounded-lg p-3 text-xs ${
                     hint.type === 'increase' ? 'bg-emerald-900/30 text-emerald-400'
@@ -432,7 +608,6 @@ export default function LiveWorkout({
                   </div>
                 )}
 
-                {/* Previous sets for reference */}
                 {ex.history && (
                   <div className="flex flex-wrap gap-2">
                     <span className="text-xs text-zinc-600">Last session:</span>
@@ -444,7 +619,6 @@ export default function LiveWorkout({
                   </div>
                 )}
 
-                {/* Logged sets this session */}
                 {setsForExercise.length > 0 && (
                   <div className="space-y-1">
                     {setsForExercise.map((s, i) => (
@@ -465,7 +639,6 @@ export default function LiveWorkout({
                   </div>
                 )}
 
-                {/* Input Row */}
                 {!isComplete && (
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-2">
@@ -534,7 +707,7 @@ export default function LiveWorkout({
         );
       })}
 
-      {/* Finish Button (bottom) */}
+      {/* Finish Button */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 bg-zinc-950/95 p-4 backdrop-blur">
         <div className="mx-auto max-w-2xl">
           <button
