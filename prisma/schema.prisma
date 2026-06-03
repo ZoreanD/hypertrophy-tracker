@@ -29,10 +29,10 @@ model Profile {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bodyMetrics    BodyMetric[]
-  workouts       Workout[]
-  routines       Routine[]
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bodyMetrics       BodyMetric[]
+  workouts          Workout[]
+  routines          Routine[]
   scheduledWorkouts ScheduledWorkout[]
 }
 
@@ -180,8 +180,8 @@ enum MovementPattern {
 }
 
 model Exercise {
-  id               String           @id @default(uuid())
-  name             String           @unique
+  id               String            @id @default(uuid())
+  name             String            @unique
   primaryMuscle    Muscle
   secondaryMuscles Muscle[]
   equipment        Equipment
@@ -195,34 +195,34 @@ model Exercise {
 // -----------------------------------------------------------------------------
 
 model Routine {
-  id          String   @id @default(uuid())
-  profileId   String
-  name        String
-  focus       String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  profileId String
+  name      String
+  focus     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  exercises   RoutineExercise[]
-  workouts    Workout[]
+  profile           Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  exercises         RoutineExercise[]
+  workouts          Workout[]
   scheduledWorkouts ScheduledWorkout[]
 }
 
 model RoutineExercise {
-  id            String   @id @default(uuid())
-  routineId     String
-  exerciseId    String
-  order         Int
-  targetSets    Int
-  targetRepMin  Int
-  targetRepMax  Int
-  targetRir     Float
-  restTimerSecs Int?
-  progressionStyle String @default("DOUBLE_PROGRESSION")
-  
-  routine       Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  exercise      Exercise @relation(fields: [exerciseId], references: [id])
+  id               String  @id @default(uuid())
+  routineId        String
+  exerciseId       String
+  order            Int
+  targetSets       Int
+  targetRepMin     Int
+  targetRepMax     Int
+  targetRir        Float
+  restTimerSecs    Int?
+  progressionStyle String  @default("DOUBLE_PROGRESSION")
+
+  routine  Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
 }
 
 // -----------------------------------------------------------------------------
@@ -238,10 +238,20 @@ model Workout {
   notes        String?
   date         DateTime @default(now())
 
-  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  routine      Routine? @relation(fields: [routineId], references: [id])
-  sets         Set[]
+  profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  routine Routine? @relation(fields: [routineId], references: [id])
+  sets    Set[]
 }
+
+// Set type determines how progressive overload is calculated:
+//
+// STRAIGHT        — normal set; compare against other straight sets same exercise
+// SUPERSET_A      — first exercise in a superset pair; compare against same pair
+// SUPERSET_B      — second exercise in a superset pair; compare against same pair
+// MYOREP_ACTIVATION — activation set; compare against other activation sets
+// MYOREP_MINI     — mini-set in myo-rep sequence; sum and compare totals
+// DROPSET_PRIMARY — first/heaviest drop; compare against other primary drops
+// DROPSET_DROP    — subsequent reduced-weight drops; sum volume across drops
 
 model Set {
   id             String   @id @default(uuid())
@@ -251,11 +261,13 @@ model Set {
   reps           Int
   rir            Float
   isWarmup       Boolean  @default(false)
-  executionOrder Int      @default(0)    // actual position in session (1st, 2nd, etc.)
+  executionOrder Int      @default(0)
+  setType        String   @default("STRAIGHT")
+  setGroupId     String?  // links sets in a superset, myo-rep, or drop set sequence
   createdAt      DateTime @default(now())
 
-  workout        Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  exercise       Exercise @relation(fields: [exerciseId], references: [id])
+  workout  Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
 }
 
 model ScheduledWorkout {
@@ -266,8 +278,8 @@ model ScheduledWorkout {
   notes     String?
   createdAt DateTime @default(now())
 
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  routine   Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, date, routineId])
 }

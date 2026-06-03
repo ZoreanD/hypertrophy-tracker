@@ -115,13 +115,15 @@ export default async function LiveWorkoutPage({
           history: exerciseHistories[re.exerciseId] ?? null,
         }))}
         loggedSets={workout.sets.map((s) => ({
-          id: s.id,
-          exerciseId: s.exerciseId,
-          weightLbs: s.weightLbs,
-          reps: s.reps,
-          rir: s.rir,
-          isWarmup: s.isWarmup,
-          executionOrder: s.executionOrder,
+            id: s.id,
+            exerciseId: s.exerciseId,
+            weightLbs: s.weightLbs,
+            reps: s.reps,
+            rir: s.rir,
+            isWarmup: s.isWarmup,
+            executionOrder: s.executionOrder,
+            setType: s.setType ?? 'STRAIGHT',
+            setGroupId: s.setGroupId ?? null,
         }))}
         profileId={profile.id}
       />
