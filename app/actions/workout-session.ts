@@ -150,64 +150,6 @@ export async function getExerciseHistory(
   }
 }
 
-// Get progressive overload suggestion based on double progression
-export function getProgressionSuggestion(history: {
-  lastWeight: number;
-  lastReps: number;
-  lastRir: number;
-  targetRepMax: number;
-  targetRepMin: number;
-  targetRir: number;
-  positionChanged: boolean;
-  lastExecutionOrder: number;
-  currentExecutionOrder: number;
-}) {
-  const {
-    lastWeight, lastReps, lastRir,
-    targetRepMax, targetRepMin, targetRir,
-    positionChanged, lastExecutionOrder, currentExecutionOrder,
-  } = history;
-
-  // Hit top of range at target RIR or better — suggest weight increase
-  const hitTopOfRange = lastReps >= targetRepMax;
-  const rirWasGood = lastRir >= targetRir;
-
-  // Determine weight increment based on exercise type
-  // We'll use a simple heuristic: lower body lifts get bigger jumps
-  const isLowerBody = false; // caller can pass this
-  const increment = 5; // default 5lbs, can be refined
-
-  let suggestedWeight = lastWeight;
-  let suggestion = '';
-  let flag: 'increase' | 'maintain' | 'decrease' | 'context_change' = 'maintain';
-
-  if (positionChanged) {
-    const orderDiff = currentExecutionOrder - lastExecutionOrder;
-    const direction = orderDiff > 0 ? 'later' : 'earlier';
-    const expectedDrop = orderDiff > 0 ? '5–15%' : '';
-
-    flag = 'context_change';
-    suggestion = `Last session: exercise ${lastExecutionOrder + 1}. Today: exercise ${currentExecutionOrder + 1} (${direction} in session).${
-      direction === 'later' ? ` Expect ~${expectedDrop} fewer reps at same weight.` : ' You may perform better fresh.'
-    }`;
-    suggestedWeight = lastWeight; // maintain weight on position change
-  } else if (hitTopOfRange && rirWasGood) {
-    suggestedWeight = lastWeight + increment;
-    flag = 'increase';
-    suggestion = `Last session: ${lastReps} reps @ ${lastWeight}lbs (${lastRir} RIR) — hit top of range. Try +${increment}lbs today.`;
-  } else if (lastRir > targetRir + 1) {
-    // Left too many reps in the tank — bigger jump possible
-    suggestedWeight = lastWeight + increment * 2;
-    flag = 'increase';
-    suggestion = `Last session: ${lastReps} reps @ ${lastWeight}lbs (${lastRir} RIR) — too much left in reserve. Consider +${increment * 2}lbs.`;
-  } else {
-    flag = 'maintain';
-    suggestion = `Last session: ${lastReps} reps @ ${lastWeight}lbs (${lastRir} RIR). Target ${targetRepMin}–${targetRepMax} reps. Maintain weight.`;
-  }
-
-  return { suggestedWeight, suggestion, flag };
-}
-
 // Finish the workout and calculate summary
 export async function finishWorkout(workoutId: string, durationMins: number) {
   try {
