@@ -33,6 +33,7 @@ model Profile {
   bodyMetrics    BodyMetric[]
   workouts       Workout[]
   routines       Routine[]
+  scheduledWorkouts ScheduledWorkout[]
 }
 
 model BodyMetric {
@@ -205,6 +206,7 @@ model Routine {
   profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   exercises   RoutineExercise[]
   workouts    Workout[]
+  scheduledWorkouts ScheduledWorkout[]
 }
 
 model RoutineExercise {
@@ -253,6 +255,20 @@ model Set {
 
   workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exercise   Exercise @relation(fields: [exerciseId], references: [id])
+}
+
+model ScheduledWorkout {
+  id        String   @id @default(uuid())
+  profileId String
+  routineId String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  routine   Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, date, routineId])
 }
 
 enum FitnessGoal {

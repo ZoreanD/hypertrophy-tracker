@@ -24,8 +24,8 @@ export default async function Dashboard() {
   const profile = await prisma.profile.findUnique({
     where: { userId: decodedToken.userId },
   });
-  
-  if (!profile) return redirect('/setup'); 
+
+  if (!profile) return redirect('/setup');
 
   // 3. Grab an exercise from the database to test the chart
   const testExercise = await prisma.exercise.findFirst({
@@ -57,7 +57,7 @@ export default async function Dashboard() {
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
-        
+
         {/* Header */}
         <header className="flex items-center justify-between border-b border-zinc-800 pb-6">
           <div>
@@ -66,18 +66,24 @@ export default async function Dashboard() {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <LogoutButton />
-            <Link 
-              href="/workout/new" 
-              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
+            <Link
+              href="/routines"
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white"
             >
-                Routines
-              </Link>
-              <Link 
-                href="/workout/new" 
-                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
+              Routines
+            </Link>
+            <Link
+              href="/calendar"
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white"
+            >
+              Calendar
+            </Link>
+            <Link
+              href="/workout/new"
+              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
             >
               + Log Workout
             </Link>
@@ -112,14 +118,14 @@ export default async function Dashboard() {
           </div>
         </section>
 
-        {/* --- The Chart Component --- */}
+        {/* Progression Chart */}
         {testExercise && (
           <section className="mt-12">
             <h2 className="mb-4 text-xl font-semibold text-zinc-200">Progression Tracking</h2>
-            <ProgressChart 
-              profileId={profile.id} 
-              exerciseId={testExercise.id} 
-              exerciseName={testExercise.name} 
+            <ProgressChart
+              profileId={profile.id}
+              exerciseId={testExercise.id}
+              exerciseName={testExercise.name}
             />
           </section>
         )}
