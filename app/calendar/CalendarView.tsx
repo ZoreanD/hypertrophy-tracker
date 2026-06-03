@@ -40,8 +40,8 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
 export default function CalendarView({
   year: initialYear,
   month: initialMonth,
-  scheduled,
-  routines,
+  scheduled = [],
+  routines = [],
 }: {
   year: number;
   month: number;
