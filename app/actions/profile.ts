@@ -4,15 +4,18 @@ import prisma from '../../lib/prisma';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 
-function calculateMetrics(data: {
+// Add weeklyGoalRate to calculateMetrics data type
+function calculateMetricsWithRate(data: {
   weightKg: number;
   heightCm: number;
   ageYears: number;
   gender: string;
   goal: string;
+  targetWeightKg?: number;
+  weeklyGoalRate?: number;
   weeklyWorkouts?: number;
 }) {
-  const { weightKg, heightCm, ageYears, gender, goal, weeklyWorkouts = 3 } = data;
+  const { weightKg, heightCm, ageYears, gender, goal, targetWeightKg, weeklyGoalRate = 0.5, weeklyWorkouts = 3 } = data;
 
   let bmr: number;
   if (gender === 'F') {
@@ -30,9 +33,20 @@ function calculateMetrics(data: {
   const tdee = Math.round(bmr * multiplier);
 
   let targetCalories: number;
-  if (goal === 'CUT') targetCalories = tdee - 500;
-  else if (goal === 'BULK') targetCalories = tdee + 275;
-  else targetCalories = tdee;
+  if (goal === 'CUT') {
+    if (targetWeightKg && targetWeightKg < weightKg) {
+      const kgToLose = weightKg - targetWeightKg;
+      const deficitScale = Math.min(kgToLose / 5, 1);
+      const deficit = Math.round(300 + deficitScale * 200);
+      targetCalories = tdee - deficit;
+    } else {
+      targetCalories = tdee - 500;
+    }
+  } else if (goal === 'BULK') {
+    targetCalories = tdee + 275;
+  } else {
+    targetCalories = tdee;
+  }
 
   let proteinMultiplier: number;
   if (goal === 'CUT') proteinMultiplier = 2.2;
@@ -41,16 +55,24 @@ function calculateMetrics(data: {
 
   const targetProtein = Math.round(weightKg * proteinMultiplier);
 
-  return { calculatedTdee: tdee, targetCalories, targetProtein };
+  let weeksToGoal: number | null = null;
+  if (targetWeightKg && weeklyGoalRate > 0) {
+    const kgDiff = Math.abs(weightKg - targetWeightKg);
+    weeksToGoal = kgDiff > 0 ? Math.round(kgDiff / weeklyGoalRate) : null;
+  }
+
+  return { calculatedTdee: tdee, targetCalories, targetProtein, weeksToGoal };
 }
 
 export async function createProfile(data: {
   heightCm: number | string;
   weightLbs: number | string;
+  birthMonth: number | string;
   birthYear: number | string;
   gender: string;
   goal: string;
   weeklyGoalRate: number | string;
+  targetWeightLbs?: number | string;
 }) {
   try {
     const cookieStore = await cookies();
@@ -61,22 +83,31 @@ export async function createProfile(data: {
     if (!decodedToken) throw new Error('Invalid or expired token');
 
     const birthYear = Number(data.birthYear);
-    const birthDate = new Date(birthYear, 0, 1);
-    const numericAge = new Date().getFullYear() - birthYear;
+    const birthMonth = Number(data.birthMonth) - 1; // JS months are 0-indexed
+    const birthDate = new Date(birthYear, birthMonth, 1);
+    const now = new Date();
+    const numericAge = now.getFullYear() - birthYear -
+      (now.getMonth() < birthMonth ? 1 : 0);
+
     const numericHeight = Number(data.heightCm);
     const numericWeeklyRate = Number(data.weeklyGoalRate);
     const weightKg = Number(data.weightLbs) / 2.20462;
+    const targetWeightKg = data.targetWeightLbs
+      ? Number(data.targetWeightLbs) / 2.20462
+      : undefined;
     const safeGoal = data.goal.toUpperCase();
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const { calculatedTdee, targetCalories, targetProtein } = calculateMetrics({
+    const { calculatedTdee, targetCalories, targetProtein } = calculateMetricsWithRate({
       weightKg,
       heightCm: numericHeight,
       ageYears: numericAge,
       gender: data.gender,
       goal: safeGoal,
+      targetWeightKg,
+      weeklyGoalRate: numericWeeklyRate,
     });
 
     await prisma.$transaction(async (tx) => {
@@ -88,6 +119,7 @@ export async function createProfile(data: {
           gender: data.gender,
           currentGoal: safeGoal as any,
           weeklyGoalRate: numericWeeklyRate,
+          targetWeightLbs: data.targetWeightLbs ? Number(data.targetWeightLbs) : null,
         },
       });
 
@@ -113,10 +145,12 @@ export async function createProfile(data: {
 export async function updateProfile(data: {
   heightCm: number | string;
   weightLbs: number | string;
+  birthMonth: number | string;
   birthYear: number | string;
   gender: string;
   goal: string;
   weeklyGoalRate: number | string;
+  targetWeightLbs?: number | string;
 }) {
   try {
     const cookieStore = await cookies();
@@ -127,12 +161,19 @@ export async function updateProfile(data: {
     if (!decodedToken) throw new Error('Invalid or expired token');
 
     const birthYear = Number(data.birthYear);
-    const birthDate = new Date(birthYear, 0, 1);
-    const numericAge = new Date().getFullYear() - birthYear;
+    const birthMonth = Number(data.birthMonth) - 1;
+    const birthDate = new Date(birthYear, birthMonth, 1);
+    const now = new Date();
+    const numericAge = now.getFullYear() - birthYear -
+      (now.getMonth() < birthMonth ? 1 : 0);
+
     const numericHeight = Number(data.heightCm);
     const numericWeeklyRate = Number(data.weeklyGoalRate);
     const safeGoal = data.goal.toUpperCase();
     const weightKg = Number(data.weightLbs) / 2.20462;
+    const targetWeightKg = data.targetWeightLbs
+      ? Number(data.targetWeightLbs) / 2.20462
+      : undefined;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -145,15 +186,18 @@ export async function updateProfile(data: {
         gender: data.gender,
         currentGoal: safeGoal as any,
         weeklyGoalRate: numericWeeklyRate,
+        targetWeightLbs: data.targetWeightLbs ? Number(data.targetWeightLbs) : null,
       },
     });
 
-    const { calculatedTdee, targetCalories, targetProtein } = calculateMetrics({
+    const { calculatedTdee, targetCalories, targetProtein, weeksToGoal } = calculateMetricsWithRate({
       weightKg,
       heightCm: numericHeight,
       ageYears: numericAge,
       gender: data.gender,
       goal: safeGoal,
+      targetWeightKg,
+      weeklyGoalRate: numericWeeklyRate,
     });
 
     const profile = await prisma.profile.findUnique({
@@ -183,7 +227,7 @@ export async function updateProfile(data: {
     const { revalidatePath: revalidate } = await import('next/cache');
     revalidate('/dashboard');
     revalidate('/settings');
-    return { success: true };
+    return { success: true, weeksToGoal };
   } catch (error) {
     console.error('Failed to update profile:', error);
     return { success: false };
