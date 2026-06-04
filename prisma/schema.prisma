@@ -187,6 +187,9 @@ model Exercise {
   secondaryMuscles Muscle[]
   equipment        Equipment
   movementPattern  MovementPattern
+  isUnilateral     Boolean           @default(false)
+  isBodyweight     Boolean           @default(false)
+  isAssisted       Boolean           @default(false)
   sets             Set[]
   routineExercises RoutineExercise[]
 }
@@ -255,17 +258,20 @@ model Workout {
 // DROPSET_DROP    — subsequent reduced-weight drops; sum volume across drops
 
 model Set {
-  id             String   @id @default(uuid())
-  workoutId      String
-  exerciseId     String
-  weightLbs      Float
-  reps           Int
-  rir            Float
-  isWarmup       Boolean  @default(false)
-  executionOrder Int      @default(0)
-  setType        String   @default("STRAIGHT")
-  setGroupId     String?  // links sets in a superset, myo-rep, or drop set sequence
-  createdAt      DateTime @default(now())
+  id                   String   @id @default(uuid())
+  workoutId            String
+  exerciseId           String
+  weightLbs            Float
+  reps                 Int
+  rir                  Float
+  isWarmup             Boolean  @default(false)
+  executionOrder       Int      @default(0)
+  setType              String   @default("STRAIGHT")
+  setGroupId           String?
+  side                 String?  // LEFT, RIGHT, BOTH — null for bilateral
+  assistanceWeightLbs  Float?   // for assisted exercises
+  bodyweightLbs        Float?   // snapshot of user bodyweight at time of logging
+  createdAt            DateTime @default(now())
 
   workout  Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exercise Exercise @relation(fields: [exerciseId], references: [id])
