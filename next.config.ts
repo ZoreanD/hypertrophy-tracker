@@ -1,14 +1,15 @@
 import type { NextConfig } from "next";
-// Change the import to this:
 // @ts-ignore
-import withPWA from "next-pwa";
+import withPWA from "@ducanh2912/next-pwa";
 
-// Now use it directly as the function
 const withPWAConfig = withPWA({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
 });
 
 const nextConfig: NextConfig = {
