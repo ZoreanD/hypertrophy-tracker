@@ -205,18 +205,32 @@ export default async function Dashboard() {
   const mesocycleWeek = (weeksSinceStart % 6) + 1;
 
   // Today's scheduled workouts
-const todayStart = new Date();
+// CST = UTC-6 (CDT = UTC-5, but hardcoding CST for now)
+const CST_OFFSET = 6 * 60 * 60 * 1000; // 6 hours in ms
+const nowCST = new Date(Date.now() - CST_OFFSET);
+const todayStart = new Date(nowCST);
 todayStart.setHours(0, 0, 0, 0);
-const todayEnd = new Date();
+const todayEnd = new Date(nowCST);
 todayEnd.setHours(23, 59, 59, 999);
+// Convert back to UTC for DB query
+const todayStartUTC = new Date(todayStart.getTime() + CST_OFFSET);
+const todayEndUTC = new Date(todayEnd.getTime() + CST_OFFSET);
 
 const todayScheduled = await prisma.scheduledWorkout.findMany({
   where: {
     profileId: profile.id,
-    date: { gte: todayStart, lte: todayEnd },
+    date: { gte: todayStartUTC, lte: todayEndUTC },
   },
   include: { routine: true },
   orderBy: { date: 'asc' },
+});
+
+const todayWorkouts = await prisma.workout.findMany({
+  where: {
+    profileId: profile.id,
+    date: { gte: todayStartUTC, lte: todayEndUTC },
+  },
+  select: { id: true, routineId: true, durationMins: true },
 });
 
   return (
@@ -252,16 +266,21 @@ const todayScheduled = await prisma.scheduledWorkout.findMany({
         <section>
           <h2 className="mb-3 text-xl font-semibold text-zinc-200">Today</h2>
           <div className="space-y-2">
-            {todayScheduled.map((s) => (
-              <TodayWorkoutCard
-                key={s.id}
-                scheduledId={s.id}
-                routineId={s.routineId}
-                routineName={s.routine.name}
-                routineFocus={s.routine.focus ?? ''}
-                scheduledDate={s.date.toISOString()}
-              />
-            ))}
+            {todayScheduled.map((s) => {
+              const existing = todayWorkouts.find((w) => w.routineId === s.routineId);
+              return (
+                <TodayWorkoutCard
+                  key={s.id}
+                  scheduledId={s.id}
+                  routineId={s.routineId}
+                  routineName={s.routine.name}
+                  routineFocus={s.routine.focus ?? ''}
+                  scheduledDate={s.date.toISOString()}
+                  existingWorkoutId={existing?.id ?? null}
+                  existingDurationMins={existing?.durationMins ?? null}
+                />
+              );
+            })}
           </div>
         </section>
       )}
