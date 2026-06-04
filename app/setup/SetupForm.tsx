@@ -120,6 +120,16 @@ export default function SetupForm() {
             {birthYears.map(year => <option key={year} value={year}>{year}</option>)}
           </select>
         </div>
+        <p className="mt-1 text-xs text-zinc-500">
+          Age: <span className="text-zinc-300 font-medium">
+            {(() => {
+              const now = new Date();
+              const bMonth = parseInt(form.birthMonth) - 1;
+              const bYear = parseInt(form.birthYear);
+              return now.getFullYear() - bYear - (now.getMonth() < bMonth ? 1 : 0);
+            })()}
+          </span> years old — updates live as you change month/year
+        </p>
       </div>
 
       <div>
