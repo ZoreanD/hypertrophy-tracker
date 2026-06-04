@@ -111,8 +111,8 @@ const MUSCLE_GROUP_MAP: Record<string, string> = {
   CHEST_UPPER: 'CHEST',
   CHEST_MID_LOWER: 'CHEST',
   FRONT_DELT: 'FRONT_DELT',
-  SIDE_DELT: 'SIDE_REAR_DELT',
-  REAR_DELT: 'SIDE_REAR_DELT',
+  SIDE_DELT: 'SIDE_DELT',
+  REAR_DELT: 'REAR_DELT',
   LATS: 'BACK',
   TRAPS_MID: 'BACK',
   TRAPS_UPPER: 'BACK',
@@ -148,13 +148,14 @@ const MUSCLE_GROUP_MAP: Record<string, string> = {
 const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSets: number; mev: number; mav: number }[]> = {
   Push: [
     { muscle: 'CHEST', label: 'Chest', minSets: 2, mev: 8, mav: 18 },
-    { muscle: 'SIDE_REAR_DELT', label: 'Side/Rear Delts', minSets: 1, mev: 8, mav: 22 },
+    { muscle: 'SIDE_DELT', label: 'Side Delts', minSets: 1, mev: 6, mav: 20 },
+    { muscle: 'FRONT_DELT', label: 'Front Delts', minSets: 0, mev: 0, mav: 6 },
     { muscle: 'TRICEPS', label: 'Triceps', minSets: 1, mev: 4, mav: 12 },
   ],
   Pull: [
     { muscle: 'BACK', label: 'Back / Lats', minSets: 2, mev: 8, mav: 20 },
     { muscle: 'BICEPS', label: 'Biceps', minSets: 1, mev: 6, mav: 14 },
-    { muscle: 'SIDE_REAR_DELT', label: 'Rear Delt', minSets: 1, mev: 8, mav: 22 },
+    { muscle: 'REAR_DELT', label: 'Rear Delts', minSets: 1, mev: 6, mav: 16 },
   ],
   Legs: [
     { muscle: 'QUADS', label: 'Quads', minSets: 2, mev: 8, mav: 18 },
@@ -165,7 +166,9 @@ const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSet
   Upper: [
     { muscle: 'CHEST', label: 'Chest', minSets: 1, mev: 8, mav: 18 },
     { muscle: 'BACK', label: 'Back', minSets: 1, mev: 8, mav: 20 },
-    { muscle: 'SIDE_REAR_DELT', label: 'Delts', minSets: 1, mev: 8, mav: 22 },
+    { muscle: 'SIDE_DELT', label: 'Side Delts', minSets: 1, mev: 6, mav: 20 },
+    { muscle: 'FRONT_DELT', label: 'Front Delts', minSets: 0, mev: 0, mav: 6 },
+    { muscle: 'REAR_DELT', label: 'Rear Delts', minSets: 1, mev: 6, mav: 16 },
     { muscle: 'BICEPS', label: 'Biceps', minSets: 1, mev: 6, mav: 14 },
     { muscle: 'TRICEPS', label: 'Triceps', minSets: 1, mev: 4, mav: 12 },
   ],
@@ -178,9 +181,14 @@ const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSet
   Fullbody: [
     { muscle: 'QUADS', label: 'Quads', minSets: 1, mev: 8, mav: 18 },
     { muscle: 'HAMSTRINGS', label: 'Hamstrings', minSets: 1, mev: 6, mav: 16 },
+    { muscle: 'GLUTES', label: 'Glutes', minSets: 1, mev: 0, mav: 12 },
     { muscle: 'CHEST', label: 'Chest', minSets: 1, mev: 8, mav: 18 },
     { muscle: 'BACK', label: 'Back', minSets: 1, mev: 8, mav: 20 },
-    { muscle: 'SIDE_REAR_DELT', label: 'Delts', minSets: 1, mev: 8, mav: 22 },
+    { muscle: 'SIDE_DELT', label: 'Side Delts', minSets: 1, mev: 6, mav: 20 },
+    { muscle: 'REAR_DELT', label: 'Rear Delts', minSets: 1, mev: 6, mav: 16 },
+    { muscle: 'FRONT_DELT', label: 'Front Delts', minSets: 0, mev: 0, mav: 6 },
+    { muscle: 'BICEPS', label: 'Biceps', minSets: 1, mev: 6, mav: 14 },
+    { muscle: 'TRICEPS', label: 'Triceps', minSets: 1, mev: 4, mav: 12 },
   ],
   Chest: [
     { muscle: 'CHEST', label: 'Chest', minSets: 3, mev: 8, mav: 18 },
@@ -189,8 +197,9 @@ const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSet
     { muscle: 'BACK', label: 'Back / Lats', minSets: 3, mev: 8, mav: 20 },
   ],
   Shoulders: [
-    { muscle: 'SIDE_REAR_DELT', label: 'Side/Rear Delts', minSets: 2, mev: 8, mav: 22 },
+    { muscle: 'SIDE_DELT', label: 'Side Delts', minSets: 2, mev: 6, mav: 20 },
     { muscle: 'FRONT_DELT', label: 'Front Delt', minSets: 1, mev: 0, mav: 6 },
+    { muscle: 'REAR_DELT', label: 'Rear Delt', minSets: 1, mev: 6, mav: 16 },
   ],
   Arms: [
     { muscle: 'BICEPS', label: 'Biceps', minSets: 2, mev: 6, mav: 14 },
@@ -201,7 +210,9 @@ const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSet
     { muscle: 'BACK', label: 'Back', minSets: 2, mev: 8, mav: 20 },
   ],
   Shoulders_Arms: [
-    { muscle: 'SIDE_REAR_DELT', label: 'Side/Rear Delts', minSets: 2, mev: 8, mav: 22 },
+    { muscle: 'SIDE_DELT', label: 'Side Delts', minSets: 2, mev: 6, mav: 20 },
+    { muscle: 'REAR_DELT', label: 'Rear Delts', minSets: 1, mev: 6, mav: 16 },
+    { muscle: 'FRONT_DELT', label: 'Front Delts', minSets: 1, mev: 0, mav: 6 },
     { muscle: 'BICEPS', label: 'Biceps', minSets: 1, mev: 6, mav: 14 },
     { muscle: 'TRICEPS', label: 'Triceps', minSets: 1, mev: 4, mav: 12 },
   ],
