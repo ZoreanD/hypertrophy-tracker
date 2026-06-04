@@ -33,6 +33,7 @@
   "exclude": [
     "node_modules",
     "prisma/patch-exercises.ts",
-    "prisma/seed.ts"
+    "prisma/seed.ts",
+    "prisma/patch-exercises-v2.ts"
   ]
 }
