@@ -239,21 +239,15 @@ const todayWorkouts = await prisma.workout.findMany({
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
 
-        <header className="border-b border-zinc-800 pb-6">
-          {/* Top row — title + nav */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm text-zinc-500">
-                {new Date(Date.now() - 5 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-                  weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago',
-                })}
-              </p>
-              <h1 className="text-3xl font-bold tracking-tight text-white">
-                Welcome back, {user?.username ?? 'Athlete'}
-              </h1>
-              <p className="mt-1 text-xs text-zinc-600 italic max-w-md">"{quote}"</p>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2 shrink-0">
+        <header className="border-b border-zinc-800 pb-6 space-y-4">
+          {/* Date + nav buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-zinc-500">
+              {new Date(Date.now() - 5 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+                weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago',
+              })}
+            </p>
+            <div className="flex flex-wrap gap-2">
               <Link href="/settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
                 Settings
               </Link>
@@ -268,6 +262,14 @@ const todayWorkouts = await prisma.workout.findMany({
               </Link>
               <LogoutButton />
             </div>
+          </div>
+
+          {/* Welcome + quote */}
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-white">
+              Welcome back, {user?.username ?? 'Athlete'}
+            </h1>
+            <p className="mt-2 text-sm text-zinc-500 italic">"{quote}"</p>
           </div>
         </header>
 
