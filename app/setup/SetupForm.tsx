@@ -4,6 +4,24 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createProfile } from '../actions/profile';
 
+const currentYear = new Date().getFullYear();
+const birthYears = Array.from({ length: currentYear - 1939 - 16 }, (_, i) => currentYear - 16 - i);
+
+const goalOptions = [
+  { value: 'CUT', label: 'Cut — Lose fat', rates: [
+    { value: '0.25', label: 'Slow (-0.25kg/week) — Maximum muscle retention' },
+    { value: '0.5', label: 'Moderate (-0.5kg/week) — Recommended' },
+    { value: '0.75', label: 'Aggressive (-0.75kg/week) — Some muscle loss risk' },
+  ]},
+  { value: 'MAINTAIN', label: 'Maintain — Body recomposition', rates: [
+    { value: '0', label: 'Maintenance calories' },
+  ]},
+  { value: 'BULK', label: 'Bulk — Build muscle', rates: [
+    { value: '0.25', label: 'Lean (+0.25kg/week) — Recommended for most' },
+    { value: '0.5', label: 'Moderate (+0.5kg/week) — Faster gains, some fat' },
+  ]},
+];
+
 export default function SetupForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -12,10 +30,10 @@ export default function SetupForm() {
     heightFt: '5',
     heightIn: '10',
     weightLbs: '180',
-    age: '25',
+    birthYear: String(currentYear - 25),
     gender: 'M',
     goal: 'MAINTAIN',
-    weeklyGoalRate: 'maintain',
+    weeklyGoalRate: '0',
   });
 
   const update = (field: string, value: string) => {
@@ -29,7 +47,7 @@ export default function SetupForm() {
     const result = await createProfile({
       heightCm: (parseInt(form.heightFt) * 12 + parseInt(form.heightIn)) * 2.54,
       weightLbs: parseFloat(form.weightLbs),
-      age: parseInt(form.age),
+      birthYear: parseInt(form.birthYear),
       gender: form.gender,
       goal: form.goal,
       weeklyGoalRate: parseFloat(form.weeklyGoalRate),
@@ -43,27 +61,11 @@ export default function SetupForm() {
     }
   };
 
-  const goalOptions = [
-    { value: 'CUT', label: 'Cut — Lose fat', rates: [
-      { value: '0.25', label: 'Slow (-0.25kg/week) — Maximum muscle retention' },
-      { value: '0.5', label: 'Moderate (-0.5kg/week) — Recommended' },
-      { value: '0.75', label: 'Aggressive (-0.75kg/week) — Some muscle loss risk' },
-    ]},
-    { value: 'MAINTAIN', label: 'Maintain — Body recomposition', rates: [
-      { value: '0', label: 'Maintenance calories' },
-    ]},
-    { value: 'BULK', label: 'Bulk — Build muscle', rates: [
-      { value: '0.25', label: 'Lean (+0.25kg/week) — Recommended for most' },
-      { value: '0.5', label: 'Moderate (+0.5kg/week) — Faster gains, some fat' },
-    ]},
-  ];
-
   const currentGoalOption = goalOptions.find(g => g.value === form.goal);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
 
-      {/* Height */}
       <div>
         <label className="mb-2 block text-sm font-medium text-zinc-400">Height</label>
         <div className="flex gap-3">
@@ -90,7 +92,6 @@ export default function SetupForm() {
         </div>
       </div>
 
-      {/* Current Weight */}
       <div>
         <label className="mb-2 block text-sm font-medium text-zinc-400">Current Weight (lbs)</label>
         <input
@@ -103,20 +104,19 @@ export default function SetupForm() {
         />
       </div>
 
-      {/* Age */}
       <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-400">Age</label>
-        <input
-          type="number"
-          value={form.age}
-          onChange={e => update('age', e.target.value)}
-          min="16" max="99"
+        <label className="mb-2 block text-sm font-medium text-zinc-400">Birth Year</label>
+        <select
+          value={form.birthYear}
+          onChange={e => update('birthYear', e.target.value)}
           className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none"
-          required
-        />
+        >
+          {birthYears.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Sex */}
       <div>
         <label className="mb-2 block text-sm font-medium text-zinc-400">Sex</label>
         <select
@@ -130,7 +130,6 @@ export default function SetupForm() {
         </select>
       </div>
 
-      {/* Goal */}
       <div>
         <label className="mb-2 block text-sm font-medium text-zinc-400">Goal</label>
         <select
@@ -148,7 +147,6 @@ export default function SetupForm() {
         </select>
       </div>
 
-      {/* Rate of Change */}
       {currentGoalOption && currentGoalOption.rates.length > 1 && (
         <div>
           <label className="mb-2 block text-sm font-medium text-zinc-400">Rate of Change</label>

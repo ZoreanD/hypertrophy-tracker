@@ -14,7 +14,6 @@ function calculateMetrics(data: {
 }) {
   const { weightKg, heightCm, ageYears, gender, goal, weeklyWorkouts = 3 } = data;
 
-  // Mifflin-St Jeor BMR
   let bmr: number;
   if (gender === 'F') {
     bmr = 10 * weightKg + 6.25 * heightCm - 5 * ageYears - 161;
@@ -22,7 +21,6 @@ function calculateMetrics(data: {
     bmr = 10 * weightKg + 6.25 * heightCm - 5 * ageYears + 5;
   }
 
-  // Activity multiplier based on weekly workout frequency
   let multiplier: number;
   if (weeklyWorkouts <= 1) multiplier = 1.2;
   else if (weeklyWorkouts <= 3) multiplier = 1.375;
@@ -31,13 +29,11 @@ function calculateMetrics(data: {
 
   const tdee = Math.round(bmr * multiplier);
 
-  // Calorie target based on goal
   let targetCalories: number;
   if (goal === 'CUT') targetCalories = tdee - 500;
   else if (goal === 'BULK') targetCalories = tdee + 275;
   else targetCalories = tdee;
 
-  // Protein: 2.2g/kg cutting, 1.8g/kg bulking, 2.0g/kg maintaining
   let proteinMultiplier: number;
   if (goal === 'CUT') proteinMultiplier = 2.2;
   else if (goal === 'BULK') proteinMultiplier = 1.8;
@@ -51,7 +47,7 @@ function calculateMetrics(data: {
 export async function createProfile(data: {
   heightCm: number | string;
   weightLbs: number | string;
-  age: number | string;
+  birthYear: number | string;
   gender: string;
   goal: string;
   weeklyGoalRate: number | string;
@@ -64,13 +60,13 @@ export async function createProfile(data: {
     const decodedToken = await verifyToken(token);
     if (!decodedToken) throw new Error('Invalid or expired token');
 
-    const numericAge = Number(data.age);
+    const birthYear = Number(data.birthYear);
+    const birthDate = new Date(birthYear, 0, 1);
+    const numericAge = new Date().getFullYear() - birthYear;
     const numericHeight = Number(data.heightCm);
     const numericWeeklyRate = Number(data.weeklyGoalRate);
     const weightKg = Number(data.weightLbs) / 2.20462;
     const safeGoal = data.goal.toUpperCase();
-
-    const birthDate = new Date(new Date().getFullYear() - numericAge, 0, 1);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -117,7 +113,7 @@ export async function createProfile(data: {
 export async function updateProfile(data: {
   heightCm: number | string;
   weightLbs: number | string;
-  age: number | string;
+  birthYear: number | string;
   gender: string;
   goal: string;
   weeklyGoalRate: number | string;
@@ -130,13 +126,13 @@ export async function updateProfile(data: {
     const decodedToken = await verifyToken(token);
     if (!decodedToken) throw new Error('Invalid or expired token');
 
-    const numericAge = Number(data.age);
+    const birthYear = Number(data.birthYear);
+    const birthDate = new Date(birthYear, 0, 1);
+    const numericAge = new Date().getFullYear() - birthYear;
     const numericHeight = Number(data.heightCm);
     const numericWeeklyRate = Number(data.weeklyGoalRate);
     const safeGoal = data.goal.toUpperCase();
     const weightKg = Number(data.weightLbs) / 2.20462;
-
-    const birthDate = new Date(new Date().getFullYear() - numericAge, 0, 1);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

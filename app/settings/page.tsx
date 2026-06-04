@@ -21,9 +21,6 @@ export default async function SettingsPage() {
   if (!profile) return redirect('/setup');
 
   const birthDate = new Date(profile.birthDate);
-  const age = Math.floor(
-    (Date.now() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-  );
 
   const heightCm = profile.heightCm;
   const totalInches = Math.round(heightCm / 2.54);
@@ -58,7 +55,7 @@ export default async function SettingsPage() {
             heightFt: String(heightFt),
             heightIn: String(heightIn),
             weightLbs: String(weightLbs),
-            age: String(age),
+            birthYear: String(birthDate.getFullYear()),
             gender: profile.gender,
             goal: profile.currentGoal,
             weeklyGoalRate: String(profile.weeklyGoalRate),

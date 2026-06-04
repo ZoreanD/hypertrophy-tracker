@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateProfile } from '../actions/profile';
 
+const currentYear = new Date().getFullYear();
+const birthYears = Array.from({ length: currentYear - 1939 - 16 }, (_, i) => currentYear - 16 - i);
+
 const goalOptions = [
   { value: 'CUT', label: 'Cut — Lose fat', rates: [
     { value: '0.25', label: 'Slow (-0.25kg/week) — Maximum muscle retention' },
@@ -26,7 +29,7 @@ export default function SettingsForm({
     heightFt: string;
     heightIn: string;
     weightLbs: string;
-    age: string;
+    birthYear: string;
     gender: string;
     goal: string;
     weeklyGoalRate: string;
@@ -51,7 +54,7 @@ export default function SettingsForm({
     const result = await updateProfile({
       heightCm: (parseInt(form.heightFt) * 12 + parseInt(form.heightIn)) * 2.54,
       weightLbs: parseFloat(form.weightLbs),
-      age: parseInt(form.age),
+      birthYear: parseInt(form.birthYear),
       gender: form.gender,
       goal: form.goal,
       weeklyGoalRate: parseFloat(form.weeklyGoalRate),
@@ -110,15 +113,16 @@ export default function SettingsForm({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-400">Age</label>
-        <input
-          type="number"
-          value={form.age}
-          onChange={e => update('age', e.target.value)}
-          min="16" max="99"
+        <label className="mb-2 block text-sm font-medium text-zinc-400">Birth Year</label>
+        <select
+          value={form.birthYear}
+          onChange={e => update('birthYear', e.target.value)}
           className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none"
-          required
-        />
+        >
+          {birthYears.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
       </div>
 
       <div>
