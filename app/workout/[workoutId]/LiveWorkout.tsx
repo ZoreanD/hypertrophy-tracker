@@ -486,6 +486,21 @@ export default function LiveWorkout({
                   : '○ Skipped'}
                 </span>
               </div>
+
+              {/* Planned vs actual */}
+              {ex.planned && (
+                <div className="mt-2 flex items-center gap-3 text-xs">
+                  <span className="text-zinc-600">Planned:</span>
+                  <span className="text-zinc-500">
+                    {ex.planned.sets} sets · {ex.planned.repMin}–{ex.planned.repMax} reps · {ex.planned.rir} RIR
+                  </span>
+                  <span className="text-zinc-700">→</span>
+                  <span className={ex.status === 'skipped' ? 'text-zinc-600' : ex.sets.length >= ex.planned.sets ? 'text-emerald-400' : 'text-yellow-400'}>
+                    {ex.status === 'skipped' ? 'Skipped' : `${ex.sets.length} sets completed`}
+                  </span>
+                </div>
+              )}
+
               {ex.progressionNote && <p className="mt-1 text-xs text-zinc-500">{ex.progressionNote}</p>}
               {ex.sets?.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">

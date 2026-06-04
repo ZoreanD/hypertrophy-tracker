@@ -184,6 +184,12 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
         exerciseSummaries.push({
           exerciseName: routineEx.exercise.name,
           status: 'skipped' as const,
+          planned: {
+            sets: routineEx.targetSets,
+            repMin: routineEx.targetRepMin,
+            repMax: routineEx.targetRepMax,
+            rir: routineEx.targetRir,
+          },
           sets: [],
           progressionFlag: null,
           progressionNote: '',
@@ -270,6 +276,12 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       exerciseSummaries.push({
         exerciseName: routineEx.exercise.name,
         status: 'completed' as const,
+        planned: {
+          sets: routineEx.targetSets,
+          repMin: routineEx.targetRepMin,
+          repMax: routineEx.targetRepMax,
+          rir: routineEx.targetRir,
+        },
         sets: setsForExercise.map((s) => ({
           weight: s.weightLbs,
           reps: s.reps,
