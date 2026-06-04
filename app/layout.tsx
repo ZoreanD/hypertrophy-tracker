@@ -21,6 +21,15 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-zinc-950 text-white antialiased">
         {children}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js');
+              });
+            }
+          `
+        }} />
       </body>
     </html>
   );
