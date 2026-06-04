@@ -131,6 +131,9 @@ export default function LiveWorkout({
 
   const executionOrderRef = useRef(0);
 
+  // Flashing on click
+  const [flashingExercise, setFlashingExercise] = useState<string | null>(null);
+
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
@@ -237,6 +240,8 @@ export default function LiveWorkout({
         ...prev,
         [ex.exerciseId]: { ...prev[ex.exerciseId], weight: input.weight, reps: '', rir: '' },
       }));
+      setFlashingExercise(ex.exerciseId);
+      setTimeout(() => setFlashingExercise(null), 600);
     }
   }
 
@@ -280,9 +285,10 @@ export default function LiveWorkout({
     // Clear inputs
     setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
     setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { weight: inputB.weight, reps: '', rir: '' } }));
+    setFlashingExercise(ex.exerciseId);
+    setTimeout(() => setFlashingExercise(null), 600);
 
-    // Note whether same-biomechanical for UI feedback
-    if (isSameMuscle) startRestTimer(ex.restTimerSecs * 1.5); // same-biomechanical needs more rest
+    if (isSameMuscle) startRestTimer(ex.restTimerSecs * 1.5);
   }
 
   // ── Myo-reps ─────────────────────────────────────────────────────────────
@@ -307,6 +313,8 @@ export default function LiveWorkout({
     }
 
     setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
+    setFlashingExercise(ex.exerciseId);
+    setTimeout(() => setFlashingExercise(null), 600);
   }
 
   function handleEndMyorep(exerciseId: string) {
@@ -336,6 +344,8 @@ export default function LiveWorkout({
     }
 
     setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], weight: input.weight, reps: '', rir: '' } }));
+    setFlashingExercise(ex.exerciseId);
+    setTimeout(() => setFlashingExercise(null), 600);
   }
 
   function handleEndDropSet(exerciseId: string) {
@@ -563,8 +573,9 @@ export default function LiveWorkout({
         const dropSetsLogged = setsForExercise.filter((s) => s.setType === 'DROPSET_DROP').length;
 
         return (
-          <div key={ex.exerciseId} className={`rounded-xl border transition-colors ${
-            isComplete ? 'border-emerald-700 bg-emerald-950/20'
+          <div key={ex.exerciseId} className={`rounded-xl border transition-all duration-300 ${
+            flashingExercise === ex.exerciseId ? 'border-emerald-400 bg-emerald-950/40 scale-[1.01]'
+            : isComplete ? 'border-emerald-700 bg-emerald-950/20'
             : isPivoting ? 'border-yellow-600 bg-yellow-950/10'
             : isExpanded ? 'border-zinc-600 bg-zinc-900'
             : 'border-zinc-800 bg-zinc-900/30'
