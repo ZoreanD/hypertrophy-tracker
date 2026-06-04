@@ -1,14 +1,15 @@
-import prisma from '../lib/prisma';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { verifyToken } from '../lib/auth';
 
 export default async function Home() {
-  // 1. Check if a user profile exists in the database
-  const profile = await prisma.profile.findFirst();
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
 
-  // 2. Smart routing: send the user to the right place automatically
-  if (!profile) {
-    redirect('/setup');
-  } else {
-    redirect('/dashboard');
-  }
+  if (!token) return redirect('/login');
+
+  const decoded = await verifyToken(token);
+  if (!decoded) return redirect('/login');
+
+  return redirect('/dashboard');
 }

@@ -13,35 +13,26 @@ export async function createProfile(data: {
   weeklyGoalRate: number | string;
 }) {
   try {
-    // 1. Grab the secure cookie to identify the current user
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
+    if (!token) throw new Error('Not authenticated');
 
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
-    // 2. Verify the token and extract the userId
     const decodedToken = await verifyToken(token);
-    if (!decodedToken) {
-      throw new Error('Invalid or expired token');
-    }
+    if (!decodedToken) throw new Error('Invalid or expired token');
 
-    // 3. Clean up the data types from the form
     const numericAge = Number(data.age);
     const numericHeight = Number(data.heightCm);
     const numericWeeklyRate = Number(data.weeklyGoalRate);
-    const weightKg = Number(data.weightLbs) / 2.20462; // Convert Lbs to Kg for standard storage
-    
-    // Force uppercase to strictly match the Prisma FitnessGoal Enum
-    const safeGoal = data.goal.toUpperCase(); 
+    const weightKg = Number(data.weightLbs) / 2.20462;
+    const safeGoal = data.goal.toUpperCase();
 
     const birthDate = new Date();
     birthDate.setFullYear(birthDate.getFullYear() - numericAge);
 
-    // 4. Create the profile AND the initial BodyMetric together
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     await prisma.$transaction(async (tx) => {
-      // Create the profile linked to the secure user
       const profile = await tx.profile.create({
         data: {
           userId: decodedToken.userId,
@@ -53,25 +44,25 @@ export async function createProfile(data: {
         },
       });
 
-      // Insert the first weigh-in so the dashboard charts work immediately
       await tx.bodyMetric.create({
         data: {
           profileId: profile.id,
-          weightKg: weightKg,
-          targetCalories: 2500, // Safe baseline, can implement TDEE math later
-          targetProtein: 150,   // Safe baseline
-          calculatedTdee: 2500, 
-        }
+          date: today,
+          weightKg,
+          targetCalories: 2500,
+          targetProtein: 150,
+          calculatedTdee: 2500,
+        },
       });
     });
 
     return { success: true };
   } catch (error) {
     console.error('Failed to create profile:', error);
-    // Returning success false triggers the frontend "Something went wrong" message safely
-    return { success: false }; 
+    return { success: false };
   }
 }
+
 export async function updateProfile(data: {
   heightCm: number | string;
   weightLbs: number | string;
@@ -107,7 +98,6 @@ export async function updateProfile(data: {
       },
     });
 
-    // Also log today's weight as a new body metric
     const weightKg = Number(data.weightLbs) / 2.20462;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
