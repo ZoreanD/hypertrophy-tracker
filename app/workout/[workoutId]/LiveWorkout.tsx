@@ -42,6 +42,7 @@ type LoggedSet = {
   executionOrder: number;
   setType: string;
   setGroupId: string | null;
+  side: string | null;
 };
 
 type Summary = {
@@ -223,6 +224,7 @@ async function doLogSet(params: {
         executionOrder: execOrder,
         setType: params.setType,
         setGroupId: params.setGroupId,
+        side: params.side ?? null,
       }]);
       if (!params.isWarmup) startRestTimer(params.restSecs);
       return true;
