@@ -59,7 +59,7 @@ export default function CalendarView({
 
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const scheduledByDate: Record<string, ScheduledItem[]> = {};
   scheduled.forEach((s) => {
