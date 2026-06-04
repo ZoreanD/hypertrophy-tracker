@@ -26,6 +26,7 @@ model Profile {
   gender         String
   currentGoal    FitnessGoal  @default(MAINTAIN)
   weeklyGoalRate Float        @default(0)
+  targetWeightLbs Float?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
