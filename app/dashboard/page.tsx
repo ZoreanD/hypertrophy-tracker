@@ -239,20 +239,20 @@ const todayWorkouts = await prisma.workout.findMany({
               {new Date(Date.now() - 5 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago' })}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <LogoutButton />
-            <Link href="/settings" className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
               Settings
             </Link>
-            <Link href="/routines" className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+            <Link href="/routines" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
               Routines
             </Link>
-            <Link href="/calendar" className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+            <Link href="/calendar" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
               Calendar
             </Link>
-            <Link href="/workout/new" className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
-              + Log Workout
+            <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
+              + Log
             </Link>
+            <LogoutButton />
           </div>
         </header>
 
