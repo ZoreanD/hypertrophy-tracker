@@ -241,7 +241,7 @@ const todayWorkouts = await prisma.workout.findMany({
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">Command Center</h1>
             <p className="mt-1 text-zinc-400">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {new Date(Date.now() - 5 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago' })}
             </p>
           </div>
           <div className="flex items-center gap-4">
