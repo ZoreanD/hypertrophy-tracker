@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../../lib/auth';
 import { redirect } from 'next/navigation';
 import LiveWorkout from './LiveWorkout';
+import CompletedWorkout from './CompletedWorkout';
 import { getCurrentBodyweight } from '../../actions/workout-session';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,6 @@ export default async function LiveWorkoutPage({
   });
   if (!profile) return redirect('/setup');
 
-  //After profile fetch
   const currentBodyweight = await getCurrentBodyweight(profile.id);
 
   const workout = await prisma.workout.findUnique({
@@ -35,9 +35,7 @@ export default async function LiveWorkoutPage({
       routine: {
         include: {
           exercises: {
-            include: { 
-              exercise: true 
-            },
+            include: { exercise: true },
             orderBy: { order: 'asc' },
           },
         },
@@ -51,6 +49,43 @@ export default async function LiveWorkoutPage({
 
   if (!workout || workout.profileId !== profile.id) return redirect('/calendar');
 
+  // Completed workout — show read-only view
+  if (workout.durationMins > 0) {
+    return (
+      <main className="min-h-screen bg-zinc-950 text-zinc-100">
+        <CompletedWorkout
+          workout={{
+            id: workout.id,
+            focus: workout.focus,
+            date: workout.date.toISOString(),
+            durationMins: workout.durationMins,
+          }}
+          plannedExercises={(workout.routine?.exercises ?? []).map((re) => ({
+            exerciseId: re.exerciseId,
+            exerciseName: re.exercise.name,
+            targetSets: re.targetSets,
+            targetRepMin: re.targetRepMin,
+            targetRepMax: re.targetRepMax,
+            targetRir: re.targetRir,
+            isAssisted: re.exercise.isAssisted,
+          }))}
+          loggedSets={workout.sets.map((s) => ({
+            id: s.id,
+            exerciseId: s.exerciseId,
+            exerciseName: s.exercise.name,
+            weightLbs: s.weightLbs,
+            reps: s.reps,
+            rir: s.rir,
+            isWarmup: s.isWarmup,
+            setType: s.setType ?? 'STRAIGHT',
+            side: s.side ?? null,
+          }))}
+        />
+      </main>
+    );
+  }
+
+  // Active workout — build exercise histories
   const exerciseHistories: Record<string, any> = {};
 
   for (const re of workout.routine?.exercises ?? []) {
@@ -111,9 +146,9 @@ export default async function LiveWorkoutPage({
           exerciseName: re.exercise.name,
           primaryMuscle: re.exercise.primaryMuscle,
           equipment: re.exercise.equipment,
-          isUnilateral: re.exercise.isUnilateral,    // ← add
-          isAssisted: re.exercise.isAssisted,        // ← add
-          isBodyweight: re.exercise.isBodyweight, 
+          isUnilateral: re.exercise.isUnilateral,
+          isAssisted: re.exercise.isAssisted,
+          isBodyweight: re.exercise.isBodyweight,
           targetSets: re.targetSets,
           targetRepMin: re.targetRepMin,
           targetRepMax: re.targetRepMax,

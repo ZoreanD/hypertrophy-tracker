@@ -5,14 +5,12 @@ import { useRouter } from 'next/navigation';
 type LoggedSet = {
   id: string;
   exerciseId: string;
-  exerciseName?: string;
+  exerciseName: string;
   weightLbs: number;
   reps: number;
   rir: number;
   isWarmup: boolean;
-  executionOrder: number;
   setType: string;
-  setGroupId: string | null;
   side: string | null;
 };
 
@@ -31,11 +29,9 @@ export default function CompletedWorkout({
   plannedExercises,
   loggedSets,
 }: {
-  workout: { id: string; focus: string; date: string; durationMins?: number };
+  workout: { id: string; focus: string; date: string; durationMins: number };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
-  profileId: string;
-  currentBodyweight: number | null;
 }) {
   const router = useRouter();
 
@@ -90,7 +86,7 @@ export default function CompletedWorkout({
 
               {sets.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {sets.map((s, i) => (
+                  {sets.map((s) => (
                     <span
                       key={s.id}
                       className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300"
