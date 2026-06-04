@@ -206,7 +206,7 @@ export default async function Dashboard() {
 
   // Today's scheduled workouts
 // CST = UTC-6 (CDT = UTC-5, but hardcoding CST for now)
-const CST_OFFSET = 6 * 60 * 60 * 1000; // 6 hours in ms
+const CST_OFFSET = 5 * 60 * 60 * 1000; // CDT = UTC-5
 const nowCST = new Date(Date.now() - CST_OFFSET);
 const todayStart = new Date(nowCST);
 todayStart.setHours(0, 0, 0, 0);
