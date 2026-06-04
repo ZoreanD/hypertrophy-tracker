@@ -4,6 +4,50 @@ import prisma from '../../lib/prisma';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 
+function calculateMetrics(data: {
+  weightKg: number;
+  heightCm: number;
+  ageYears: number;
+  gender: string;
+  goal: string;
+  weeklyWorkouts?: number;
+}) {
+  const { weightKg, heightCm, ageYears, gender, goal, weeklyWorkouts = 3 } = data;
+
+  // Mifflin-St Jeor BMR
+  let bmr: number;
+  if (gender === 'F') {
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * ageYears - 161;
+  } else {
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * ageYears + 5;
+  }
+
+  // Activity multiplier based on weekly workout frequency
+  let multiplier: number;
+  if (weeklyWorkouts <= 1) multiplier = 1.2;
+  else if (weeklyWorkouts <= 3) multiplier = 1.375;
+  else if (weeklyWorkouts <= 5) multiplier = 1.55;
+  else multiplier = 1.725;
+
+  const tdee = Math.round(bmr * multiplier);
+
+  // Calorie target based on goal
+  let targetCalories: number;
+  if (goal === 'CUT') targetCalories = tdee - 500;
+  else if (goal === 'BULK') targetCalories = tdee + 275;
+  else targetCalories = tdee;
+
+  // Protein: 2.2g/kg cutting, 1.8g/kg bulking, 2.0g/kg maintaining
+  let proteinMultiplier: number;
+  if (goal === 'CUT') proteinMultiplier = 2.2;
+  else if (goal === 'BULK') proteinMultiplier = 1.8;
+  else proteinMultiplier = 2.0;
+
+  const targetProtein = Math.round(weightKg * proteinMultiplier);
+
+  return { calculatedTdee: tdee, targetCalories, targetProtein };
+}
+
 export async function createProfile(data: {
   heightCm: number | string;
   weightLbs: number | string;
@@ -26,11 +70,18 @@ export async function createProfile(data: {
     const weightKg = Number(data.weightLbs) / 2.20462;
     const safeGoal = data.goal.toUpperCase();
 
-    const birthDate = new Date();
-    birthDate.setFullYear(birthDate.getFullYear() - numericAge);
+    const birthDate = new Date(new Date().getFullYear() - numericAge, 0, 1);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const { calculatedTdee, targetCalories, targetProtein } = calculateMetrics({
+      weightKg,
+      heightCm: numericHeight,
+      ageYears: numericAge,
+      gender: data.gender,
+      goal: safeGoal,
+    });
 
     await prisma.$transaction(async (tx) => {
       const profile = await tx.profile.create({
@@ -49,9 +100,9 @@ export async function createProfile(data: {
           profileId: profile.id,
           date: today,
           weightKg,
-          targetCalories: 2500,
-          targetProtein: 150,
-          calculatedTdee: 2500,
+          targetCalories,
+          targetProtein,
+          calculatedTdee,
         },
       });
     });
@@ -83,9 +134,12 @@ export async function updateProfile(data: {
     const numericHeight = Number(data.heightCm);
     const numericWeeklyRate = Number(data.weeklyGoalRate);
     const safeGoal = data.goal.toUpperCase();
+    const weightKg = Number(data.weightLbs) / 2.20462;
 
-    const birthDate = new Date();
-    birthDate.setFullYear(birthDate.getFullYear() - numericAge);
+    const birthDate = new Date(new Date().getFullYear() - numericAge, 0, 1);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     await prisma.profile.update({
       where: { userId: decodedToken.userId },
@@ -98,9 +152,13 @@ export async function updateProfile(data: {
       },
     });
 
-    const weightKg = Number(data.weightLbs) / 2.20462;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { calculatedTdee, targetCalories, targetProtein } = calculateMetrics({
+      weightKg,
+      heightCm: numericHeight,
+      ageYears: numericAge,
+      gender: data.gender,
+      goal: safeGoal,
+    });
 
     const profile = await prisma.profile.findUnique({
       where: { userId: decodedToken.userId },
@@ -114,11 +172,14 @@ export async function updateProfile(data: {
             date: today,
           },
         },
-        update: { weightKg },
+        update: { weightKg, calculatedTdee, targetCalories, targetProtein },
         create: {
           profileId: profile.id,
           date: today,
           weightKg,
+          calculatedTdee,
+          targetCalories,
+          targetProtein,
         },
       });
     }
