@@ -206,15 +206,10 @@ export default async function Dashboard() {
 
   // Today's scheduled workouts
 // CST = UTC-6 (CDT = UTC-5, but hardcoding CST for now)
-const CST_OFFSET = 5 * 60 * 60 * 1000; // CDT = UTC-5
-const nowCST = new Date(Date.now() - CST_OFFSET);
-const todayStart = new Date(nowCST);
-todayStart.setHours(0, 0, 0, 0);
-const todayEnd = new Date(nowCST);
-todayEnd.setHours(23, 59, 59, 999);
-// Convert back to UTC for DB query
-const todayStartUTC = new Date(todayStart.getTime() + CST_OFFSET);
-const todayEndUTC = new Date(todayEnd.getTime() + CST_OFFSET);
+const CDT_OFFSET = 5 * 60 * 60 * 1000;
+const todayDateStr = new Date(Date.now() - CDT_OFFSET).toISOString().split('T')[0];
+const todayStartUTC = new Date(todayDateStr + 'T00:00:00.000Z');
+const todayEndUTC = new Date(todayDateStr + 'T23:59:59.999Z');
 
 const todayScheduled = await prisma.scheduledWorkout.findMany({
   where: {
