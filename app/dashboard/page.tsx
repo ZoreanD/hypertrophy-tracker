@@ -6,6 +6,7 @@ import { verifyToken } from '../../lib/auth';
 import LogoutButton from './LogoutButton';
 import VolumeChart from './VolumeChart';
 import ProgressionChart from './ProgressionChart';
+import TodayWorkoutCard from './TodayWorkoutCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -203,6 +204,21 @@ export default async function Dashboard() {
     : 0;
   const mesocycleWeek = (weeksSinceStart % 6) + 1;
 
+  // Today's scheduled workouts
+const todayStart = new Date();
+todayStart.setHours(0, 0, 0, 0);
+const todayEnd = new Date();
+todayEnd.setHours(23, 59, 59, 999);
+
+const todayScheduled = await prisma.scheduledWorkout.findMany({
+  where: {
+    profileId: profile.id,
+    date: { gte: todayStart, lte: todayEnd },
+  },
+  include: { routine: true },
+  orderBy: { date: 'asc' },
+});
+
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
@@ -230,6 +246,25 @@ export default async function Dashboard() {
             </Link>
           </div>
         </header>
+
+        {/* Today's Sessions */}
+      {todayScheduled.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-xl font-semibold text-zinc-200">Today</h2>
+          <div className="space-y-2">
+            {todayScheduled.map((s) => (
+              <TodayWorkoutCard
+                key={s.id}
+                scheduledId={s.id}
+                routineId={s.routineId}
+                routineName={s.routine.name}
+                routineFocus={s.routine.focus ?? ''}
+                scheduledDate={s.date.toISOString()}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
         <section className="grid gap-4 sm:grid-cols-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
