@@ -7,6 +7,7 @@ import LogoutButton from './LogoutButton';
 import VolumeChart from './VolumeChart';
 import ProgressionChart from './ProgressionChart';
 import TodayWorkoutCard from './TodayWorkoutCard';
+import { getDailyQuote } from './quotes';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,12 @@ export default async function Dashboard() {
     where: { userId: decodedToken.userId },
   });
   if (!profile) return redirect('/setup');
+
+  const user = await prisma.user.findUnique({
+    where: { id: decodedToken.userId },
+    select: { username: true },
+  });
+  const quote = getDailyQuote();
 
   const currentMetric = await prisma.bodyMetric.findFirst({
     where: { profileId: profile.id },
@@ -232,27 +239,35 @@ const todayWorkouts = await prisma.workout.findMany({
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
 
-        <header className="flex items-center justify-between border-b border-zinc-800 pb-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Command Center</h1>
-            <p className="mt-1 text-zinc-400">
-              {new Date(Date.now() - 5 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago' })}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-              Settings
-            </Link>
-            <Link href="/routines" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-              Routines
-            </Link>
-            <Link href="/calendar" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-              Calendar
-            </Link>
-            <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
-              + Log
-            </Link>
-            <LogoutButton />
+        <header className="border-b border-zinc-800 pb-6">
+          {/* Top row — title + nav */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-zinc-500">
+                {new Date(Date.now() - 5 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+                  weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago',
+                })}
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight text-white">
+                Welcome back, {user?.username ?? 'Athlete'}
+              </h1>
+              <p className="mt-1 text-xs text-zinc-600 italic max-w-md">"{quote}"</p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 shrink-0">
+              <Link href="/settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                Settings
+              </Link>
+              <Link href="/routines" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                Routines
+              </Link>
+              <Link href="/calendar" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                Calendar
+              </Link>
+              <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
+                + Log
+              </Link>
+              <LogoutButton />
+            </div>
           </div>
         </header>
 
@@ -282,28 +297,40 @@ const todayWorkouts = await prisma.workout.findMany({
 
         <section className="grid gap-4 sm:grid-cols-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm font-medium text-zinc-400">Target Calories</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-zinc-400">Target Calories</p>
+              <span className="cursor-help text-xs text-zinc-600" title="Daily calorie target based on your TDEE and goal. CUT = TDEE - 300-500kcal, BULK = TDEE + 275kcal, MAINTAIN = TDEE.">?</span>
+            </div>
             <p className="mt-2 text-4xl font-bold text-white">
               {currentMetric?.targetCalories || '---'}
               <span className="ml-1 text-lg font-normal text-zinc-500">kcal</span>
             </p>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm font-medium text-zinc-400">Target Protein</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-zinc-400">Target Protein</p>
+              <span className="cursor-help text-xs text-zinc-600" title="Daily protein target. CUT = 2.2g/kg bodyweight, BULK = 1.8g/kg, MAINTAIN = 2.0g/kg. Higher during cut to preserve muscle.">?</span>
+            </div>
             <p className="mt-2 text-4xl font-bold text-emerald-400">
               {currentMetric?.targetProtein || '---'}
               <span className="ml-1 text-lg font-normal text-zinc-500">g</span>
             </p>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm font-medium text-zinc-400">Calculated TDEE</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-zinc-400">Calculated TDEE</p>
+              <span className="cursor-help text-xs text-zinc-600" title="Total Daily Energy Expenditure — calories burned per day at your activity level. Calculated using Mifflin-St Jeor BMR × activity multiplier.">?</span>
+            </div>
             <p className="mt-2 text-4xl font-bold text-zinc-300">
               {currentMetric?.calculatedTdee || '---'}
               <span className="ml-1 text-lg font-normal text-zinc-500">kcal</span>
             </p>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm font-medium text-zinc-400">Mesocycle</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-zinc-400">Mesocycle</p>
+              <span className="cursor-help text-xs text-zinc-600" title="A mesocycle is a 6-week training block. Weeks 1-2: accumulate volume. Weeks 3-4: intensify. Week 5: peak near MRV. Week 6: deload to recover.">?</span>
+            </div>
             <p className="mt-2 text-4xl font-bold text-zinc-300">
               Week {mesocycleWeek}
               <span className="ml-1 text-lg font-normal text-zinc-500">of 6</span>
