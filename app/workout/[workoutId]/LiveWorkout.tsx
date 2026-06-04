@@ -12,6 +12,9 @@ type PlannedExercise = {
   exerciseName: string;
   primaryMuscle: string;
   equipment: string;
+  isUnilateral: boolean;
+  isAssisted: boolean;
+  isBodyweight: boolean;
   targetSets: number;
   targetRepMin: number;
   targetRepMax: number;
@@ -77,11 +80,13 @@ export default function LiveWorkout({
   plannedExercises,
   loggedSets: initialLoggedSets,
   profileId,
+  currentBodyweight,
 }: {
   workout: { id: string; focus: string; date: string };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
   profileId: string;
+  currentBodyweight: number | null;
 }) {
   const router = useRouter();
   const startTime = useRef(Date.now());
@@ -134,6 +139,8 @@ export default function LiveWorkout({
   // Flashing on click
   const [flashingExercise, setFlashingExercise] = useState<string | null>(null);
 
+  const [activeSide, setActiveSide] = useState<Record<string, 'LEFT' | 'RIGHT'>>({});
+
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
@@ -176,28 +183,34 @@ export default function LiveWorkout({
 
   // ── Log set helpers ──────────────────────────────────────────────────────
 
-  async function doLogSet(params: {
-    exerciseId: string;
-    weight: number;
-    reps: number;
-    rir: number;
-    isWarmup: boolean;
-    setType: string;
-    setGroupId: string | null;
-    restSecs: number;
-  }) {
-    const execOrder = executionOrderRef.current++;
-    const result = await logSet({
-      workoutId: workout.id,
-      exerciseId: params.exerciseId,
-      weightLbs: params.weight,
-      reps: params.reps,
-      rir: params.rir,
-      isWarmup: params.isWarmup,
-      executionOrder: execOrder,
-      setType: params.setType,
-      setGroupId: params.setGroupId,
-    });
+async function doLogSet(params: {
+  exerciseId: string;
+  weight: number;
+  reps: number;
+  rir: number;
+  isWarmup: boolean;
+  setType: string;
+  setGroupId: string | null;
+  restSecs: number;
+  side?: string | null;
+  assistanceWeightLbs?: number | null;
+  bodyweightLbs?: number | null;
+}) {
+  const execOrder = executionOrderRef.current++;
+  const result = await logSet({
+    workoutId: workout.id,
+    exerciseId: params.exerciseId,
+    weightLbs: params.weight,
+    reps: params.reps,
+    rir: params.rir,
+    isWarmup: params.isWarmup,
+    executionOrder: execOrder,
+    setType: params.setType,
+    setGroupId: params.setGroupId,
+    side: params.side ?? null,
+    assistanceWeightLbs: params.assistanceWeightLbs ?? null,
+    bodyweightLbs: params.bodyweightLbs ?? null,
+  });
 
     if (result.success && result.setId) {
       setLoggedSets((prev) => [...prev, {
@@ -226,13 +239,20 @@ export default function LiveWorkout({
     const rir = parseFloat(input.rir);
     if (isNaN(weight) || isNaN(reps) || isNaN(rir)) return alert('Fill in weight, reps, and RIR.');
 
+    const side = ex.isUnilateral ? (activeSide[ex.exerciseId] ?? 'LEFT') : null;
+
     const ok = await doLogSet({
       exerciseId: ex.exerciseId,
-      weight, reps, rir,
+      weight,
+      reps,
+      rir,
       isWarmup: input.isWarmup,
       setType: 'STRAIGHT',
       setGroupId: null,
       restSecs: ex.restTimerSecs,
+      side,
+      assistanceWeightLbs: ex.isAssisted ? weight : null,
+      bodyweightLbs: (ex.isAssisted || ex.isBodyweight) ? currentBodyweight : null,
     });
 
     if (ok) {
@@ -240,6 +260,13 @@ export default function LiveWorkout({
         ...prev,
         [ex.exerciseId]: { ...prev[ex.exerciseId], weight: input.weight, reps: '', rir: '' },
       }));
+      // Auto-switch side for unilateral
+      if (ex.isUnilateral) {
+        setActiveSide((prev) => ({
+          ...prev,
+          [ex.exerciseId]: prev[ex.exerciseId] === 'LEFT' ? 'RIGHT' : 'LEFT',
+        }));
+      }
       setFlashingExercise(ex.exerciseId);
       setTimeout(() => setFlashingExercise(null), 600);
     }
@@ -500,6 +527,19 @@ export default function LiveWorkout({
                   </span>
                 </div>
               )}
+              //asymmetry flag
+              {ex.asymmetryFlag && (
+                <div className={`mt-2 rounded-lg px-3 py-2 text-xs ${
+                  ex.asymmetryFlag.level === 'significant'
+                    ? 'bg-red-900/20 text-red-400'
+                    : 'bg-yellow-900/20 text-yellow-400'
+                }`}>
+                  {ex.asymmetryFlag.level === 'significant' ? '🔴' : '⚠'} {ex.asymmetryFlag.pct}% asymmetry — {ex.asymmetryFlag.weakSide} side is weaker.
+                  {ex.asymmetryFlag.level === 'significant'
+                    ? ' Address before progressing weight.'
+                    : ' Monitor over coming sessions.'}
+                </div>
+              )}
 
               {ex.progressionNote && <p className="mt-1 text-xs text-zinc-500">{ex.progressionNote}</p>}
               {ex.sets?.length > 0 && (
@@ -679,8 +719,13 @@ export default function LiveWorkout({
                           : s.setType === 'DROPSET_DROP' ? `Drop ${dropSetsLogged}`
                           : s.setType === 'SUPERSET_A' ? `SS-A ${i + 1}`
                           : `SS-B ${i + 1}`}
+                          {s.side && <span className="ml-1 text-zinc-600">{s.side}</span>}
                         </span>
-                        <span className="text-sm font-medium text-white">{s.weightLbs}lbs × {s.reps} @ {s.rir} RIR</span>
+                        <span className="text-sm font-medium text-white">
+                          {ex.isAssisted
+                            ? `${s.weightLbs}lbs assist × ${s.reps} @ ${s.rir} RIR`
+                            : `${s.weightLbs}lbs × ${s.reps} @ ${s.rir} RIR`}
+                        </span>
                         <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
                       </div>
                     ))}
@@ -703,6 +748,46 @@ export default function LiveWorkout({
                 {mode === 'STRAIGHT' && !isComplete && (
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-2">
+                    {/* Side selector for unilateral exercises */}
+                    {ex.isUnilateral && (
+                      <div className="flex gap-2">
+                        <p className="text-xs text-zinc-500 mr-1 self-center">Side:</p>
+                        {(['LEFT', 'RIGHT'] as const).map((side) => (
+                          <button
+                            key={side}
+                            type="button"
+                            onClick={() => setActiveSide((prev) => ({ ...prev, [ex.exerciseId]: side }))}
+                            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                              (activeSide[ex.exerciseId] ?? 'LEFT') === side
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
+                          >
+                            {side}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Assistance weight for assisted exercises */}
+                    {ex.isAssisted && (
+                      <div>
+                        <label className="mb-1 block text-xs text-zinc-500">
+                          Assistance Weight (lbs) — subtracted from bodyweight ({currentBodyweight ?? '?'}lbs)
+                        </label>
+                        <input
+                          type="number"
+                          step="5"
+                          value={input.weight}
+                          onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)}
+                          className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none"
+                        />
+                        {currentBodyweight && input.weight && (
+                          <p className="mt-1 text-xs text-zinc-600">
+                            Effective load: {Math.round(currentBodyweight - parseFloat(input.weight))}lbs
+                          </p>
+                        )}
+                      </div>
+                    )}
                       <div>
                         <label className="mb-1 block text-xs text-zinc-500">Weight (lbs)</label>
                         <input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />

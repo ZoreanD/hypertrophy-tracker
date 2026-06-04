@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../../lib/auth';
 import { redirect } from 'next/navigation';
 import LiveWorkout from './LiveWorkout';
+import { getCurrentBodyweight } from '../../actions/workout-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,13 +26,18 @@ export default async function LiveWorkoutPage({
   });
   if (!profile) return redirect('/setup');
 
+  //After profile fetch
+  const currentBodyweight = await getCurrentBodyweight(profile.id);
+
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
     include: {
       routine: {
         include: {
           exercises: {
-            include: { exercise: true },
+            include: { 
+              exercise: true 
+            },
             orderBy: { order: 'asc' },
           },
         },
@@ -105,6 +111,9 @@ export default async function LiveWorkoutPage({
           exerciseName: re.exercise.name,
           primaryMuscle: re.exercise.primaryMuscle,
           equipment: re.exercise.equipment,
+          isUnilateral: re.exercise.isUnilateral,    // ← add
+          isAssisted: re.exercise.isAssisted,        // ← add
+          isBodyweight: re.exercise.isBodyweight, 
           targetSets: re.targetSets,
           targetRepMin: re.targetRepMin,
           targetRepMax: re.targetRepMax,
@@ -124,8 +133,10 @@ export default async function LiveWorkoutPage({
           executionOrder: s.executionOrder,
           setType: s.setType ?? 'STRAIGHT',
           setGroupId: s.setGroupId ?? null,
+          side: s.side ?? null,
         }))}
         profileId={profile.id}
+        currentBodyweight={currentBodyweight}
       />
     </main>
   );

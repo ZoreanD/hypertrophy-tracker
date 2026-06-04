@@ -13,6 +13,17 @@ async function getProfile() {
   return prisma.profile.findUnique({ where: { userId: decoded.userId } });
 }
 
+// Calculate effective load for assisted/bodyweight exercises
+function getEffectiveLoad(weightLbs: number, bodyweightLbs: number | null, assistanceWeightLbs: number | null, isAssisted: boolean, isBodyweight: boolean): number {
+  if (isAssisted && bodyweightLbs && assistanceWeightLbs) {
+    return bodyweightLbs - assistanceWeightLbs;
+  }
+  if (isBodyweight && bodyweightLbs) {
+    return bodyweightLbs + weightLbs; // weightLbs = added weight (0 if none)
+  }
+  return weightLbs;
+}
+
 export async function startWorkout(routineId: string, scheduledDate: string) {
   try {
     const profile = await getProfile();
@@ -56,6 +67,9 @@ export async function logSet(data: {
   executionOrder: number;
   setType?: string;
   setGroupId?: string | null;
+  side?: string | null;
+  assistanceWeightLbs?: number | null;
+  bodyweightLbs?: number | null;
 }) {
   try {
     const set = await prisma.set.create({
@@ -69,6 +83,9 @@ export async function logSet(data: {
         executionOrder: data.executionOrder,
         setType: data.setType ?? 'STRAIGHT',
         setGroupId: data.setGroupId ?? null,
+        side: data.side ?? null,
+        assistanceWeightLbs: data.assistanceWeightLbs ?? null,
+        bodyweightLbs: data.bodyweightLbs ?? null,
       },
     });
     return { success: true, setId: set.id };
@@ -87,6 +104,19 @@ export async function deleteSet(setId: string) {
   }
 }
 
+// Get user's current bodyweight for assisted/bodyweight exercise logging
+export async function getCurrentBodyweight(profileId: string): Promise<number | null> {
+  try {
+    const metric = await prisma.bodyMetric.findFirst({
+      where: { profileId },
+      orderBy: { date: 'desc' },
+    });
+    return metric ? Math.round(metric.weightKg * 2.20462 * 10) / 10 : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getExerciseHistory(
   exerciseId: string,
   profileId: string,
@@ -101,6 +131,7 @@ export async function getExerciseHistory(
       },
       include: {
         workout: { select: { date: true, id: true } },
+        exercise: { select: { isAssisted: true, isBodyweight: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 30,
@@ -124,7 +155,17 @@ export async function getExerciseHistory(
       s.weightLbs * s.reps > best.weightLbs * best.reps ? s : best
     );
 
-    const e1RM = Math.round(bestSet.weightLbs * (1 + bestSet.reps / 30));
+    const isAssisted = bestSet.exercise?.isAssisted ?? false;
+    const isBodyweight = bestSet.exercise?.isBodyweight ?? false;
+    const effectiveLoad = getEffectiveLoad(
+      bestSet.weightLbs,
+      bestSet.bodyweightLbs,
+      bestSet.assistanceWeightLbs,
+      isAssisted,
+      isBodyweight
+    );
+
+    const e1RM = Math.round(effectiveLoad * (1 + bestSet.reps / 30));
 
     return {
       lastWeight: bestSet.weightLbs,
@@ -135,7 +176,16 @@ export async function getExerciseHistory(
       positionChanged,
       currentExecutionOrder,
       e1RM,
-      allSets: lastSession,
+      effectiveLoad,
+      isAssisted,
+      isBodyweight,
+      allSets: lastSession.map((s) => ({
+        weight: s.weightLbs,
+        reps: s.reps,
+        rir: s.rir,
+        side: s.side,
+        effectiveLoad: getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight),
+      })),
     };
   } catch (error) {
     console.error('Failed to get exercise history:', error);
@@ -152,7 +202,15 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       where: { id: workoutId },
       include: {
         sets: {
-          include: { exercise: true },
+          include: {
+            exercise: {
+              select: {
+                isUnilateral: true,
+                isAssisted: true,
+                isBodyweight: true,
+              },
+            },
+          },
           where: { isWarmup: false },
         },
         routine: {
@@ -180,6 +238,10 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
         (s) => s.exerciseId === routineEx.exerciseId
       );
 
+      const isUnilateral = routineEx.exercise.isUnilateral;
+      const isAssisted = routineEx.exercise.isAssisted;
+      const isBodyweight = routineEx.exercise.isBodyweight;
+
       if (setsForExercise.length === 0) {
         exerciseSummaries.push({
           exerciseName: routineEx.exercise.name,
@@ -193,10 +255,41 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
           sets: [],
           progressionFlag: null,
           progressionNote: '',
+          asymmetryFlag: null,
         });
         continue;
       }
 
+      // ── Asymmetry check for unilateral exercises ──────────────────────
+      let asymmetryFlag: null | { level: 'mild' | 'significant'; pct: number; weakSide: string } = null;
+
+      if (isUnilateral) {
+        const leftSets = setsForExercise.filter((s) => s.side === 'LEFT');
+        const rightSets = setsForExercise.filter((s) => s.side === 'RIGHT');
+
+        if (leftSets.length > 0 && rightSets.length > 0) {
+          const leftVolume = leftSets.reduce((sum, s) => {
+            const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+            return sum + eff * s.reps;
+          }, 0);
+          const rightVolume = rightSets.reduce((sum, s) => {
+            const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+            return sum + eff * s.reps;
+          }, 0);
+
+          const maxVol = Math.max(leftVolume, rightVolume);
+          const asymmetryPct = Math.round((Math.abs(leftVolume - rightVolume) / maxVol) * 100);
+          const weakSide = leftVolume < rightVolume ? 'LEFT' : 'RIGHT';
+
+          if (asymmetryPct >= 20) {
+            asymmetryFlag = { level: 'significant', pct: asymmetryPct, weakSide };
+          } else if (asymmetryPct >= 15) {
+            asymmetryFlag = { level: 'mild', pct: asymmetryPct, weakSide };
+          }
+        }
+      }
+
+      // ── Progressive overload ──────────────────────────────────────────
       const previousSets = await prisma.set.findMany({
         where: {
           exerciseId: routineEx.exerciseId,
@@ -209,30 +302,36 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
         take: 20,
       });
 
-      // Match set type for fair comparison
       const matchingSetType = setsForExercise[0]?.setType ?? 'STRAIGHT';
       const prevMatchingSets = previousSets.filter((s) => s.setType === matchingSetType);
 
+      // Use effective load for e1RM calculation
+      const calcE1RM = (s: { weightLbs: number; reps: number; bodyweightLbs: number | null; assistanceWeightLbs: number | null }) => {
+        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+        return Math.round(eff * (1 + s.reps / 30));
+      };
+
       const prevBest = prevMatchingSets.length > 0
-        ? prevMatchingSets.reduce((b, s) => s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b)
+        ? prevMatchingSets.reduce((b, s) => calcE1RM(s) > calcE1RM(b) ? s : b)
         : null;
 
-      const currBest = setsForExercise.reduce((b, s) =>
-        s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b
-      );
+      const currBest = setsForExercise.reduce((b, s) => calcE1RM(s) > calcE1RM(b) ? s : b);
 
-      const currE1RM = Math.round(currBest.weightLbs * (1 + currBest.reps / 30));
-      const prevE1RM = prevBest
-        ? Math.round(prevBest.weightLbs * (1 + prevBest.reps / 30))
-        : null;
+      const currE1RM = calcE1RM(currBest);
+      const prevE1RM = prevBest ? calcE1RM(prevBest) : null;
 
       const positionChanged = prevBest
         ? Math.abs((prevBest.executionOrder ?? 0) - (currBest.executionOrder ?? 0)) >= 2
         : false;
 
-      // For volume-based set types, compare total volume load
-      const currTotalVolume = setsForExercise.reduce((sum, s) => sum + s.weightLbs * s.reps, 0);
-      const prevTotalVolume = prevMatchingSets.reduce((sum, s) => sum + s.weightLbs * s.reps, 0);
+      const currTotalVolume = setsForExercise.reduce((sum, s) => {
+        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+        return sum + eff * s.reps;
+      }, 0);
+      const prevTotalVolume = prevMatchingSets.reduce((sum, s) => {
+        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs ?? null, s.assistanceWeightLbs ?? null, isAssisted, isBodyweight);
+        return sum + eff * s.reps;
+      }, 0);
 
       const isGrouped = ['SUPERSET_A', 'SUPERSET_B', 'MYOREP_ACTIVATION', 'MYOREP_MINI', 'DROPSET_PRIMARY', 'DROPSET_DROP'].includes(matchingSetType);
       const isVolumeBased = ['MYOREP_MINI', 'DROPSET_DROP'].includes(matchingSetType);
@@ -241,6 +340,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       let progressionNote = '';
 
       const contextTag = isGrouped ? ` (${matchingSetType.replace(/_/g, ' ').toLowerCase()})` : '';
+      const loadLabel = isAssisted ? 'effective load' : 'e1RM';
 
       if (!prevE1RM && prevTotalVolume === 0) {
         progressionFlag = 'first_time';
@@ -263,19 +363,22 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       } else if (currE1RM && prevE1RM) {
         if (currE1RM > prevE1RM) {
           progressionFlag = 'improved';
-          progressionNote = `e1RM: ${prevE1RM}lbs → ${currE1RM}lbs (+${currE1RM - prevE1RM}lbs)${contextTag}.`;
+          progressionNote = `${loadLabel}: ${prevE1RM}lbs → ${currE1RM}lbs (+${currE1RM - prevE1RM}lbs)${contextTag}.`;
         } else if (currE1RM === prevE1RM) {
           progressionFlag = 'maintained';
-          progressionNote = `e1RM held at ${currE1RM}lbs${contextTag}.`;
+          progressionNote = `${loadLabel} held at ${currE1RM}lbs${contextTag}.`;
         } else {
           progressionFlag = 'declined';
-          progressionNote = `e1RM: ${prevE1RM}lbs → ${currE1RM}lbs (${currE1RM - prevE1RM}lbs)${contextTag}. Check position, rest, fatigue.`;
+          progressionNote = `${loadLabel}: ${prevE1RM}lbs → ${currE1RM}lbs (${currE1RM - prevE1RM}lbs)${contextTag}. Check position, rest, fatigue.`;
         }
       }
 
       exerciseSummaries.push({
         exerciseName: routineEx.exercise.name,
         status: 'completed' as const,
+        isUnilateral,
+        isAssisted,
+        isBodyweight,
         planned: {
           sets: routineEx.targetSets,
           repMin: routineEx.targetRepMin,
@@ -287,9 +390,13 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
           reps: s.reps,
           rir: s.rir,
           setType: s.setType,
+          side: s.side,
+          effectiveLoad: getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight),
+          assistanceWeight: s.assistanceWeightLbs,
         })),
         progressionFlag,
         progressionNote,
+        asymmetryFlag,
         currentE1RM: currE1RM,
         previousE1RM: prevE1RM,
       });
@@ -342,6 +449,9 @@ export async function getSubstituteExercises(
         primaryMuscle: true,
         equipment: true,
         movementPattern: true,
+        isUnilateral: true,
+        isAssisted: true,
+        isBodyweight: true,
       },
       orderBy: { name: 'asc' },
     });
