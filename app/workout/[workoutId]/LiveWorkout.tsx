@@ -566,6 +566,16 @@ async function doLogSet(params: {
                   </span>
                 </div>
               )}
+
+              {ex.restNote && (
+                <p className={`mt-1 text-xs ${
+                  ex.avgRestSecs < (ex.planned?.sets ?? 120) * 0.7
+                    ? 'text-yellow-400'
+                    : 'text-zinc-500'
+                }`}>
+                  ⏱ {ex.restNote}
+                </p>
+              )}
               //asymmetry flag
               {ex.asymmetryFlag && (
                 <div className={`mt-2 rounded-lg px-3 py-2 text-xs ${

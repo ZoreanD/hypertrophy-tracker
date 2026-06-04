@@ -373,6 +373,38 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
         }
       }
 
+      // ── Rest time analysis ────────────────────────────────────────────────
+        const sortedSets = [...setsForExercise].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+
+        const restTimes: number[] = [];
+        for (let i = 1; i < sortedSets.length; i++) {
+          const restSecs = Math.round(
+            (new Date(sortedSets[i].createdAt).getTime() -
+              new Date(sortedSets[i - 1].createdAt).getTime()) / 1000
+          );
+          if (restSecs >= 15 && restSecs <= 600) {
+            restTimes.push(restSecs);
+          }
+        }
+
+        const avgRestSecs = restTimes.length > 0
+          ? Math.round(restTimes.reduce((a, b) => a + b, 0) / restTimes.length)
+          : null;
+
+        // Flag if consistently under-resting on compounds
+        const plannedRestSecs = routineEx.restTimerSecs ?? 120;
+        const underResting = avgRestSecs !== null && avgRestSecs < plannedRestSecs * 0.7;
+        const overResting = avgRestSecs !== null && avgRestSecs > 300;
+
+        let restNote: string | null = null;
+        if (underResting) {
+          restNote = `Avg rest: ${avgRestSecs}s (planned ${plannedRestSecs}s). Under-resting may explain lower reps.`;
+        } else if (overResting) {
+          restNote = `Avg rest: ${avgRestSecs}s — unusually long. Equipment wait or distraction?`;
+        }
+
       exerciseSummaries.push({
         exerciseName: routineEx.exercise.name,
         status: 'completed' as const,
@@ -397,6 +429,8 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
         progressionFlag,
         progressionNote,
         asymmetryFlag,
+        avgRestSecs,
+        restNote,
         currentE1RM: currE1RM,
         previousE1RM: prevE1RM,
       });
