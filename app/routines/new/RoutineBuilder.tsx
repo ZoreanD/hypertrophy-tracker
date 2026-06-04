@@ -296,6 +296,16 @@ export default function RoutineBuilder({
     setEntries((prev) => prev.filter((_, i) => i !== index).map((e, i) => ({ ...e, order: i })));
   }
 
+  function moveExercise(index: number, direction: 'up' | 'down') {
+    setEntries((prev) => {
+      const updated = [...prev];
+      const swapIndex = direction === 'up' ? index - 1 : index + 1;
+      if (swapIndex < 0 || swapIndex >= updated.length) return prev;
+      [updated[index], updated[swapIndex]] = [updated[swapIndex], updated[index]];
+      return updated.map((e, i) => ({ ...e, order: i }));
+    });
+  }
+
   function updateEntry(index: number, field: keyof RoutineExerciseEntry, value: any) {
     setEntries((prev) => {
       const updated = [...prev];
@@ -436,21 +446,43 @@ export default function RoutineBuilder({
             key={index}
             className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-4"
           >
-            {/* Exercise header */}
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-semibold text-white">{entry.exerciseName}</p>
-                <p className="text-xs text-zinc-500">
-                  {entry.primaryMuscle.replace(/_/g, ' ')}
-                </p>
-              </div>
+      {/* Exercise header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            {/* Reorder buttons */}
+            <div className="flex flex-col gap-0.5">
               <button
-                onClick={() => removeExercise(index)}
-                className="text-zinc-600 hover:text-red-400 text-sm"
+                type="button"
+                onClick={() => moveExercise(index, 'up')}
+                disabled={index === 0}
+                className="flex h-6 w-6 items-center justify-center rounded text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-20 disabled:cursor-not-allowed"
               >
-                ✕
+                ▲
+              </button>
+              <button
+                type="button"
+                onClick={() => moveExercise(index, 'down')}
+                disabled={index === entries.length - 1}
+                className="flex h-6 w-6 items-center justify-center rounded text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-20 disabled:cursor-not-allowed"
+              >
+                ▼
               </button>
             </div>
+            <div>
+              <p className="font-semibold text-white">{entry.exerciseName}</p>
+              <p className="text-xs text-zinc-500">
+                {entry.primaryMuscle.replace(/_/g, ' ')}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => removeExercise(index)}
+            className="text-zinc-600 hover:text-red-400 text-sm"
+          >
+            ✕
+          </button>
+        </div>
+            
 
             {/* Progression style */}
             <div>
