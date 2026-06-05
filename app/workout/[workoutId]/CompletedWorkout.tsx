@@ -42,7 +42,7 @@ export default function CompletedWorkout({
     <div className="mx-auto max-w-2xl space-y-8 p-6 md:p-12">
       <header className="border-b border-zinc-800 pb-6">
         <p className="text-sm text-zinc-500">
-          {new Date(workout.date).toLocaleDateString('en-US', {
+          {new Date(workout.date.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', {
             weekday: 'long', month: 'long', day: 'numeric',
           })}
         </p>
