@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { logSet, deleteSet, finishWorkout, getSubstituteExercises } from '../../actions/workout-session';
+import { logSet, deleteSet, getSubstituteExercises } from '../../actions/workout-session';
 
 type LoggedSet = {
   id: string;
@@ -194,10 +194,19 @@ export default function LiveWorkout({
     if (finishing) return;
     setFinishing(true);
     const durationMins = Math.max(1, Math.round((Date.now() - startTime) / 60000));
-    const result = await finishWorkout(workout.id, durationMins);
-    if (result.success && result.summary) {
-      setSummary(result.summary as WorkoutSummary);
-    } else {
+    try {
+      const res = await fetch('/api/finish-workout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workoutId: workout.id, durationMins }),
+      });
+      const result = await res.json();
+      if (result.success && result.summary) {
+        setSummary(result.summary as WorkoutSummary);
+      } else {
+        router.push('/dashboard');
+      }
+    } catch {
       router.push('/dashboard');
     }
   }
