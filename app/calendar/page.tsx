@@ -36,6 +36,22 @@ export default async function CalendarPage() {
     orderBy: { date: 'asc' },
   });
 
+  const completedWorkouts = await prisma.workout.findMany({
+    where: {
+      profileId: profile.id,
+      durationMins: { gt: 0 },
+      date: { gte: start, lte: end },
+    },
+    select: { id: true, routineId: true, date: true },
+  });
+
+  const completedMap = new Map(
+    completedWorkouts.map((w) => [
+      `${w.routineId}-${w.date.toISOString().split('T')[0]}`,
+      w.id,
+    ])
+  );
+
   const routines = await prisma.routine.findMany({
     where: { profileId: profile.id },
     orderBy: { createdAt: 'desc' },
@@ -65,6 +81,7 @@ export default async function CalendarPage() {
             routineId: s.routineId,
             routineName: s.routine.name,
             routineFocus: s.routine.focus ?? '',
+            completedWorkoutId: completedMap.get(`${s.routineId}-${s.date.toISOString().split('T')[0]}`) ?? null,
           }))}
           routines={routines.map((r) => ({
             id: r.id,
