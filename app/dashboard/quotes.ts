@@ -83,10 +83,10 @@ export const TRAINING_QUOTES = [
   "It's not about whether you win or lose. It's about how hard you tried. — All Might",
 ];
 
-export function getDailyQuote(): string {
+export function getHourlyQuote(): string {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
-    (1000 * 60 * 60 * 24)
+    (1000 * 60 * 60)
   );
   return TRAINING_QUOTES[dayOfYear % TRAINING_QUOTES.length];
 }

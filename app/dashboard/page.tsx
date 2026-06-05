@@ -7,7 +7,7 @@ import LogoutButton from './LogoutButton';
 import VolumeChart from './VolumeChart';
 import ProgressionChart from './ProgressionChart';
 import TodayWorkoutCard from './TodayWorkoutCard';
-import { getDailyQuote } from './quotes';
+import { getHourlyQuote } from './quotes';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +76,7 @@ export default async function Dashboard() {
     where: { id: decodedToken.userId },
     select: { username: true },
   });
-  const quote = getDailyQuote();
+  const quote = getHourlyQuote();
 
   const currentMetric = await prisma.bodyMetric.findFirst({
     where: { profileId: profile.id },
