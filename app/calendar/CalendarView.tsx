@@ -231,40 +231,51 @@ export default function CalendarView({
                       <p className="text-xs text-zinc-500">{item.routineFocus}</p>
                     </div>
                     <div className="flex gap-2">
-                      {item.completedWorkoutId ? (
-                        <button
-                          onClick={() => router.push(`/workout/${item.completedWorkoutId}`)}
-                          className="rounded-md border border-emerald-700 px-3 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-950/40"
-                        >
-                          View
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleStart(item)}
-                            className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
-                          >
-                            Start
-                          </button>
-                          <button
-                            onClick={() => setMovingItem(movingItem?.id === item.id ? null : item)}
-                            className={`rounded-md border px-3 py-1 text-xs font-semibold ${
-                              movingItem?.id === item.id
-                                ? 'border-yellow-600 text-yellow-400'
-                                : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
-                            }`}
-                          >
-                            {movingItem?.id === item.id ? 'Cancel' : 'Move'}
-                          </button>
-                          <button
-                            onClick={() => handleRemove(item.id)}
-                            disabled={isLoading}
-                            className="text-xs text-zinc-600 hover:text-red-400"
-                          >
-                            Remove
-                          </button>
-                        </>
-                      )}
+                      {(() => {
+                        const itemDateStr = item.date.slice(0, 10);
+                        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+                        const isPast = itemDateStr < todayStr;
+                        if (item.completedWorkoutId) {
+                          return (
+                            <button
+                              onClick={() => router.push(`/workout/${item.completedWorkoutId}`)}
+                              className="rounded-md border border-emerald-700 px-3 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-950/40"
+                            >
+                              View
+                            </button>
+                          );
+                        }
+                        if (isPast) {
+                          return <span className="text-xs text-zinc-600">Missed</span>;
+                        }
+                        return (
+                          <>
+                            <button
+                              onClick={() => handleStart(item)}
+                              className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                            >
+                              Start
+                            </button>
+                            <button
+                              onClick={() => setMovingItem(movingItem?.id === item.id ? null : item)}
+                              className={`rounded-md border px-3 py-1 text-xs font-semibold ${
+                                movingItem?.id === item.id
+                                  ? 'border-yellow-600 text-yellow-400'
+                                  : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                              }`}
+                            >
+                              {movingItem?.id === item.id ? 'Cancel' : 'Move'}
+                            </button>
+                            <button
+                              onClick={() => handleRemove(item.id)}
+                              disabled={isLoading}
+                              className="text-xs text-zinc-600 hover:text-red-400"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
