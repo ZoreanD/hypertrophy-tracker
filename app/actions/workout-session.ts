@@ -47,7 +47,7 @@ export async function startWorkout(routineId: string, scheduledDate: string) {
         routineId,
         date: new Date(scheduledDate),
       },
-      orderBy: { date: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (existingWorkout) {
@@ -491,10 +491,9 @@ export async function getSubstituteExercises(
   movementPattern: string
 ) {
   try {
-    const substitutes = await prisma.exercise.findMany({
+    const all = await prisma.exercise.findMany({
       where: {
         primaryMuscle: primaryMuscle as any,
-        movementPattern: movementPattern as any,
         NOT: { id: exerciseId },
       },
       select: {
@@ -509,6 +508,13 @@ export async function getSubstituteExercises(
       },
       orderBy: { name: 'asc' },
     });
+
+    // Sort: same movementPattern first (closest substitutes), then others
+    const substitutes = [
+      ...all.filter((e) => e.movementPattern === movementPattern),
+      ...all.filter((e) => e.movementPattern !== movementPattern),
+    ];
+
     return { success: true, substitutes };
   } catch (error) {
     console.error('Failed to fetch substitutes:', error);

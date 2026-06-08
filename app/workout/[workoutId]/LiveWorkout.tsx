@@ -11,6 +11,7 @@ type PlannedExercise = {
   exerciseId: string;
   exerciseName: string;
   primaryMuscle: string;
+  movementPattern: string;
   equipment: string;
   isUnilateral: boolean;
   isAssisted: boolean;
@@ -56,8 +57,8 @@ type Substitute = {
   id: string;
   name: string;
   primaryMuscle: string;
-  equipment: string;
   movementPattern: string;
+  equipment: string;
 };
 
 type SwapRecord = {
@@ -332,7 +333,7 @@ export default function LiveWorkout({
 
   async function handleSearchSupersetPartner(ex: PlannedExercise) {
     setShowPartnerSearch((prev) => ({ ...prev, [ex.exerciseId]: true }));
-    const result = await getSubstituteExercises(ex.exerciseId, ex.primaryMuscle, ex.equipment);
+    const result = await getSubstituteExercises(ex.exerciseId, ex.primaryMuscle, ex.movementPattern);
     setPartnerSubstitutes((prev) => ({ ...prev, [ex.exerciseId]: result.substitutes ?? [] }));
   }
 
@@ -463,7 +464,7 @@ export default function LiveWorkout({
   async function handleOpenPivot(ex: PlannedExercise) {
     setPivotingExerciseId(ex.exerciseId);
     setLoadingSubstitutes(true);
-    const result = await getSubstituteExercises(ex.exerciseId, ex.primaryMuscle, ex.equipment);
+    const result = await getSubstituteExercises(ex.exerciseId, ex.primaryMuscle, ex.movementPattern);
     setSubstitutes(result.substitutes ?? []);
     setLoadingSubstitutes(false);
   }

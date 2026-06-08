@@ -145,6 +145,7 @@ export default async function LiveWorkoutPage({
           exerciseId: re.exerciseId,
           exerciseName: re.exercise.name,
           primaryMuscle: re.exercise.primaryMuscle,
+          movementPattern: re.exercise.movementPattern,
           equipment: re.exercise.equipment,
           isUnilateral: re.exercise.isUnilateral,
           isAssisted: re.exercise.isAssisted,
