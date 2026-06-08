@@ -20,6 +20,7 @@ export async function createRoutine(data: {
   name: string;
   focus: string;
   notes?: string;
+  weeklyFrequency?: number;
   exercises: RoutineExerciseInput[];
 }) {
   try {
@@ -41,6 +42,7 @@ export async function createRoutine(data: {
         name: data.name,
         focus: data.focus,
         notes: data.notes,
+        weeklyFrequency: data.weeklyFrequency ?? 1,
         exercises: {
           create: data.exercises.map((ex) => ({
             exerciseId: ex.exerciseId,
@@ -97,6 +99,7 @@ export async function updateRoutine(routineId: string, data: {
   name: string;
   focus: string;
   notes?: string;
+  weeklyFrequency?: number;
   exercises: RoutineExerciseInput[];
 }) {
   try {
@@ -132,6 +135,7 @@ export async function updateRoutine(routineId: string, data: {
           name: data.name,
           focus: data.focus,
           notes: data.notes,
+          weeklyFrequency: data.weeklyFrequency ?? 1,
           exercises: {
             create: data.exercises.map((ex) => ({
               exerciseId: ex.exerciseId,

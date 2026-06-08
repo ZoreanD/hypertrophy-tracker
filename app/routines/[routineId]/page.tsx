@@ -69,6 +69,7 @@ export default async function EditRoutinePage({
             initialName: routine.name,
             initialFocus: routine.focus ?? 'Push',
             initialNotes: routine.notes ?? '',
+            initialWeeklyFrequency: routine.weeklyFrequency ?? 1,
             initialExercises: routine.exercises.map((re) => ({
               exerciseId: re.exerciseId,
               exerciseName: re.exercise.name,

@@ -202,9 +202,10 @@ model Routine {
   id        String   @id @default(uuid())
   profileId String
   name      String
-  focus     String?
-  notes     String?
-  createdAt DateTime @default(now())
+  focus            String?
+  notes            String?
+  weeklyFrequency  Int     @default(1)
+  createdAt        DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   profile           Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)

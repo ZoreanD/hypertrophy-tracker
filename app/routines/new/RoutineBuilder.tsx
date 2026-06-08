@@ -35,6 +35,7 @@ type EditMode = {
   initialFocus: string;
   initialNotes: string;
   initialExercises: RoutineExerciseEntry[];
+  initialWeeklyFrequency: number;
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -291,6 +292,7 @@ export default function RoutineBuilder({
   const [name, setName] = useState(editMode?.initialName ?? '');
   const [focus, setFocus] = useState(editMode?.initialFocus ?? 'Push');
   const [notes, setNotes] = useState(editMode?.initialNotes ?? '');
+  const [weeklyFrequency, setWeeklyFrequency] = useState(editMode?.initialWeeklyFrequency ?? 1);
 
   // Exercise search
   const [search, setSearch] = useState('');
@@ -338,6 +340,8 @@ export default function RoutineBuilder({
       label: h.label,
       sets: setsByMuscle[h.key] || 0,
     }));
+    const effectiveMEV = Math.max(0, Math.round(req.mev / weeklyFrequency));
+    const effectiveMAV = Math.max(1, Math.round(req.mav / weeklyFrequency));
     return {
       muscle: req.muscle,
       label: req.label,
@@ -345,12 +349,12 @@ export default function RoutineBuilder({
       indirect,
       heads,
       minSets: req.minSets,
-      mev: req.mev,
-      mav: req.mav,
+      mev: effectiveMEV,
+      mav: effectiveMAV,
       met: sets >= req.minSets,
       status: sets === 0 ? 'none'
-        : sets < req.mev ? 'below_mev'
-        : sets <= req.mav ? 'in_mav'
+        : sets < effectiveMEV ? 'below_mev'
+        : sets <= effectiveMAV ? 'in_mav'
         : 'above_mav',
     };
   });
@@ -416,9 +420,9 @@ export default function RoutineBuilder({
 
   let result;
   if (editMode) {
-    result = await updateRoutine(editMode.routineId, { name, focus, notes, exercises: entries });
+    result = await updateRoutine(editMode.routineId, { name, focus, notes, weeklyFrequency, exercises: entries });
   } else {
-    result = await createRoutine({ name, focus, notes, exercises: entries });
+    result = await createRoutine({ name, focus, notes, weeklyFrequency, exercises: entries });
   }
 
   if (result.success) {
@@ -467,6 +471,30 @@ export default function RoutineBuilder({
                 </optgroup>
             ))}
         </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-400">
+              Sessions per week
+              <span className="ml-2 text-xs font-normal text-zinc-500">
+                MEV / MAV scaled per session ÷ {weeklyFrequency}x
+              </span>
+            </label>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setWeeklyFrequency(n)}
+                  className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
+                    weeklyFrequency === n
+                      ? 'border-emerald-600 bg-emerald-900/30 text-emerald-400'
+                      : 'border-zinc-700 text-zinc-500 hover:border-zinc-500'
+                  }`}
+                >
+                  {n}×
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-400">Notes (optional)</label>
