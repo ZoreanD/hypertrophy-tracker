@@ -47,7 +47,7 @@ export async function startWorkout(routineId: string, scheduledDate: string) {
         routineId,
         date: new Date(scheduledDate),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { date: 'desc' },
     });
 
     if (existingWorkout) {
