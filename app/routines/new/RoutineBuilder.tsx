@@ -365,6 +365,7 @@ export default function RoutineBuilder({
         exerciseId: ex.id,
         exerciseName: ex.name,
         primaryMuscle: ex.primaryMuscle,
+        secondaryMuscles: ex.secondaryMuscles ?? [],
         order: prev.length,
         targetSets: 3,
         targetRepMin: 8,
