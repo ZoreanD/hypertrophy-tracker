@@ -62,7 +62,6 @@ type Substitute = {
   primaryMuscle: string;
   movementPattern: string;
   equipment: string;
-  movementPattern: string;
 };
 
 type SwapRecord = {
