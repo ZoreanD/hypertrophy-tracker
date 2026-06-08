@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { logSet, deleteSet, getSubstituteExercises } from '../../actions/workout-session';
 import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
+import Tooltip from '../../components/Tooltip';
+import { GLOSSARY } from '../../components/glossary';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -60,6 +62,7 @@ type Substitute = {
   primaryMuscle: string;
   movementPattern: string;
   equipment: string;
+  movementPattern: string;
 };
 
 type SwapRecord = {
@@ -579,7 +582,7 @@ export default function LiveWorkout({
           <div className="rounded-xl border border-yellow-700 bg-yellow-900/20 p-4">
             <p className="font-semibold text-yellow-400">Deload Recommended</p>
             <p className="mt-1 text-sm text-yellow-300/70">
-              Multiple unexplained performance declines detected. Consider a deload week — reduce load by 40-50%, cut volume by half, keep RIR high.
+              Multiple unexplained performance declines detected. Consider a <Tooltip definition={GLOSSARY.deload}>deload</Tooltip> week — reduce load by 40–50%, cut volume by half, keep <Tooltip definition={GLOSSARY.RIR}>RIR</Tooltip> high.
             </p>
           </div>
         )}
@@ -884,7 +887,7 @@ export default function LiveWorkout({
                                   className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-zinc-500">RIR</label>
+                                <label className="mb-1 block text-xs text-zinc-500"><Tooltip definition={GLOSSARY.RIR}>RIR</Tooltip></label>
                                 <input type="number" step="0.5" min="0" max="5"
                                   value={inlineDropInputs[s.id]?.rir ?? ''}
                                   onChange={(e) => setInlineDropInputs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], rir: e.target.value } }))}

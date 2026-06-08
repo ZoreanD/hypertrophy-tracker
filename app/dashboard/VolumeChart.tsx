@@ -1,5 +1,8 @@
 'use client';
 
+import Tooltip from '../components/Tooltip';
+import { GLOSSARY } from '../components/glossary';
+
 type VolumeDataPoint = {
   muscle: string;
   label: string;
@@ -77,16 +80,16 @@ export default function VolumeChart({ data }: { data: VolumeDataPoint[] }) {
         </div>
         <div className="flex items-center gap-1">
           <div className="h-2 w-2 rounded-full bg-red-500" />
-          <span>Near MRV</span>
+          <span><Tooltip definition={GLOSSARY.MRV}>Near MRV</Tooltip></span>
         </div>
         <div className="ml-auto flex items-center gap-3">
           <div className="flex items-center gap-1">
             <div className="h-3 w-px bg-yellow-600/60" />
-            <span>MEV</span>
+            <span><Tooltip definition={GLOSSARY.MEV}>MEV</Tooltip></span>
           </div>
           <div className="flex items-center gap-1">
             <div className="h-3 w-px bg-emerald-600/60" />
-            <span>MAV</span>
+            <span><Tooltip definition={GLOSSARY.MAV}>MAV</Tooltip></span>
           </div>
         </div>
       </div>

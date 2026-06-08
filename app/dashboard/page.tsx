@@ -5,6 +5,8 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 import LogoutButton from './LogoutButton';
 import VolumeChart from './VolumeChart';
+import Tooltip from '../components/Tooltip';
+import { GLOSSARY } from '../components/glossary';
 import ProgressionChart from './ProgressionChart';
 import TodayWorkoutCard from './TodayWorkoutCard';
 import { getHourlyQuote } from './quotes';
@@ -334,8 +336,7 @@ const todayWorkouts = await prisma.workout.findMany({
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-zinc-400">Mesocycle</p>
-              <span className="cursor-help text-xs text-zinc-600" title="A mesocycle is a 6-week training block. Weeks 1-2: accumulate volume. Weeks 3-4: intensify. Week 5: peak near MRV. Week 6: deload to recover.">?</span>
+              <p className="text-sm font-medium text-zinc-400"><Tooltip definition={GLOSSARY.mesocycle}>Mesocycle</Tooltip></p>
             </div>
             <p className="mt-2 text-4xl font-bold text-zinc-300">
               Week {mesocycleWeek}
@@ -353,7 +354,7 @@ const todayWorkouts = await prisma.workout.findMany({
         <section>
           <h2 className="mb-4 text-xl font-semibold text-zinc-200">Weekly Volume</h2>
           <p className="mb-4 text-sm text-zinc-500">
-            Direct working sets per muscle group this week vs MEV/MAV landmarks.
+            Direct working sets per muscle group this week vs <Tooltip definition={GLOSSARY.MEV}>MEV</Tooltip>/<Tooltip definition={GLOSSARY.MAV}>MAV</Tooltip> landmarks.
           </p>
           <VolumeChart data={volumeData} />
         </section>

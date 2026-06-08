@@ -1,5 +1,8 @@
 'use client';
 
+import Tooltip from '../../components/Tooltip';
+import { GLOSSARY } from '../../components/glossary';
+
 import { useState } from 'react';
 
 type VolumeCheckItem = {
@@ -73,9 +76,9 @@ export default function VolumeChecker({
                     : 'bg-red-900/50 text-red-400'
                   }`}>
                     {v.status === 'none' ? '○ Missing'
-                    : v.status === 'below_mev' ? '⚠ Below MEV'
-                    : v.status === 'in_mav' ? '✓ In MAV'
-                    : '↑ Near MRV'}
+                    : v.status === 'below_mev' ? <Tooltip definition={GLOSSARY.MEV}>⚠ Below MEV</Tooltip>
+                    : v.status === 'in_mav' ? <Tooltip definition={GLOSSARY.MAV}>✓ In MAV</Tooltip>
+                    : <Tooltip definition={GLOSSARY.MRV}>↑ Near MRV</Tooltip>}
                   </span>
                 </div>
               </div>
@@ -99,7 +102,7 @@ export default function VolumeChecker({
         })}
       </div>
       <p className="mt-3 text-xs text-zinc-600">
-        MEV = minimum for growth · MAV = optimal range · MRV = recovery limit · tap a group to drill down
+        <Tooltip definition={GLOSSARY.MEV}>MEV</Tooltip> = minimum for growth · <Tooltip definition={GLOSSARY.MAV}>MAV</Tooltip> = optimal range · <Tooltip definition={GLOSSARY.MRV}>MRV</Tooltip> = recovery limit · tap a group to drill down
       </p>
     </div>
   );
