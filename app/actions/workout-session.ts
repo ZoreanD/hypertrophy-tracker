@@ -290,10 +290,16 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       }
 
       // ── Progressive overload ──────────────────────────────────────────
+      // Only compare against the same session type (Push vs Fullbody etc.)
+      // Prevents cross-contamination: a fresh fullbody bench shouldn't be
+      // compared against a fatigued Push-day bench, and vice versa.
       const previousSets = await prisma.set.findMany({
         where: {
           exerciseId: routineEx.exerciseId,
-          workout: { profileId: profile.id },
+          workout: {
+            profileId: profile.id,
+            focus: workout.focus,
+          },
           isWarmup: false,
           NOT: { workoutId },
         },

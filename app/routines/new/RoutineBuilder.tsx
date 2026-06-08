@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createRoutine, updateRoutine, deleteRoutine } from '../../actions/routine';
+import VolumeChecker from './VolumeChecker';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ type RoutineExerciseEntry = {
   exerciseId: string;
   exerciseName: string;
   primaryMuscle: string;
+  secondaryMuscles: string[];
   order: number;
   targetSets: number;
   targetRepMin: number;
@@ -142,6 +144,58 @@ const MUSCLE_GROUP_MAP: Record<string, string> = {
   OBLIQUES: 'ABS',
 };
 
+
+// Head-level breakdown per muscle group (for drill-down in volume checker)
+const GROUP_TO_HEADS: Record<string, { key: string; label: string }[]> = {
+  CHEST: [
+    { key: 'CHEST_UPPER', label: 'Upper chest' },
+    { key: 'CHEST_MID_LOWER', label: 'Mid / lower chest' },
+  ],
+  BACK: [
+    { key: 'LATS', label: 'Lats' },
+    { key: 'TRAPS_MID', label: 'Mid traps' },
+    { key: 'TRAPS_UPPER', label: 'Upper traps' },
+    { key: 'TRAPS_LOWER', label: 'Lower traps' },
+    { key: 'RHOMBOIDS', label: 'Rhomboids' },
+    { key: 'TERES_MAJOR', label: 'Teres major' },
+    { key: 'LOWER_BACK', label: 'Lower back' },
+  ],
+  BICEPS: [
+    { key: 'BICEPS_LONG_HEAD', label: 'Long head' },
+    { key: 'BICEPS_SHORT_HEAD', label: 'Short head' },
+    { key: 'BRACHIALIS', label: 'Brachialis' },
+    { key: 'BRACHIORADIALIS', label: 'Brachioradialis' },
+  ],
+  TRICEPS: [
+    { key: 'TRICEPS_LONG_HEAD', label: 'Long head' },
+    { key: 'TRICEPS_LATERAL_HEAD', label: 'Lateral head' },
+    { key: 'TRICEPS_MEDIAL_HEAD', label: 'Medial head' },
+  ],
+  QUADS: [
+    { key: 'QUAD_VASTUS_LATERALIS', label: 'Vastus lateralis' },
+    { key: 'QUAD_VASTUS_MEDIALIS', label: 'Vastus medialis (VMO)' },
+    { key: 'QUAD_RECTUS_FEMORIS', label: 'Rectus femoris' },
+  ],
+  HAMSTRINGS: [
+    { key: 'HAMSTRING_BICEPS_FEMORIS', label: 'Biceps femoris' },
+    { key: 'HAMSTRING_MEDIAL', label: 'Semimembranosus / semitendinosus' },
+  ],
+  GLUTES: [
+    { key: 'GLUTE_MAX', label: 'Glute max' },
+    { key: 'GLUTE_MED', label: 'Glute med' },
+    { key: 'HIP_ABDUCTOR', label: 'Hip abductors' },
+    { key: 'HIP_ADDUCTOR', label: 'Hip adductors' },
+  ],
+  CALVES: [
+    { key: 'GASTROCNEMIUS', label: 'Gastrocnemius' },
+    { key: 'SOLEUS', label: 'Soleus' },
+  ],
+  ABS: [
+    { key: 'ABS', label: 'Abs' },
+    { key: 'OBLIQUES', label: 'Obliques' },
+  ],
+};
+
 // Volume requirements per split type
 // MEV = minimum to appear in routine for this split to be valid
 // Based on RP volume landmarks and Schoenfeld meta-analysis
@@ -256,19 +310,40 @@ export default function RoutineBuilder({
   const requirements = SPLIT_REQUIREMENTS[focus] || [];
   if (requirements.length === 0) return [];
 
-  // Count sets per muscle group using the mapping
+  // Direct sets per individual muscle head
+  const setsByMuscle: Record<string, number> = {};
+  // Direct sets per group
   const setsByGroup: Record<string, number> = {};
+  // Indirect sets per group (from secondary muscles)
+  const indirectByGroup: Record<string, number> = {};
+
   entries.forEach((entry) => {
     const group = MUSCLE_GROUP_MAP[entry.primaryMuscle] || entry.primaryMuscle;
     setsByGroup[group] = (setsByGroup[group] || 0) + entry.targetSets;
+    setsByMuscle[entry.primaryMuscle] = (setsByMuscle[entry.primaryMuscle] || 0) + entry.targetSets;
+    // Indirect volume from secondary muscles
+    (entry.secondaryMuscles ?? []).forEach((sec) => {
+      const secGroup = MUSCLE_GROUP_MAP[sec] || sec;
+      if (secGroup !== group) {
+        indirectByGroup[secGroup] = (indirectByGroup[secGroup] || 0) + entry.targetSets;
+      }
+    });
   });
 
   return requirements.map((req) => {
     const sets = setsByGroup[req.muscle] || 0;
+    const indirect = indirectByGroup[req.muscle] || 0;
+    const heads = (GROUP_TO_HEADS[req.muscle] || []).map((h) => ({
+      key: h.key,
+      label: h.label,
+      sets: setsByMuscle[h.key] || 0,
+    }));
     return {
       muscle: req.muscle,
       label: req.label,
       sets,
+      indirect,
+      heads,
       minSets: req.minSets,
       mev: req.mev,
       mav: req.mav,
@@ -407,40 +482,8 @@ export default function RoutineBuilder({
 
       {/* ── Volume Requirements Checker ── */}
       {SPLIT_REQUIREMENTS[focus] && volumeCheck.length > 0 && (
-  <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-    <p className="mb-3 text-sm font-medium text-zinc-400">
-      Volume Check — {focus}
-    </p>
-    <div className="space-y-2">
-      {volumeCheck.map((v) => (
-        <div key={v.muscle} className="flex items-center justify-between">
-          <span className={`text-sm ${v.met ? 'text-zinc-200' : 'text-zinc-500'}`}>
-            {v.label}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-600">
-              {v.sets} sets
-            </span>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              v.status === 'none' ? 'bg-zinc-800 text-zinc-500'
-              : v.status === 'below_mev' ? 'bg-yellow-900/50 text-yellow-400'
-              : v.status === 'in_mav' ? 'bg-emerald-900/50 text-emerald-400'
-              : 'bg-red-900/50 text-red-400'
-            }`}>
-              {v.status === 'none' ? '○ Missing'
-              : v.status === 'below_mev' ? '⚠ Below MEV'
-              : v.status === 'in_mav' ? '✓ In MAV'
-              : '↑ Near MRV'}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-    <p className="mt-3 text-xs text-zinc-600">
-      MEV = minimum for growth · MAV = optimal range · MRV = recovery limit
-    </p>
-  </div>
-)}
+        <VolumeChecker volumeCheck={volumeCheck} focus={focus} />
+      )}
 
       {/* ── Exercise List ── */}
       <div className="space-y-4">

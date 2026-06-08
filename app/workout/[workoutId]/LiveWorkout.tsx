@@ -110,6 +110,7 @@ export default function LiveWorkout({
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [restTarget, setRestTarget] = useState(120);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const restEndTimeRef = useRef<number | null>(null);
 
   // Per-exercise input state
   const [inputs, setInputs] = useState<Record<string, {
@@ -152,15 +153,41 @@ export default function LiveWorkout({
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
+  // Snap timer display when app returns to foreground
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible' && restEndTimeRef.current !== null) {
+        const remaining = Math.round((restEndTimeRef.current - Date.now()) / 1000);
+        if (remaining <= 0) {
+          clearInterval(timerRef.current!);
+          timerRef.current = null;
+          restEndTimeRef.current = null;
+          setRestTimer(null);
+        } else {
+          setRestTimer(remaining);
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
   function startRestTimer(secs: number) {
     if (timerRef.current) clearInterval(timerRef.current);
+    const endTime = Date.now() + secs * 1000;
+    restEndTimeRef.current = endTime;
     setRestTarget(secs);
     setRestTimer(secs);
     timerRef.current = setInterval(() => {
-      setRestTimer((prev) => {
-        if (prev === null || prev <= 1) { clearInterval(timerRef.current!); return null; }
-        return prev - 1;
-      });
+      const remaining = Math.round((restEndTimeRef.current! - Date.now()) / 1000);
+      if (remaining <= 0) {
+        clearInterval(timerRef.current!);
+        timerRef.current = null;
+        restEndTimeRef.current = null;
+        setRestTimer(null);
+      } else {
+        setRestTimer(remaining);
+      }
     }, 1000);
   }
 

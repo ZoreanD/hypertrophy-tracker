@@ -73,6 +73,7 @@ export default async function EditRoutinePage({
               exerciseId: re.exerciseId,
               exerciseName: re.exercise.name,
               primaryMuscle: re.exercise.primaryMuscle,
+              secondaryMuscles: re.exercise.secondaryMuscles,
               order: re.order,
               targetSets: re.targetSets,
               targetRepMin: re.targetRepMin,
