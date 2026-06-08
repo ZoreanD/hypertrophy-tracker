@@ -40,6 +40,20 @@ export async function startWorkout(routineId: string, scheduledDate: string) {
     });
     if (!routine) throw new Error('Routine not found');
 
+    // Idempotent: return existing workout if one already exists for this routine+date
+    const existingWorkout = await prisma.workout.findFirst({
+      where: {
+        profileId: profile.id,
+        routineId,
+        date: new Date(scheduledDate),
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    if (existingWorkout) {
+      return { success: true, workoutId: existingWorkout.id };
+    }
+
     const workout = await prisma.workout.create({
       data: {
         profileId: profile.id,

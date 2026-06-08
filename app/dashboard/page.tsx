@@ -17,9 +17,7 @@ const VOLUME_LANDMARKS: Record<string, { mev: number; mav: number; label: string
   QUADS: { mev: 8, mav: 18, label: 'Quads' },
   HAMSTRINGS: { mev: 6, mav: 16, label: 'Hamstrings' },
   GLUTES: { mev: 0, mav: 12, label: 'Glutes' },
-  SIDE_DELT: { mev: 6, mav: 20, label: 'Side Delts' },
-  REAR_DELT: { mev: 6, mav: 16, label: 'Rear Delts' },
-  FRONT_DELT: { mev: 0, mav: 6, label: 'Front Delts' },
+  SIDE_REAR_DELT: { mev: 8, mav: 22, label: 'Delts' },
   BICEPS: { mev: 6, mav: 14, label: 'Biceps' },
   TRICEPS: { mev: 4, mav: 12, label: 'Triceps' },
   CALVES: { mev: 6, mav: 16, label: 'Calves' },
@@ -36,9 +34,9 @@ const MUSCLE_GROUP_MAP: Record<string, string> = {
   RHOMBOIDS: 'BACK',
   TERES_MAJOR: 'BACK',
   LOWER_BACK: 'BACK',
-  FRONT_DELT: 'FRONT_DELT',
-  SIDE_DELT: 'SIDE_DELT',
-  REAR_DELT: 'REAR_DELT',
+  FRONT_DELT: 'SIDE_REAR_DELT',
+  SIDE_DELT: 'SIDE_REAR_DELT',
+  REAR_DELT: 'SIDE_REAR_DELT',
   BICEPS_LONG_HEAD: 'BICEPS',
   BICEPS_SHORT_HEAD: 'BICEPS',
   BRACHIALIS: 'BICEPS',
@@ -281,7 +279,11 @@ const todayWorkouts = await prisma.workout.findMany({
           <h2 className="mb-3 text-xl font-semibold text-zinc-200">Today</h2>
           <div className="space-y-2">
             {todayScheduled.map((s) => {
-              const existing = todayWorkouts.find((w) => w.routineId === s.routineId);
+              // Prefer completed workout over in-progress; most recent if multiple in-progress
+              const matching = todayWorkouts.filter((w) => w.routineId === s.routineId);
+              const existing = matching.find((w) => w.durationMins > 0)
+                ?? matching[matching.length - 1]
+                ?? null;
               return (
                 <TodayWorkoutCard
                   key={s.id}
