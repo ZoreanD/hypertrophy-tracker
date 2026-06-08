@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { logSet, deleteSet, getSubstituteExercises } from '../../actions/workout-session';
+import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -806,6 +807,13 @@ export default function LiveWorkout({
                   <div className={`rounded-lg p-3 text-xs ${hint.type === 'increase' ? 'bg-emerald-900/30 text-emerald-400' : hint.type === 'context' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-zinc-800/50 text-zinc-400'}`}>
                     {hint.text}
                   </div>
+                )}
+
+                {/* Science note */}
+                {EXERCISE_SCIENCE_NOTES[ex.exerciseName] && (
+                  <p className="text-xs text-blue-400/70">
+                    ℹ {EXERCISE_SCIENCE_NOTES[ex.exerciseName]}
+                  </p>
                 )}
 
                 {/* Last session */}

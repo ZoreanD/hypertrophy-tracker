@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createRoutine, updateRoutine, deleteRoutine } from '../../actions/routine';
 import VolumeChecker from './VolumeChecker';
+import { EXERCISE_SCIENCE_NOTES } from './exerciseNotes';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -324,7 +325,7 @@ export default function RoutineBuilder({
     setsByGroup[group] = (setsByGroup[group] || 0) + entry.targetSets;
     setsByMuscle[entry.primaryMuscle] = (setsByMuscle[entry.primaryMuscle] || 0) + entry.targetSets;
     // Indirect volume from secondary muscles
-    (entry.secondaryMuscles ?? []).forEach((sec) => {
+    (entry.secondaryMuscles ?? []).forEach((sec: string) => {
       const secGroup = MUSCLE_GROUP_MAP[sec] || sec;
       if (secGroup !== group) {
         indirectByGroup[secGroup] = (indirectByGroup[secGroup] || 0) + entry.targetSets;
@@ -556,6 +557,11 @@ export default function RoutineBuilder({
               <p className="text-xs text-zinc-500">
                 {entry.primaryMuscle.replace(/_/g, ' ')}
               </p>
+              {EXERCISE_SCIENCE_NOTES[entry.exerciseName] && (
+                <p className="mt-1 text-xs text-blue-400/70">
+                  ℹ {EXERCISE_SCIENCE_NOTES[entry.exerciseName]}
+                </p>
+              )}
             </div>
           </div>
           <button
@@ -703,12 +709,19 @@ export default function RoutineBuilder({
                     <button
                       type="button"
                       onClick={() => addExercise(ex)}
-                      className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-zinc-800"
+                      className="flex w-full flex-col px-4 py-3 text-left hover:bg-zinc-800"
                     >
-                      <span className="text-sm text-white">{ex.name}</span>
-                      <span className="text-xs text-zinc-500">
-                        {ex.primaryMuscle.replace(/_/g, ' ')}
-                      </span>
+                      <div className="flex w-full items-center justify-between">
+                        <span className="text-sm text-white">{ex.name}</span>
+                        <span className="text-xs text-zinc-500">
+                          {ex.primaryMuscle.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      {EXERCISE_SCIENCE_NOTES[ex.name] && (
+                        <span className="mt-0.5 text-xs text-blue-400/70">
+                          ℹ {EXERCISE_SCIENCE_NOTES[ex.name]}
+                        </span>
+                      )}
                     </button>
                   </li>
                 ))}
