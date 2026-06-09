@@ -159,22 +159,33 @@ export default function LiveWorkout({
 
   // Snap timer display when app returns to foreground
   useEffect(() => {
-    function onVisible() {
-      if (document.visibilityState === 'visible' && restEndTimeRef.current !== null) {
-        const remaining = Math.round((restEndTimeRef.current - Date.now()) / 1000);
-        if (remaining <= 0) {
-          clearInterval(timerRef.current!);
-          timerRef.current = null;
-          restEndTimeRef.current = null;
-          setRestTimer(null);
-        } else {
-          setRestTimer(remaining);
+  function onVisible() {
+    if (document.visibilityState === 'visible' && restEndTimeRef.current !== null) {
+      const remaining = Math.round((restEndTimeRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        clearInterval(timerRef.current!);
+        timerRef.current = null;
+        restEndTimeRef.current = null;
+        setRestTimer(null);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Rest complete', {
+            body: 'Time to log your next set.',
+            icon: '/icons/icon-192x192.png',
+          });
         }
       }
     }
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []);
+  }
+
+  document.addEventListener('visibilitychange', onVisible);
+  return () => document.removeEventListener('visibilitychange', onVisible);
+}, []);
+
+  useEffect(() => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}, []);
 
   function startRestTimer(secs: number) {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -189,6 +200,12 @@ export default function LiveWorkout({
         timerRef.current = null;
         restEndTimeRef.current = null;
         setRestTimer(null);
+        if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState === 'hidden') {
+          new Notification('Rest complete', {
+            body: 'Time to log your next set.',
+            icon: '/icons/icon-192x192.png',
+          });
+        }
       } else {
         setRestTimer(remaining);
       }
