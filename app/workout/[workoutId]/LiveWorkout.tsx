@@ -580,6 +580,19 @@ export default function LiveWorkout({
     return { type: 'maintain' as const, text: `Last: ${ex.history.lastReps} reps @ ${ex.history.lastWeight}lbs (${ex.history.lastRir} RIR)` };
   }
 
+  function getWarmupSuggestions(lastWeight: number, sessionIndex: number) {
+    const round = (w: number) => Math.round(w / 2.5) * 2.5;
+    if (sessionIndex <= 1) {
+      return [
+        { pct: 40, weight: round(lastWeight * 0.4), reps: 10 },
+        { pct: 65, weight: round(lastWeight * 0.65), reps: 5 },
+      ];
+    }
+    return [
+      { pct: 60, weight: round(lastWeight * 0.6), reps: 5 },
+    ];
+  }
+
   // ── Summary screen ────────────────────────────────────────────────────────
 
   if (summary) {
@@ -876,6 +889,18 @@ export default function LiveWorkout({
                     <span className="text-xs text-zinc-600">Last session:</span>
                     {ex.history.allSets.map((s, i) => (
                       <span key={i} className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">{s.weight}lbs × {s.reps}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Warm-up suggestions */}
+                {ex.history && setsForExercise.length === 0 && (
+                  <div className="rounded-lg bg-zinc-800/50 px-3 py-2 space-y-1">
+                    <p className="text-xs text-zinc-500 font-medium">Suggested warm-up</p>
+                    {getWarmupSuggestions(ex.history.lastWeight, index).map((s, i) => (
+                      <p key={i} className="text-xs text-zinc-400">
+                        {s.pct}% — {s.weight}lbs × {s.reps} reps
+                      </p>
                     ))}
                   </div>
                 )}
