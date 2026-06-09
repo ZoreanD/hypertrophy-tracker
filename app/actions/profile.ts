@@ -151,6 +151,7 @@ export async function updateProfile(data: {
   goal: string;
   weeklyGoalRate: number | string;
   targetWeightLbs?: number | string;
+  weekStartDay?: number;
 }) {
   try {
     const cookieStore = await cookies();
@@ -187,6 +188,7 @@ export async function updateProfile(data: {
         currentGoal: safeGoal as any,
         weeklyGoalRate: numericWeeklyRate,
         targetWeightLbs: data.targetWeightLbs ? Number(data.targetWeightLbs) : null,
+        weekStartDay: data.weekStartDay ?? undefined,
       },
     });
 
