@@ -59,6 +59,7 @@ export default async function LiveWorkoutPage({
             focus: workout.focus,
             date: workout.date.toISOString(),
             durationMins: workout.durationMins,
+            summaryJson: workout.summaryJson ?? null,
           }}
           plannedExercises={(workout.routine?.exercises ?? []).map((re) => ({
             exerciseId: re.exerciseId,
