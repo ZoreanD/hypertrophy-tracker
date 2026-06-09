@@ -240,6 +240,7 @@ model Workout {
   routineId    String?
   focus        String
   durationMins Int
+  summaryJson  Json?
   notes        String?
   date         DateTime @default(now())
 

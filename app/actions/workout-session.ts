@@ -240,11 +240,6 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
 
     if (!workout) throw new Error('Workout not found');
 
-    await prisma.workout.update({
-      where: { id: workoutId },
-      data: { durationMins },
-    });
-
     const exerciseSummaries = [];
 
     for (const routineEx of workout.routine?.exercises ?? []) {
@@ -465,6 +460,19 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
 
     const deloadRecommended = totalCompleted > 0 &&
       unexplainedDeclines / totalCompleted >= 0.5;
+
+    await prisma.workout.update({
+      where: { id: workoutId },
+      data: {
+        durationMins,
+        summaryJson: {
+          exerciseSummaries,
+          deloadRecommended,
+          totalSets: workout.sets.length,
+          durationMins,
+        },
+      },
+    });
 
     const { revalidatePath: revalidate } = await import('next/cache');
     revalidate('/dashboard');
