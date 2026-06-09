@@ -85,13 +85,17 @@ export default async function Dashboard() {
     orderBy: { date: 'desc' },
   });
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
+  const now = new Date();
+  const currentDay = now.getDay(); // 0=Sun, 1=Mon, ...
+  const weekStartDay = profile.weekStartDay ?? 0;
+  const daysFromStart = (currentDay - weekStartDay + 7) % 7;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - daysFromStart);
+  weekStart.setHours(0, 0, 0, 0);
   const recentWorkouts = await prisma.workout.findMany({
     where: {
       profileId: profile.id,
-      date: { gte: sevenDaysAgo },
+      date: { gte: weekStart },
     },
     include: {
       sets: {
