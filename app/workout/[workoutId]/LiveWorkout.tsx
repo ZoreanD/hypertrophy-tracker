@@ -149,7 +149,7 @@ export default function LiveWorkout({
   // Flashing on click
   const [flashingExercise, setFlashingExercise] = useState<string | null>(null);
 
-  const [activeSide, setActiveSide] = useState<Record<string, 'LEFT' | 'RIGHT'>>({});
+  const [unilateralPhase, setUnilateralPhase] = useState<Record<string, 'LEFT' | 'RIGHT'>>({});
   const [activeDropForSet, setActiveDropForSet] = useState<string | null>(null);
   const [inlineDropInputs, setInlineDropInputs] = useState<Record<string, { weight: string; reps: string; rir: string }>>({});
 
@@ -212,17 +212,19 @@ export default function LiveWorkout({
     }, 1000);
   }
 
-  function getInput(exerciseId: string, history: PlannedExercise['history']) {
-    if (inputs[exerciseId]) return inputs[exerciseId];
-    return { weight: history ? String(history.lastWeight) : '', reps: '', rir: '', isWarmup: false };
-  }
+  function getInput(exerciseId: string, history: PlannedExercise['history'], side?: string) {
+  const key = side ? `${exerciseId}-${side}` : exerciseId;
+  if (inputs[key]) return inputs[key];
+  return { weight: history ? String(history.lastWeight) : '', reps: '', rir: '', isWarmup: false };
+}
 
-  function updateInput(exerciseId: string, field: string, value: string | boolean) {
-    setInputs((prev) => ({
-      ...prev,
-      [exerciseId]: { ...getInput(exerciseId, null), ...prev[exerciseId], [field]: value },
-    }));
-  }
+  function updateInput(exerciseId: string, field: string, value: string | boolean, side?: string) {
+  const key = side ? `${exerciseId}-${side}` : exerciseId;
+  setInputs((prev) => ({
+    ...prev,
+    [key]: { ...getInput(exerciseId, null, side), ...prev[key], [field]: value },
+  }));
+}
 
   function getMode(exerciseId: string): SetMode {
     return setModes[exerciseId] ?? 'STRAIGHT';
@@ -311,37 +313,41 @@ export default function LiveWorkout({
   // ── Straight set ─────────────────────────────────────────────────────────
 
   async function handleLogStraightSet(ex: PlannedExercise) {
-    const input = getInput(ex.exerciseId, ex.history);
+    const currentSide = ex.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
+    const input = getInput(ex.exerciseId, ex.history, currentSide ?? undefined);
+
     const weight = parseFloat(input.weight);
     const reps = parseInt(input.reps);
     const rir = parseFloat(input.rir);
     if (isNaN(weight) || isNaN(reps) || isNaN(rir)) return alert('Fill in weight, reps, and RIR.');
-
-    const side = ex.isUnilateral ? (activeSide[ex.exerciseId] ?? 'LEFT') : null;
-
+    
     const ok = await doLogSet({
       exerciseId: ex.exerciseId,
-      weight,
-      reps,
-      rir,
+      weight, reps, rir,
       isWarmup: input.isWarmup,
       setType: 'STRAIGHT',
       setGroupId: null,
       restSecs: ex.restTimerSecs,
-      side,
+      side: currentSide,
       assistanceWeightLbs: ex.isAssisted ? weight : null,
       bodyweightLbs: (ex.isAssisted || ex.isBodyweight) ? currentBodyweight : null,
     });
 
     if (ok) {
-      setInputs((prev) => ({
-        ...prev,
-        [ex.exerciseId]: { ...prev[ex.exerciseId], weight: input.weight, reps: '', rir: '', isWarmup: false },
-      }));
       if (ex.isUnilateral) {
-        setActiveSide((prev) => ({
+        const nextSide = currentSide === 'LEFT' ? 'RIGHT' : 'LEFT';
+        // Carry weight over to other side, clear reps/RIR
+        const currentWeight = input.weight;
+        updateInput(ex.exerciseId, 'weight', currentWeight, nextSide);
+        setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: nextSide }));
+        if (nextSide === 'LEFT') {
+          // Both sides done — clear inputs, start rest
+          startRestTimer(ex.restTimerSecs);
+        }
+      } else {
+        setInputs((prev) => ({
           ...prev,
-          [ex.exerciseId]: prev[ex.exerciseId] === 'LEFT' ? 'RIGHT' : 'LEFT',
+          [ex.exerciseId]: { ...prev[ex.exerciseId], weight: input.weight, reps: '', rir: '', isWarmup: false },
         }));
       }
       setFlashingExercise(ex.exerciseId);
@@ -371,6 +377,8 @@ export default function LiveWorkout({
 
     const wA = parseFloat(inputA.weight), rA = parseInt(inputA.reps), rirA = parseFloat(inputA.rir);
     const wB = parseFloat(inputB.weight), rB = parseInt(inputB.reps), rirB = parseFloat(inputB.rir);
+    const sideA = exMap[ex.exerciseId]?.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
+    const sideB = partner && exMap[partner.id]?.isUnilateral ? (unilateralPhase[partner.id] ?? 'LEFT') : null;
 
     if (isNaN(wA) || isNaN(rA) || isNaN(rirA) || isNaN(wB) || isNaN(rB) || isNaN(rirB)) {
       return alert('Fill in weight, reps, and RIR for both exercises.');
@@ -379,8 +387,18 @@ export default function LiveWorkout({
     const groupId = generateGroupId();
     const isSameMuscle = ex.primaryMuscle === partner.primaryMuscle;
 
-    await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs });
-    await doLogSet({ exerciseId: partner.id, weight: wB, reps: rB, rir: rirB, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs });
+    if (exMap[ex.exerciseId]?.isUnilateral) {
+      const nextA = sideA === 'LEFT' ? 'RIGHT' : 'LEFT';
+      setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: nextA }));
+    }
+    if (partner && exMap[partner.id]?.isUnilateral) {
+      const nextB = sideB === 'LEFT' ? 'RIGHT' : 'LEFT';
+      setUnilateralPhase((prev) => ({ ...prev, [partner.id]: nextB }));
+    }
+
+    await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideA });
+    await doLogSet({ exerciseId: partner.id, weight: wB, reps: rB, rir: rirB, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideB });
+
 
     setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
     setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { weight: inputB.weight, reps: '', rir: '' } }));
@@ -393,7 +411,8 @@ export default function LiveWorkout({
   // ── Myo-reps ─────────────────────────────────────────────────────────────
 
   async function handleLogMyorep(ex: PlannedExercise) {
-    const input = getInput(ex.exerciseId, ex.history);
+    const currentSide = ex.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
+    const input = getInput(ex.exerciseId, ex.history, currentSide ?? undefined);
     const weight = parseFloat(input.weight);
     const reps = parseInt(input.reps);
     const rir = parseFloat(input.rir);
@@ -404,14 +423,21 @@ export default function LiveWorkout({
     if (phase === 'activation') {
       const groupId = generateGroupId();
       setMyorepGroupIds((prev) => ({ ...prev, [ex.exerciseId]: groupId }));
-      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'MYOREP_ACTIVATION', setGroupId: groupId, restSecs: 25 });
+      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'MYOREP_ACTIVATION', setGroupId: groupId, restSecs: 25, side: currentSide });
       setMyorepPhase((prev) => ({ ...prev, [ex.exerciseId]: 'mini' }));
     } else {
       const groupId = myorepGroupIds[ex.exerciseId] ?? generateGroupId();
-      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'MYOREP_MINI', setGroupId: groupId, restSecs: 25 });
+      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'MYOREP_MINI', setGroupId: groupId, restSecs: 25, side: currentSide });
     }
 
-    setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
+    if (ex.isUnilateral) {
+      const nextSide = currentSide === 'LEFT' ? 'RIGHT' : 'LEFT';
+      updateInput(ex.exerciseId, 'weight', input.weight, nextSide);
+      setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: nextSide }));
+      if (nextSide === 'LEFT') startRestTimer(ex.restTimerSecs);
+    } else {
+      setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
+    }
     setFlashingExercise(ex.exerciseId);
     setTimeout(() => setFlashingExercise(null), 600);
   }
@@ -424,7 +450,8 @@ export default function LiveWorkout({
   // ── Drop sets ─────────────────────────────────────────────────────────────
 
   async function handleLogDropSet(ex: PlannedExercise) {
-    const input = getInput(ex.exerciseId, ex.history);
+    const currentSide = ex.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
+    const input = getInput(ex.exerciseId, ex.history, currentSide ?? undefined);
     const weight = parseFloat(input.weight);
     const reps = parseInt(input.reps);
     const rir = parseFloat(input.rir);
@@ -435,14 +462,21 @@ export default function LiveWorkout({
     if (!isInDrop) {
       const groupId = generateGroupId();
       setDropGroupIds((prev) => ({ ...prev, [ex.exerciseId]: groupId }));
-      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'DROPSET_PRIMARY', setGroupId: groupId, restSecs: 10 });
+      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'DROPSET_PRIMARY', setGroupId: groupId, restSecs: 10, side: currentSide });
       setDropPhase((prev) => ({ ...prev, [ex.exerciseId]: true }));
     } else {
       const groupId = dropGroupIds[ex.exerciseId] ?? generateGroupId();
-      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'DROPSET_DROP', setGroupId: groupId, restSecs: 10 });
+      await doLogSet({ exerciseId: ex.exerciseId, weight, reps, rir, isWarmup: false, setType: 'DROPSET_DROP', setGroupId: groupId, restSecs: 10, side: currentSide });
     }
 
-    setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], weight: input.weight, reps: '', rir: '' } }));
+    if (ex.isUnilateral) {
+      const nextSide = currentSide === 'LEFT' ? 'RIGHT' : 'LEFT';
+      updateInput(ex.exerciseId, 'weight', input.weight, nextSide);
+      setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: nextSide }));
+      if (nextSide === 'LEFT') startRestTimer(ex.restTimerSecs);
+    } else {
+      setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], weight: input.weight, reps: '', rir: '' } }));
+    }
     setFlashingExercise(ex.exerciseId);
     setTimeout(() => setFlashingExercise(null), 600);
   }
@@ -742,7 +776,8 @@ export default function LiveWorkout({
         const isExpanded = expandedExercise === ex.exerciseId;
         const isPivoting = pivotingExerciseId === ex.exerciseId;
         const wasSwapped = swaps.some((s) => s.replacement.id === ex.exerciseId);
-        const input = getInput(ex.exerciseId, ex.history);
+        const currentSide = ex.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
+        const input = getInput(ex.exerciseId, ex.history, currentSide ?? undefined);
         const hint = getProgressionHint(ex, index);
         const mode = getMode(ex.exerciseId);
         const partner = supersetPartners[ex.exerciseId];
@@ -937,19 +972,21 @@ export default function LiveWorkout({
                 {mode === 'STRAIGHT' && !isComplete && (
                   <div className="space-y-3">
                     {ex.isUnilateral && (
-                      <div className="flex gap-2 items-center">
-                        <p className="text-xs text-zinc-500 mr-1">Side:</p>
-                        {(['LEFT', 'RIGHT'] as const).map((side) => (
-                          <button key={side} type="button"
-                            onClick={() => setActiveSide((prev) => ({ ...prev, [ex.exerciseId]: side }))}
-                            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                              (activeSide[ex.exerciseId] ?? 'LEFT') === side
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                            }`}>
-                            {side}
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-zinc-800 text-zinc-500'
+                        }`}>LEFT</span>
+                        <span className="text-xs text-zinc-600">→</span>
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-zinc-800 text-zinc-500'
+                        }`}>RIGHT</span>
+                        <span className="ml-2 text-xs text-zinc-500">
+                          logging {unilateralPhase[ex.exerciseId] ?? 'LEFT'} side
+                        </span>
                       </div>
                     )}
                     {ex.isAssisted && (
@@ -988,7 +1025,9 @@ export default function LiveWorkout({
                       Warmup
                     </button>
                     <button onClick={() => handleLogStraightSet(ex)} className="w-full rounded-md bg-zinc-700 py-2.5 text-sm font-semibold text-white hover:bg-zinc-600">
-                      Log Set {setsForExercise.length + 1} of {ex.targetSets}
+                      {ex.isUnilateral
+                        ? `Log ${unilateralPhase[ex.exerciseId] ?? 'LEFT'} — Set ${Math.floor(setsForExercise.length / 2) + 1} of ${ex.targetSets}`
+                        : `Log Set ${setsForExercise.length + 1} of ${ex.targetSets}`}
                     </button>
                   </div>
                 )}
