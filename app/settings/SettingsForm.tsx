@@ -43,6 +43,7 @@ export default function SettingsForm({
     gender: string;
     goal: string;
     weeklyGoalRate: string;
+    weekStartDay: string;
   };
 }) {
   const router = useRouter();
@@ -71,6 +72,7 @@ export default function SettingsForm({
       goal: form.goal,
       weeklyGoalRate: parseFloat(form.weeklyGoalRate),
       targetWeightLbs: form.targetWeightLbs ? parseFloat(form.targetWeightLbs) : undefined,
+      weekStartDay: parseInt(form.weekStartDay),
     });
 
     if (result.success) {
@@ -197,6 +199,30 @@ export default function SettingsForm({
           )}
         </div>
       )}
+
+      <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-400">Week starts on</label>
+          <div className="flex gap-2">
+            {[
+              { label: 'Sunday', value: '0' },
+              { label: 'Monday', value: '1' },
+              { label: 'Saturday', value: '6' },
+            ].map((day) => (
+              <button
+                key={day.value}
+                type="button"
+                onClick={() => update('weekStartDay', day.value)}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
+                  form.weekStartDay === day.value
+                    ? 'border-emerald-600 bg-emerald-900/30 text-emerald-400'
+                    : 'border-zinc-700 text-zinc-500 hover:border-zinc-500'
+                }`}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
     </form>
   );

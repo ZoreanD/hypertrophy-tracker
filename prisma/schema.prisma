@@ -29,6 +29,7 @@ model Profile {
   targetWeightLbs Float?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  weekStartDay   Int          @default(0)
 
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   bodyMetrics       BodyMetric[]

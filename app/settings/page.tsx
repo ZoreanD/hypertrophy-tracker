@@ -60,6 +60,7 @@ export default async function SettingsPage() {
             gender: profile.gender,
             goal: profile.currentGoal,
             weeklyGoalRate: String(profile.weeklyGoalRate),
+            weekStartDay: String(profile.weekStartDay ?? 0),
           }}
         />
       </div>
