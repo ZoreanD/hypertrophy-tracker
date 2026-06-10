@@ -918,7 +918,7 @@ export default function LiveWorkout({
                       <div key={s.id} className="space-y-1">
                         <div className="flex items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2">
                           <span className="text-xs text-zinc-500">
-                            {s.setType === 'STRAIGHT' ? `Set ${i + 1}`
+                            {s.setType === 'STRAIGHT' ? (ex.isUnilateral ? `Set ${Math.floor(i / 2) + 1} ${s.side ?? ''}` : `Set ${i + 1}`)
                             : s.setType === 'MYOREP_ACTIVATION' ? 'Activation'
                             : s.setType === 'MYOREP_MINI' ? `Mini ${i}`
                             : s.setType === 'DROPSET_PRIMARY' ? 'Primary'
