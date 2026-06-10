@@ -642,7 +642,11 @@ export default function LiveWorkout({
   }
 
   // ── Summary screen ────────────────────────────────────────────────────────
-
+    const supersetPartnerOf = Object.entries(supersetPartners).reduce((acc, [sourceId, p]) => {
+      if (p) acc[p.id] = sourceId;
+      return acc;
+    }, {} as Record<string, string>);
+    
   if (summary) {
     const improved = summary.exerciseSummaries.filter((e) => e.progressionFlag === 'improved').length;
     const maintained = summary.exerciseSummaries.filter((e) => e.progressionFlag === 'maintained').length;
@@ -834,11 +838,8 @@ export default function LiveWorkout({
 
         const mode = getMode(ex.exerciseId);
         const partnerForEx = supersetPartners[ex.exerciseId];
-        // Map of partnerId → the exercise that picked them as a superset partner
-        const supersetPartnerOf = Object.entries(supersetPartners).reduce((acc, [sourceId, p]) => {
-          if (p) acc[p.id] = sourceId;
-          return acc;
-        }, {} as Record<string, string>);
+    
+        
         const setsForExercise = loggedSets.filter((s) => 
           (s.exerciseId === ex.exerciseId || (mode === 'SUPERSET' && partnerForEx && s.exerciseId === partnerForEx.id)) 
           && !s.isWarmup
