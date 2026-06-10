@@ -62,6 +62,7 @@ type Substitute = {
   primaryMuscle: string;
   movementPattern: string;
   equipment: string;
+  isUnilateral: boolean;
 };
 
 type SwapRecord = {
@@ -386,28 +387,51 @@ export default function LiveWorkout({
     const sideA = exMap[ex.exerciseId]?.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
     const sideB = partner && exMap[partner.id]?.isUnilateral ? (unilateralPhase[partner.id] ?? 'LEFT') : null;
 
-    if (isNaN(wA) || isNaN(rA) || isNaN(rirA) || isNaN(wB) || isNaN(rB) || isNaN(rirB)) {
-      return alert('Fill in weight, reps, and RIR for both exercises.');
-    }
-
     const groupId = generateGroupId();
     const isSameMuscle = ex.primaryMuscle === partner.primaryMuscle;
 
-    if (exMap[ex.exerciseId]?.isUnilateral) {
-      const nextA = sideA === 'LEFT' ? 'RIGHT' : 'LEFT';
-      setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: nextA }));
+    if (partner.isUnilateral) {
+      const bLeftKey = `${ex.exerciseId}-B-LEFT`;
+      const bRightKey = `${ex.exerciseId}-B-RIGHT`;
+      const inputBLeft = supersetInputs[bLeftKey] ?? { weight: '', reps: '', rir: '' };
+      const inputBRight = supersetInputs[bRightKey] ?? { weight: '', reps: '', rir: '' };
+      const wBL = parseFloat(inputBLeft.weight), rBL = parseInt(inputBLeft.reps), rirBL = parseFloat(inputBLeft.rir);
+      const wBR = parseFloat(inputBRight.weight), rBR = parseInt(inputBRight.reps), rirBR = parseFloat(inputBRight.rir);
+      if (isNaN(wA) || isNaN(rA) || isNaN(rirA) || isNaN(wBL) || isNaN(rBL) || isNaN(rirBL) || isNaN(wBR) || isNaN(rBR) || isNaN(rirBR)) {
+        return alert('Fill in weight, reps, and RIR for all inputs.');
+      }
+      await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideA });
+      await doLogSet({ exerciseId: partner.id, weight: wBL, reps: rBL, rir: rirBL, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'LEFT' });
+      await doLogSet({ exerciseId: partner.id, weight: wBR, reps: rBR, rir: rirBR, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'RIGHT' });
+      setSupersetInputs((prev) => ({ ...prev, [bLeftKey]: { weight: inputBLeft.weight, reps: '', rir: '' }, [bRightKey]: { weight: inputBRight.weight, reps: '', rir: '' } }));
+    } else {
+      if (ex.isUnilateral) {
+        const aLeftInput = getInput(ex.exerciseId, ex.history, 'LEFT');
+        const aRightInput = getInput(ex.exerciseId, ex.history, 'RIGHT');
+        const wAL = parseFloat(aLeftInput.weight), rAL = parseInt(aLeftInput.reps), rirAL = parseFloat(aLeftInput.rir);
+        const wAR = parseFloat(aRightInput.weight), rAR = parseInt(aRightInput.reps), rirAR = parseFloat(aRightInput.rir);
+        if (isNaN(wAL) || isNaN(rAL) || isNaN(rirAL) || isNaN(wAR) || isNaN(rAR) || isNaN(rirAR) || isNaN(wB) || isNaN(rB) || isNaN(rirB)) {
+          return alert('Fill in weight, reps, and RIR for all inputs.');
+        }
+        await doLogSet({ exerciseId: ex.exerciseId, weight: wAL, reps: rAL, rir: rirAL, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'LEFT' });
+        await doLogSet({ exerciseId: ex.exerciseId, weight: wAR, reps: rAR, rir: rirAR, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'RIGHT' });
+        await doLogSet({ exerciseId: partner.id, weight: wB, reps: rB, rir: rirB, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideB });
+        updateInput(ex.exerciseId, 'reps', '', 'LEFT');
+        updateInput(ex.exerciseId, 'rir', '', 'LEFT');
+        updateInput(ex.exerciseId, 'reps', '', 'RIGHT');
+        updateInput(ex.exerciseId, 'rir', '', 'RIGHT');
+        setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { weight: inputB.weight, reps: '', rir: '' } }));
+      } else {
+        if (isNaN(wA) || isNaN(rA) || isNaN(rirA) || isNaN(wB) || isNaN(rB) || isNaN(rirB)) {
+          return alert('Fill in weight, reps, and RIR for both exercises.');
+        }
+        await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideA });
+        await doLogSet({ exerciseId: partner.id, weight: wB, reps: rB, rir: rirB, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideB });
+        setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
+        setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { weight: inputB.weight, reps: '', rir: '' } }));
+      }
     }
-    if (partner && exMap[partner.id]?.isUnilateral) {
-      const nextB = sideB === 'LEFT' ? 'RIGHT' : 'LEFT';
-      setUnilateralPhase((prev) => ({ ...prev, [partner.id]: nextB }));
-    }
 
-    await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideA });
-    await doLogSet({ exerciseId: partner.id, weight: wB, reps: rB, rir: rirB, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideB });
-
-
-    setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
-    setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { weight: inputB.weight, reps: '', rir: '' } }));
     setFlashingExercise(ex.exerciseId);
     setTimeout(() => setFlashingExercise(null), 600);
 
@@ -1100,18 +1124,55 @@ export default function LiveWorkout({
                         )}
 
                         <p className="text-xs font-medium text-zinc-400">{ex.exerciseName}</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                          <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                          <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                        </div>
+                        {ex.isUnilateral ? (
+                          <>
+                            {(['LEFT', 'RIGHT'] as const).map((side) => {
+                              const aInput = getInput(ex.exerciseId, ex.history, side);
+                              return (
+                                <div key={side} className="space-y-1">
+                                  <p className="text-xs text-zinc-600">{side}</p>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={aInput.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, side)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                                    <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={aInput.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value, side)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                                    <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={aInput.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, side)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2">
+                            <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                            <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                            <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                          </div>
+                        )}
 
                         <p className="text-xs font-medium text-zinc-400">{partner.name}</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={supersetInput.weight} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...supersetInput, weight: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                          <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={supersetInput.reps} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...supersetInput, reps: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                          <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={supersetInput.rir} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...supersetInput, rir: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                        </div>
+                        {partner.isUnilateral ? (
+                          <>
+                            {(['LEFT', 'RIGHT'] as const).map((side) => {
+                              const bKey = `${ex.exerciseId}-B-${side}`;
+                              const bInput = supersetInputs[bKey] ?? { weight: '', reps: '', rir: '' };
+                              return (
+                                <div key={side} className="space-y-1">
+                                  <p className="text-xs text-zinc-600">{side}</p>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={bInput.weight} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [bKey]: { ...bInput, weight: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                                    <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={bInput.reps} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [bKey]: { ...bInput, reps: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                                    <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={bInput.rir} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [bKey]: { ...bInput, rir: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2">
+                            <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={supersetInput.weight} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...supersetInput, weight: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                            <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={supersetInput.reps} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...supersetInput, reps: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                            <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={supersetInput.rir} onChange={(e) => setSupersetInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...supersetInput, rir: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                          </div>
+                        )}
 
                         <div className="flex gap-2">
                           <button onClick={() => handleLogSupersetPair(ex)} className="flex-1 rounded-md bg-zinc-700 py-2.5 text-sm font-semibold text-white hover:bg-zinc-600">
@@ -1127,15 +1188,31 @@ export default function LiveWorkout({
                 {/* ── MYOREP input ── */}
                 {mode === 'MYOREP' && !isComplete && (
                   <div className="space-y-3">
+                    {ex.isUnilateral && (
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
+                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
+                        }`}>LEFT</span>
+                        <span className="text-xs text-zinc-600">→</span>
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
+                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
+                        }`}>RIGHT</span>
+                        <span className="ml-2 text-xs text-zinc-500">
+                          logging {unilateralPhase[ex.exerciseId] ?? 'LEFT'} side
+                        </span>
+                      </div>
+                    )}
                     <div className={`rounded-lg p-3 text-xs ${myoPhase === 'activation' ? 'bg-blue-900/20 text-blue-400' : 'bg-purple-900/20 text-purple-400'}`}>
                       {myoPhase === 'activation'
                         ? 'Activation set: 12–30 reps, 0–1 RIR. Go close to failure.'
                         : 'Mini-set: 3–5 reps, 20–30s rest between. Stop when reps drop below 3.'}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                      <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                      <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                      <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                      <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                      <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                      <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleLogMyorep(ex)} className="flex-1 rounded-md bg-zinc-700 py-2.5 text-sm font-semibold text-white hover:bg-zinc-600">
@@ -1156,15 +1233,31 @@ export default function LiveWorkout({
                 {/* ── DROP SET input ── */}
                 {mode === 'DROPSET' && !isComplete && (
                   <div className="space-y-3">
+                    {ex.isUnilateral && (
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
+                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
+                        }`}>LEFT</span>
+                        <span className="text-xs text-zinc-600">→</span>
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
+                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
+                        }`}>RIGHT</span>
+                        <span className="ml-2 text-xs text-zinc-500">
+                          logging {unilateralPhase[ex.exerciseId] ?? 'LEFT'} side
+                        </span>
+                      </div>
+                    )}
                     <div className={`rounded-lg p-3 text-xs ${!inDrop ? 'bg-orange-900/20 text-orange-400' : 'bg-red-900/20 text-red-400'}`}>
                       {!inDrop
                         ? 'Primary set: go to failure or 0–1 RIR. Then immediately reduce weight.'
                         : `Drop ${dropSetsLogged + 1}: reduce weight 20–30% and go again.`}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                      <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                      <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
-                      <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                      <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                      <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
+                      <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" /></div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleLogDropSet(ex)} className="flex-1 rounded-md bg-zinc-700 py-2.5 text-sm font-semibold text-white hover:bg-zinc-600">
