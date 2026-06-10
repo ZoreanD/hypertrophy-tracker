@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '../../lib/prisma';
-import { hashPassword, verifyPassword, signToken } from '../../lib/auth';
+import { hashPassword, verifyPassword, signToken, verifyToken } from '../../lib/auth';
 import { cookies } from 'next/headers';
 
 export async function registerUser(formData: FormData) {
@@ -77,4 +77,37 @@ export async function loginUser(formData: FormData) {
 export async function logoutUser() {
   const cookieStore = await cookies();
   cookieStore.delete('auth_token');
+}
+export async function changePassword(formData: FormData) {
+  const currentPassword = formData.get('currentPassword') as string;
+  const newPassword = formData.get('newPassword') as string;
+  const confirmPassword = formData.get('confirmPassword') as string;
+
+  if (!currentPassword || !newPassword || !confirmPassword)
+    return { error: 'All fields are required.' };
+  if (newPassword.length < 6)
+    return { error: 'New password must be at least 6 characters.' };
+  if (newPassword !== confirmPassword)
+    return { error: 'New passwords do not match.' };
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  if (!token) return { error: 'Not authenticated.' };
+
+  const session = await verifyToken(token);
+  if (!session) return { error: 'Invalid session.' };
+
+  const user = await prisma.user.findUnique({ where: { id: session.userId } });
+  if (!user) return { error: 'User not found.' };
+
+  const isValid = await verifyPassword(currentPassword, user.passwordHash);
+  if (!isValid) return { error: 'Current password is incorrect.' };
+
+  const newHash = await hashPassword(newPassword);
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: { passwordHash: newHash },
+  });
+
+  return { success: true };
 }
