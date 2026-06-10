@@ -834,6 +834,11 @@ export default function LiveWorkout({
 
         const mode = getMode(ex.exerciseId);
         const partnerForEx = supersetPartners[ex.exerciseId];
+        // Map of partnerId → the exercise that picked them as a superset partner
+        const supersetPartnerOf = Object.entries(supersetPartners).reduce((acc, [sourceId, p]) => {
+          if (p) acc[p.id] = sourceId;
+          return acc;
+        }, {} as Record<string, string>);
         const setsForExercise = loggedSets.filter((s) => 
           (s.exerciseId === ex.exerciseId || (mode === 'SUPERSET' && partnerForEx && s.exerciseId === partnerForEx.id)) 
           && !s.isWarmup
@@ -921,6 +926,17 @@ export default function LiveWorkout({
             {/* Expanded content */}
             {isExpanded && !isPivoting && (
               <div className="space-y-4 border-t border-zinc-800 p-4">
+
+                {/* Paired as superset partner — log from the source exercise */}
+                {supersetPartnerOf[ex.exerciseId] && (
+                  <div className="rounded-lg bg-zinc-800/50 px-4 py-3 text-xs text-zinc-400">
+                    ⇄ Paired as superset with{' '}
+                    <span className="text-white">
+                      {exMap[supersetPartnerOf[ex.exerciseId]]?.exerciseName ?? 'another exercise'}
+                    </span>
+                    {' '}— log sets from that card.
+                  </div>
+                )}
 
                 {/* Progression hint */}
                 {hint && (
@@ -1070,8 +1086,8 @@ export default function LiveWorkout({
                   </div>
                 )}
 
-                {/* Mode selector — only before first working set */}
-                {setsForExercise.length === 0 && (
+                {/* Mode selector — only before first working set and not a superset partner */}
+                {setsForExercise.length === 0 && !supersetPartnerOf[ex.exerciseId] && (
                   <div className="flex gap-2">
                     {(['STRAIGHT', 'SUPERSET', 'MYOREP', 'DROPSET'] as SetMode[]).map((m) => (
                       <button key={m} onClick={() => setMode(ex.exerciseId, m)}
@@ -1083,7 +1099,7 @@ export default function LiveWorkout({
                 )}
 
                 {/* ── STRAIGHT set input ── */}
-                {mode === 'STRAIGHT' && !isComplete && (
+                {mode === 'STRAIGHT' && !isComplete && !supersetPartnerOf[ex.exerciseId] && (
                   <div className="space-y-3">
                     {ex.isUnilateral && (
                       <div className="flex items-center gap-2">
@@ -1147,7 +1163,7 @@ export default function LiveWorkout({
                 )}
 
                 {/* ── SUPERSET input ── */}
-                {mode === 'SUPERSET' && !isComplete && (
+                {mode === 'SUPERSET' && !isComplete && !supersetPartnerOf[ex.exerciseId] && (
                   <div className="space-y-3">
                     {!partner ? (
                       <div className="space-y-2">
@@ -1285,7 +1301,7 @@ export default function LiveWorkout({
                 )}
 
                 {/* ── MYOREP input ── */}
-                {mode === 'MYOREP' && !isComplete && (
+                {mode === 'MYOREP' && !isComplete && !supersetPartnerOf[ex.exerciseId] && (
                   <div className="space-y-3">
                     {ex.isUnilateral && (
                       <div className="flex items-center gap-2">
@@ -1330,7 +1346,7 @@ export default function LiveWorkout({
                 )}
 
                 {/* ── DROP SET input ── */}
-                {mode === 'DROPSET' && !isComplete && (
+                {mode === 'DROPSET' && !isComplete && !supersetPartnerOf[ex.exerciseId] && (
                   <div className="space-y-3">
                     {ex.isUnilateral && (
                       <div className="flex items-center gap-2">
