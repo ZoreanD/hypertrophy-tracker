@@ -282,9 +282,11 @@ const SPLIT_REQUIREMENTS: Record<string, { muscle: string; label: string; minSet
 export default function RoutineBuilder({
   exercises,
   editMode,
+  fromWorkoutExercises,
 }: {
   exercises: Exercise[];
   editMode?: EditMode;
+  fromWorkoutExercises?: RoutineExerciseEntry[];
 }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -300,7 +302,9 @@ export default function RoutineBuilder({
   const [showSearch, setShowSearch] = useState(false);
 
   // Selected exercises
-  const [entries, setEntries] = useState<RoutineExerciseEntry[]>(editMode?.initialExercises ?? []);
+  const [entries, setEntries] = useState<RoutineExerciseEntry[]>(
+    editMode?.initialExercises ?? fromWorkoutExercises ?? []
+  );
 
   // Filter exercises by search query and current split
   const filtered = useMemo(() => {

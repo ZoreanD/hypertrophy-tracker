@@ -56,6 +56,7 @@ export default async function LiveWorkoutPage({
         <CompletedWorkout
           workout={{
             id: workout.id,
+            routineId: workout.routineId ?? null,
             focus: workout.focus,
             date: workout.date.toISOString(),
             durationMins: workout.durationMins,

@@ -37,7 +37,7 @@ export default function CompletedWorkout({
   plannedExercises,
   loggedSets,
 }: {
-  workout: { id: string; focus: string; date: string; durationMins: number; summaryJson: any };
+  workout: { id: string; routineId: string | null; focus: string; date: string; durationMins: number; summaryJson: any };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
 }) {
@@ -170,12 +170,22 @@ export default function CompletedWorkout({
           ))}
         </div>
 
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500"
-        >
-          Back to Dashboard
-        </button>
+        <div className="space-y-3">
+          {!workout.routineId && (
+            <button
+              onClick={() => router.push(`/routines/new?fromWorkout=${workout.id}`)}
+              className="w-full rounded-md border border-emerald-700 py-3 font-semibold text-emerald-400 hover:bg-emerald-950/40"
+            >
+              Save as Routine
+            </button>
+          )}
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -223,12 +233,22 @@ export default function CompletedWorkout({
           );
         })}
       </div>
-      <button
-        onClick={() => router.push('/dashboard')}
-        className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500"
-      >
-        Back to Dashboard
-      </button>
+      <div className="space-y-3">
+          {!workout.routineId && (
+            <button
+              onClick={() => router.push(`/routines/new?fromWorkout=${workout.id}`)}
+              className="w-full rounded-md border border-emerald-700 py-3 font-semibold text-emerald-400 hover:bg-emerald-950/40"
+            >
+              Save as Routine
+            </button>
+          )}
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500"
+          >
+            Back to Dashboard
+          </button>
+        </div>
     </div>
   );
 }
