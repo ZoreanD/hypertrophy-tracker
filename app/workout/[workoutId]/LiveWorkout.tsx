@@ -1020,7 +1020,7 @@ export default function LiveWorkout({
                           Assistance Weight (lbs) — subtracted from bodyweight ({currentBodyweight ?? '?'}lbs)
                         </label>
                         <input type="number" step="5" value={input.weight}
-                          onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)}
+                          onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)}
                           className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
                         {currentBodyweight && input.weight && (
                           <p className="mt-1 text-xs text-zinc-600">
@@ -1032,15 +1032,15 @@ export default function LiveWorkout({
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="mb-1 block text-xs text-zinc-500">Weight (lbs)</label>
-                        <input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
+                        <input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
                       </div>
                       <div>
                         <label className="mb-1 block text-xs text-zinc-500">Reps</label>
-                        <input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
+                        <input type="number" value={input.reps} onChange={(e) => updateInput(ex.exerciseId, 'reps', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
                       </div>
                       <div>
                         <label className="mb-1 block text-xs text-zinc-500">RIR</label>
-                        <input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
+                        <input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
                       </div>
                     </div>
                     <button
