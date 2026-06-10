@@ -150,6 +150,7 @@ export default function LiveWorkout({
   const [flashingExercise, setFlashingExercise] = useState<string | null>(null);
 
   const [unilateralPhase, setUnilateralPhase] = useState<Record<string, 'LEFT' | 'RIGHT'>>({});
+  const [unilateralPendingSide, setUnilateralPendingSide] = useState<Record<string, 'LEFT' | 'RIGHT'>>({});
   const [activeDropForSet, setActiveDropForSet] = useState<string | null>(null);
   const [inlineDropInputs, setInlineDropInputs] = useState<Record<string, { weight: string; reps: string; rir: string }>>({});
 
@@ -273,6 +274,7 @@ export default function LiveWorkout({
     side?: string | null;
     assistanceWeightLbs?: number | null;
     bodyweightLbs?: number | null;
+    skipTimer?: boolean;
   }) {
     // executionOrder = current position in reordered list
     const execOrder = exerciseOrder.indexOf(params.exerciseId);
@@ -304,7 +306,7 @@ export default function LiveWorkout({
         setGroupId: params.setGroupId,
         side: params.side ?? null,
       }]);
-      if (!params.isWarmup) startRestTimer(params.restSecs);
+      if (!params.isWarmup && !params.skipTimer) startRestTimer(params.restSecs);
       return true;
     }
     return false;
@@ -329,19 +331,23 @@ export default function LiveWorkout({
       setGroupId: null,
       restSecs: ex.restTimerSecs,
       side: currentSide,
+      skipTimer: ex.isUnilateral && !unilateralPendingSide[ex.exerciseId],
       assistanceWeightLbs: ex.isAssisted ? weight : null,
       bodyweightLbs: (ex.isAssisted || ex.isBodyweight) ? currentBodyweight : null,
     });
 
     if (ok) {
       if (ex.isUnilateral) {
-        const nextSide = currentSide === 'LEFT' ? 'RIGHT' : 'LEFT';
-        // Carry weight over to other side, clear reps/RIR
-        const currentWeight = input.weight;
-        updateInput(ex.exerciseId, 'weight', currentWeight, nextSide);
-        setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: nextSide }));
-        if (nextSide === 'LEFT') {
-          // Both sides done — clear inputs, start rest
+        if (!unilateralPendingSide[ex.exerciseId]) {
+          // First side logged — mark as pending, switch to other side, no timer
+          const nextSide = currentSide === 'LEFT' ? 'RIGHT' : 'LEFT';
+          updateInput(ex.exerciseId, 'weight', input.weight, nextSide);
+          setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: nextSide }));
+          setUnilateralPendingSide((prev) => ({ ...prev, [ex.exerciseId]: currentSide! }));
+        } else {
+          // Second side logged — clear pending, reset to LEFT, start timer
+          setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: 'LEFT' }));
+          setUnilateralPendingSide((prev) => { const n = { ...prev }; delete n[ex.exerciseId]; return n; });
           startRestTimer(ex.restTimerSecs);
         }
       } else {
@@ -785,7 +791,7 @@ export default function LiveWorkout({
         if (!ex) return null;
 
         const setsForExercise = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup);
-        const isComplete = setsForExercise.length >= ex.targetSets;
+        const isComplete = (ex.isUnilateral ? Math.floor(setsForExercise.length / 2) : setsForExercise.length) >= ex.targetSets;
         const isExpanded = expandedExercise === ex.exerciseId;
         const isPivoting = pivotingExerciseId === ex.exerciseId;
         const wasSwapped = swaps.some((s) => s.replacement.id === ex.exerciseId);
@@ -828,7 +834,7 @@ export default function LiveWorkout({
                     {wasSwapped && <span className="rounded-full bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-400">swapped</span>}
                     {mode !== 'STRAIGHT' && <span className="rounded-full bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">{mode.toLowerCase()}</span>}
                   </div>
-                  <p className="text-xs text-zinc-500">{setsForExercise.length}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>
+                  <p className="text-xs text-zinc-500">{ex.isUnilateral ? Math.floor(setsForExercise.length / 2) : setsForExercise.length}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>
                 </div>
               </button>
 
