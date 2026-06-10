@@ -841,6 +841,9 @@ export default function LiveWorkout({
 
       <header className="flex items-center justify-between border-b border-zinc-800 pb-4">
         <div>
+          <button onClick={() => router.push('/dashboard')} className="mb-1 text-sm text-zinc-500 hover:text-zinc-300">
+            ← Dashboard
+          </button>
           <h1 className="text-2xl font-bold text-white">{workout.focus}</h1>
           <p className="text-sm text-zinc-400">
             {new Date(workout.date.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
