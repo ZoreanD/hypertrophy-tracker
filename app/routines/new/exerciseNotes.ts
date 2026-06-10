@@ -92,6 +92,8 @@ export const EXERCISE_SCIENCE_NOTES: Record<string, string> = {
     'Significantly less biceps activation vs supinated curls per EMG. Primarily develops brachialis and brachioradialis. Include for arm thickness, not peak.',
   'Machine Preacher Curl':
     'Shoulder flexed = maximizes short head (inner bicep peak). Constant tension version better than EZ-bar preacher.',
+  'Preacher Curl (Dumbbell, Unilateral)':
+    'Preacher bench pins the upper arm, eliminating shoulder flexion cheating — maximizes biceps long head isolation. Full ROM critical: let the elbow extend completely at the bottom for peak stretch-mediated hypertrophy stimulus. Unilateral allows independent loading to correct L/R asymmetry.',
   'EZ-Bar Curl':
     'Semi-supinated grip reduces wrist strain. Slightly less long head activation than fully supinated grip but more comfortable for high volume.',
   'Spider Curl':
