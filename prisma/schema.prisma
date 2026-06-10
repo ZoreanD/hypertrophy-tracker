@@ -193,6 +193,7 @@ model Exercise {
   isAssisted       Boolean           @default(false)
   sets             Set[]
   routineExercises RoutineExercise[]
+  weightIsPerSide  Boolean           @default(false)
 }
 
 // -----------------------------------------------------------------------------

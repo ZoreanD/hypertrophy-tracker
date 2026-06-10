@@ -14,12 +14,15 @@ async function getProfile() {
 }
 
 // Calculate effective load for assisted/bodyweight exercises
-function getEffectiveLoad(weightLbs: number, bodyweightLbs: number | null, assistanceWeightLbs: number | null, isAssisted: boolean, isBodyweight: boolean): number {
+function getEffectiveLoad(weightLbs: number, bodyweightLbs: number | null, assistanceWeightLbs: number | null, isAssisted: boolean, isBodyweight: boolean, weightIsPerSide?: boolean): number {
   if (isAssisted && bodyweightLbs && assistanceWeightLbs) {
     return bodyweightLbs - assistanceWeightLbs;
   }
   if (isBodyweight && bodyweightLbs) {
-    return bodyweightLbs + weightLbs; // weightLbs = added weight (0 if none)
+    return bodyweightLbs + weightLbs;
+  }
+  if (weightIsPerSide) {
+    return weightLbs * 2;
   }
   return weightLbs;
 }
@@ -145,7 +148,7 @@ export async function getExerciseHistory(
       },
       include: {
         workout: { select: { date: true, id: true } },
-        exercise: { select: { isAssisted: true, isBodyweight: true } },
+        exercise: { select: { isAssisted: true, isBodyweight: true, equipment: true, weightIsPerSide: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 30,
@@ -176,7 +179,8 @@ export async function getExerciseHistory(
       bestSet.bodyweightLbs,
       bestSet.assistanceWeightLbs,
       isAssisted,
-      isBodyweight
+      isBodyweight,
+      bestSet.exercise?.weightIsPerSide ?? false
     );
 
     const e1RM = Math.round(effectiveLoad * (1 + bestSet.reps / 30));
@@ -198,7 +202,7 @@ export async function getExerciseHistory(
         reps: s.reps,
         rir: s.rir,
         side: s.side,
-        effectiveLoad: getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight),
+        effectiveLoad: getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight, bestSet.exercise?.weightIsPerSide ?? false),
       })),
     };
   } catch (error) {
@@ -222,6 +226,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
                 isUnilateral: true,
                 isAssisted: true,
                 isBodyweight: true,
+                weightIsPerSide: true,
               },
             },
           },
@@ -250,6 +255,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       const isUnilateral = routineEx.exercise.isUnilateral;
       const isAssisted = routineEx.exercise.isAssisted;
       const isBodyweight = routineEx.exercise.isBodyweight;
+      const weightIsPerSide = routineEx.exercise.weightIsPerSide;
 
       if (setsForExercise.length === 0) {
         exerciseSummaries.push({
@@ -278,11 +284,11 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
 
         if (leftSets.length > 0 && rightSets.length > 0) {
           const leftVolume = leftSets.reduce((sum, s) => {
-            const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+            const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight, weightIsPerSide);
             return sum + eff * s.reps;
           }, 0);
           const rightVolume = rightSets.reduce((sum, s) => {
-            const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+            const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight, weightIsPerSide);
             return sum + eff * s.reps;
           }, 0);
 
@@ -312,7 +318,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
           isWarmup: false,
           NOT: { workoutId },
         },
-        include: { workout: { select: { date: true } } },
+        include: { workout: { select: { date: true } }, exercise: { select: { equipment: true, weightIsPerSide: true } } },
         orderBy: { createdAt: 'desc' },
         take: 20,
       });
@@ -322,7 +328,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
 
       // Use effective load for e1RM calculation
       const calcE1RM = (s: { weightLbs: number; reps: number; bodyweightLbs: number | null; assistanceWeightLbs: number | null }) => {
-        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight, weightIsPerSide);
         return Math.round(eff * (1 + s.reps / 30));
       };
 
@@ -340,11 +346,11 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
         : false;
 
       const currTotalVolume = setsForExercise.reduce((sum, s) => {
-        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight);
+        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight, weightIsPerSide);
         return sum + eff * s.reps;
       }, 0);
       const prevTotalVolume = prevMatchingSets.reduce((sum, s) => {
-        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs ?? null, s.assistanceWeightLbs ?? null, isAssisted, isBodyweight);
+        const eff = getEffectiveLoad(s.weightLbs, s.bodyweightLbs ?? null, s.assistanceWeightLbs ?? null, isAssisted, isBodyweight, weightIsPerSide);
         return sum + eff * s.reps;
       }, 0);
 
@@ -438,7 +444,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
           rir: s.rir,
           setType: s.setType,
           side: s.side,
-          effectiveLoad: getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight),
+          effectiveLoad: getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight, weightIsPerSide),
           assistanceWeight: s.assistanceWeightLbs,
         })),
         progressionFlag,
