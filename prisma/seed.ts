@@ -55,6 +55,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX', 'ABS'],
     equipment: 'DUMBBELL',
     movementPattern: 'SQUAT',
+    weightIsPerSide: false,
   },
   {
     name: 'Goblet Squat (Kettlebell)',
@@ -62,6 +63,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX', 'ABS'],
     equipment: 'KETTLEBELL',
     movementPattern: 'SQUAT',
+    weightIsPerSide: false,
   },
   {
     name: 'Hack Squat Machine',
@@ -70,6 +72,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_LATERALIS', 'GLUTE_MAX'],
     equipment: 'MACHINE_PLATE_LOADED',
     movementPattern: 'SQUAT',
+    weightIsPerSide: false,
   },
   {
     name: 'FreeMotion Squat',
@@ -77,6 +80,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX'],
     equipment: 'FREEMOTION',
     movementPattern: 'SQUAT',
+    weightIsPerSide: false,
   },
   {
     name: 'Smith Machine Squat',
@@ -84,6 +88,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX'],
     equipment: 'SMITH_MACHINE',
     movementPattern: 'SQUAT',
+    weightIsPerSide: false,
   },
   {
     name: 'Leg Press',
@@ -107,6 +112,8 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX', 'HAMSTRING_MEDIAL'],
     equipment: 'DUMBBELL',
     movementPattern: 'LUNGE',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Bulgarian Split Squat (Barbell)',
@@ -114,6 +121,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX', 'HAMSTRING_MEDIAL'],
     equipment: 'BARBELL',
     movementPattern: 'LUNGE',
+    isUnilateral: true,
   },
   {
     name: 'Bulgarian Split Squat Machine',
@@ -121,6 +129,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX', 'HAMSTRING_MEDIAL'],
     equipment: 'MACHINE_PLATE_LOADED',
     movementPattern: 'LUNGE',
+    isUnilateral: true,
   },
   {
     name: 'Assisted Bulgarian Split Squat',
@@ -128,6 +137,7 @@ const exercises = [
     secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX', 'HAMSTRING_MEDIAL'],
     equipment: 'ASSISTED_BODYWEIGHT',
     movementPattern: 'LUNGE',
+    isUnilateral: true,
   },
   {
     name: 'Walking Lunge (Dumbbell)',
@@ -135,6 +145,7 @@ const exercises = [
     secondaryMuscles: ['GLUTE_MAX', 'QUAD_VASTUS_MEDIALIS', 'HAMSTRING_MEDIAL'],
     equipment: 'DUMBBELL',
     movementPattern: 'LUNGE',
+    weightIsPerSide: true,
   },
   {
     name: 'Reverse Lunge (Dumbbell)',
@@ -142,6 +153,8 @@ const exercises = [
     secondaryMuscles: ['GLUTE_MAX', 'QUAD_VASTUS_MEDIALIS', 'HAMSTRING_MEDIAL'],
     equipment: 'DUMBBELL',
     movementPattern: 'LUNGE',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Step-Up (Dumbbell)',
@@ -149,6 +162,8 @@ const exercises = [
     secondaryMuscles: ['GLUTE_MAX', 'QUAD_VASTUS_MEDIALIS'],
     equipment: 'DUMBBELL',
     movementPattern: 'LUNGE',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -171,6 +186,7 @@ const exercises = [
     secondaryMuscles: ['HAMSTRING_BICEPS_FEMORIS', 'GLUTE_MAX', 'LOWER_BACK'],
     equipment: 'DUMBBELL',
     movementPattern: 'HINGE',
+    weightIsPerSide: true,
   },
   {
     name: 'Stiff-Leg Deadlift',
@@ -208,6 +224,7 @@ const exercises = [
     secondaryMuscles: ['GLUTE_MAX'],
     equipment: 'MACHINE_SELECTORIZED',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
   },
   {
     name: 'Cable Pull-Through',
@@ -248,6 +265,8 @@ const exercises = [
     secondaryMuscles: ['HAMSTRING_MEDIAL'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Glute Bridge (Bodyweight)',
@@ -291,6 +310,7 @@ const exercises = [
     secondaryMuscles: ['SOLEUS'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -317,6 +337,8 @@ const exercises = [
     secondaryMuscles: ['GLUTE_MED'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Cable Hip Adduction',
@@ -324,6 +346,8 @@ const exercises = [
     secondaryMuscles: [],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -357,6 +381,7 @@ const exercises = [
     secondaryMuscles: ['FRONT_DELT', 'TRICEPS_LATERAL_HEAD', 'TRICEPS_MEDIAL_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'HORIZONTAL_PUSH',
+    weightIsPerSide: true,
   },
   {
     name: 'Incline Dumbbell Bench Press',
@@ -364,6 +389,7 @@ const exercises = [
     secondaryMuscles: ['FRONT_DELT', 'TRICEPS_LATERAL_HEAD', 'TRICEPS_MEDIAL_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'HORIZONTAL_PUSH',
+    weightIsPerSide: true,
   },
   {
     name: 'Decline Dumbbell Bench Press',
@@ -371,6 +397,7 @@ const exercises = [
     secondaryMuscles: ['TRICEPS_LATERAL_HEAD', 'TRICEPS_MEDIAL_HEAD', 'FRONT_DELT'],
     equipment: 'DUMBBELL',
     movementPattern: 'HORIZONTAL_PUSH',
+    weightIsPerSide: true,
   },
   {
     name: 'Smith Machine Bench Press',
@@ -401,25 +428,36 @@ const exercises = [
     movementPattern: 'HORIZONTAL_PUSH',
   },
   {
-    name: 'Cable Chest Fly (Low to High)',
+    name: 'FreeMotion Dual Cross Chest Fly (Low to High)',
     primaryMuscle: 'CHEST_UPPER',
     secondaryMuscles: ['FRONT_DELT'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
-    name: 'Cable Chest Fly (High to Low)',
+    name: 'FreeMotion Dual Cross Chest Fly (High to Low)',
     primaryMuscle: 'CHEST_MID_LOWER',
     secondaryMuscles: ['FRONT_DELT'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
-    name: 'Cable Pec Fly',
+    name: 'FreeMotion Dual Cross Chest Fly (Neutral)',
     primaryMuscle: 'CHEST_MID_LOWER',
     secondaryMuscles: ['CHEST_UPPER', 'FRONT_DELT'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
+  },
+  {
+    name: 'Cable Pec Deck',
+    primaryMuscle: 'CHEST_MID_LOWER',
+    secondaryMuscles: ['CHEST_UPPER', 'FRONT_DELT'],
+    equipment: 'CABLE',
+    movementPattern: 'ISOLATION',
+    weightIsPerSide: false,
   },
   {
     name: 'Pec Deck Machine',
@@ -434,6 +472,7 @@ const exercises = [
     secondaryMuscles: ['FRONT_DELT'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
     name: 'Push-Up',
@@ -467,6 +506,7 @@ const exercises = [
     secondaryMuscles: ['SIDE_DELT', 'TRICEPS_LONG_HEAD', 'TRICEPS_LATERAL_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'VERTICAL_PUSH',
+    weightIsPerSide: true,
   },
   {
     name: 'Standing Dumbbell Shoulder Press',
@@ -474,6 +514,7 @@ const exercises = [
     secondaryMuscles: ['SIDE_DELT', 'TRICEPS_LONG_HEAD', 'TRICEPS_LATERAL_HEAD', 'ABS'],
     equipment: 'DUMBBELL',
     movementPattern: 'VERTICAL_PUSH',
+    weightIsPerSide: true,
   },
   {
     name: 'Smith Machine Overhead Press',
@@ -509,6 +550,16 @@ const exercises = [
     secondaryMuscles: ['TRAPS_UPPER'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
+  },
+  {
+    name: 'Dumbbell Lateral Raise (Single Arm)',
+    primaryMuscle: 'SIDE_DELT',
+    secondaryMuscles: ['TRAPS_UPPER'],
+    equipment: 'DUMBBELL',
+    movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Cable Lateral Raise',
@@ -516,6 +567,8 @@ const exercises = [
     secondaryMuscles: ['TRAPS_UPPER'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Side Delt Cable Lateral Raise',
@@ -523,6 +576,8 @@ const exercises = [
     secondaryMuscles: [],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Machine Lateral Raise',
@@ -537,13 +592,23 @@ const exercises = [
     secondaryMuscles: ['CHEST_UPPER'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
-    name: 'Anterior Delt Raise (Cable)',
+    name: 'Anterior Delt Raise (Cable Bar)',
     primaryMuscle: 'FRONT_DELT',
     secondaryMuscles: ['CHEST_UPPER'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+  },
+  {
+    name: 'Anterior Delt Raise (Cable Single Handle)',
+    primaryMuscle: 'FRONT_DELT',
+    secondaryMuscles: ['CHEST_UPPER'],
+    equipment: 'CABLE',
+    movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Cable Rear Delt Fly',
@@ -558,6 +623,8 @@ const exercises = [
     secondaryMuscles: ['TRAPS_MID'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Dumbbell Rear Delt Fly',
@@ -565,6 +632,16 @@ const exercises = [
     secondaryMuscles: ['TRAPS_MID', 'RHOMBOIDS'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
+  },
+  {
+    name: 'Dumbbell Rear Delt Fly (Single Arm)',
+    primaryMuscle: 'REAR_DELT',
+    secondaryMuscles: ['TRAPS_MID', 'RHOMBOIDS'],
+    equipment: 'DUMBBELL',
+    movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Reverse Pec Deck',
@@ -637,6 +714,8 @@ const exercises = [
     secondaryMuscles: ['BICEPS_LONG_HEAD', 'TERES_MAJOR'],
     equipment: 'CABLE',
     movementPattern: 'VERTICAL_PULL',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Kneeling Single-Arm Lat Pulldown',
@@ -644,6 +723,8 @@ const exercises = [
     secondaryMuscles: ['BICEPS_LONG_HEAD', 'TERES_MAJOR', 'REAR_DELT'],
     equipment: 'CABLE',
     movementPattern: 'VERTICAL_PULL',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Barbell Bent-Over Row',
@@ -658,6 +739,8 @@ const exercises = [
     secondaryMuscles: ['TRAPS_MID', 'RHOMBOIDS', 'BICEPS_SHORT_HEAD', 'REAR_DELT'],
     equipment: 'DUMBBELL',
     movementPattern: 'HORIZONTAL_PULL',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Croc Row',
@@ -665,6 +748,8 @@ const exercises = [
     secondaryMuscles: ['TRAPS_MID', 'RHOMBOIDS', 'BICEPS_SHORT_HEAD', 'REAR_DELT'],
     equipment: 'DUMBBELL',
     movementPattern: 'HORIZONTAL_PULL',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Seated Cable Row (Wide Grip)',
@@ -756,6 +841,7 @@ const exercises = [
     secondaryMuscles: ['FOREARMS'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -794,6 +880,7 @@ const exercises = [
     secondaryMuscles: ['BICEPS_LONG_HEAD', 'BRACHIALIS'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
     name: 'Incline Dumbbell Curl',
@@ -802,6 +889,7 @@ const exercises = [
     secondaryMuscles: ['BICEPS_SHORT_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
     name: 'Bayesian Cable Curl',
@@ -810,6 +898,8 @@ const exercises = [
     secondaryMuscles: ['BICEPS_SHORT_HEAD'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Hammer Curl',
@@ -818,6 +908,7 @@ const exercises = [
     secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
     name: 'Cross-Body Hammer Curl',
@@ -825,6 +916,8 @@ const exercises = [
     secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_SHORT_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Cable Curl',
@@ -839,6 +932,8 @@ const exercises = [
     secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Machine Preacher Curl',
@@ -861,6 +956,8 @@ const exercises = [
     secondaryMuscles: ['BRACHIALIS'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Seated Dumbbell Isolation Curl',
@@ -868,6 +965,7 @@ const exercises = [
     secondaryMuscles: ['BRACHIALIS'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -898,6 +996,7 @@ const exercises = [
     secondaryMuscles: ['TRICEPS_LATERAL_HEAD', 'TRICEPS_MEDIAL_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
   },
   {
     name: 'Overhead Triceps Extension (Cable)',
@@ -912,6 +1011,7 @@ const exercises = [
     secondaryMuscles: ['TRICEPS_MEDIAL_HEAD', 'TRICEPS_LATERAL_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    weightIsPerSide: false,
   },
   {
     name: 'Triceps Pushdown (Rope)',
@@ -934,6 +1034,8 @@ const exercises = [
     secondaryMuscles: ['TRICEPS_MEDIAL_HEAD', 'TRICEPS_LONG_HEAD'],
     equipment: 'CABLE',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
   },
   {
     name: 'Machine Triceps Dip',
@@ -1031,6 +1133,8 @@ await (prisma.exercise.upsert as any)({
     secondaryMuscles: ex.secondaryMuscles,
     equipment: ex.equipment,
     movementPattern: ex.movementPattern,
+    isUnilateral: (ex as any).isUnilateral ?? false,
+    weightIsPerSide: (ex as any).weightIsPerSide ?? false,
   },
   create: {
     name: ex.name,
@@ -1038,6 +1142,8 @@ await (prisma.exercise.upsert as any)({
     secondaryMuscles: ex.secondaryMuscles,
     equipment: ex.equipment,
     movementPattern: ex.movementPattern,
+    isUnilateral: (ex as any).isUnilateral ?? false,
+    weightIsPerSide: (ex as any).weightIsPerSide ?? false,
   },
 });
       created++;
