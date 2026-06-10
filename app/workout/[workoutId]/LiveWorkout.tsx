@@ -397,10 +397,28 @@ export default function LiveWorkout({
       const inputBRight = supersetInputs[bRightKey] ?? { weight: '', reps: '', rir: '' };
       const wBL = parseFloat(inputBLeft.weight), rBL = parseInt(inputBLeft.reps), rirBL = parseFloat(inputBLeft.rir);
       const wBR = parseFloat(inputBRight.weight), rBR = parseInt(inputBRight.reps), rirBR = parseFloat(inputBRight.rir);
-      if (isNaN(wA) || isNaN(rA) || isNaN(rirA) || isNaN(wBL) || isNaN(rBL) || isNaN(rirBL) || isNaN(wBR) || isNaN(rBR) || isNaN(rirBR)) {
-        return alert('Fill in weight, reps, and RIR for all inputs.');
+
+      if (ex.isUnilateral) {
+        const aLeftInput = getInput(ex.exerciseId, ex.history, 'LEFT');
+        const aRightInput = getInput(ex.exerciseId, ex.history, 'RIGHT');
+        const wAL = parseFloat(aLeftInput.weight), rAL = parseInt(aLeftInput.reps), rirAL = parseFloat(aLeftInput.rir);
+        const wAR = parseFloat(aRightInput.weight), rAR = parseInt(aRightInput.reps), rirAR = parseFloat(aRightInput.rir);
+        if (isNaN(wAL) || isNaN(rAL) || isNaN(rirAL) || isNaN(wAR) || isNaN(rAR) || isNaN(rirAR) || isNaN(wBL) || isNaN(rBL) || isNaN(rirBL) || isNaN(wBR) || isNaN(rBR) || isNaN(rirBR)) {
+          return alert('Fill in weight, reps, and RIR for all inputs.');
+        }
+        await doLogSet({ exerciseId: ex.exerciseId, weight: wAL, reps: rAL, rir: rirAL, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'LEFT' });
+        await doLogSet({ exerciseId: ex.exerciseId, weight: wAR, reps: rAR, rir: rirAR, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'RIGHT' });
+        updateInput(ex.exerciseId, 'reps', '', 'LEFT');
+        updateInput(ex.exerciseId, 'rir', '', 'LEFT');
+        updateInput(ex.exerciseId, 'reps', '', 'RIGHT');
+        updateInput(ex.exerciseId, 'rir', '', 'RIGHT');
+      } else {
+        if (isNaN(wA) || isNaN(rA) || isNaN(rirA) || isNaN(wBL) || isNaN(rBL) || isNaN(rirBL) || isNaN(wBR) || isNaN(rBR) || isNaN(rirBR)) {
+          return alert('Fill in weight, reps, and RIR for all inputs.');
+        }
+        await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideA });
+        setInputs((prev) => ({ ...prev, [ex.exerciseId]: { ...prev[ex.exerciseId], reps: '', rir: '' } }));
       }
-      await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SUPERSET_A', setGroupId: groupId, restSecs: ex.restTimerSecs, side: sideA });
       await doLogSet({ exerciseId: partner.id, weight: wBL, reps: rBL, rir: rirBL, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'LEFT' });
       await doLogSet({ exerciseId: partner.id, weight: wBR, reps: rBR, rir: rirBR, isWarmup: false, setType: 'SUPERSET_B', setGroupId: groupId, restSecs: ex.restTimerSecs, side: 'RIGHT' });
       setSupersetInputs((prev) => ({ ...prev, [bLeftKey]: { weight: inputBLeft.weight, reps: '', rir: '' }, [bRightKey]: { weight: inputBRight.weight, reps: '', rir: '' } }));
