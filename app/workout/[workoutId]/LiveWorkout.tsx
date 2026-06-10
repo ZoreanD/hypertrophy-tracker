@@ -831,16 +831,21 @@ export default function LiveWorkout({
       {exerciseOrder.map((exId, index) => {
         const ex = exMap[exId];
         if (!ex) return null;
-
-        const setsForExercise = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup);
-        const isComplete = (ex.isUnilateral ? Math.floor(setsForExercise.length / 2) : setsForExercise.length) >= ex.targetSets;
+        
+        const mode = getMode(ex.exerciseId);
+        const partnerForEx = supersetPartners[ex.exerciseId];
+        const setsForExercise = loggedSets.filter((s) => 
+          (s.exerciseId === ex.exerciseId || (mode === 'SUPERSET' && partnerForEx && s.exerciseId === partnerForEx.id)) 
+          && !s.isWarmup
+        );
+        const aSetsOnly = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup);
+        const isComplete = (ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length) >= ex.targetSets;
         const isExpanded = expandedExercise === ex.exerciseId;
         const isPivoting = pivotingExerciseId === ex.exerciseId;
         const wasSwapped = swaps.some((s) => s.replacement.id === ex.exerciseId);
         const currentSide = ex.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
         const input = getInput(ex.exerciseId, ex.history, currentSide ?? undefined);
         const hint = getProgressionHint(ex, index);
-        const mode = getMode(ex.exerciseId);
         const partner = supersetPartners[ex.exerciseId];
         const supersetInput = supersetInputs[ex.exerciseId] ?? { weight: '', reps: '', rir: '' };
         const myoPhase = myorepPhase[ex.exerciseId] ?? 'activation';
@@ -876,7 +881,7 @@ export default function LiveWorkout({
                     {wasSwapped && <span className="rounded-full bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-400">swapped</span>}
                     {mode !== 'STRAIGHT' && <span className="rounded-full bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">{mode.toLowerCase()}</span>}
                   </div>
-                  <p className="text-xs text-zinc-500">{ex.isUnilateral ? Math.floor(setsForExercise.length / 2) : setsForExercise.length}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>
+                  <p className="text-xs text-zinc-500">{ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>
                 </div>
               </button>
 
