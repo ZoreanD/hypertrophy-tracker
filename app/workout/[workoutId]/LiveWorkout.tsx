@@ -831,7 +831,7 @@ export default function LiveWorkout({
       {exerciseOrder.map((exId, index) => {
         const ex = exMap[exId];
         if (!ex) return null;
-        
+
         const mode = getMode(ex.exerciseId);
         const partnerForEx = supersetPartners[ex.exerciseId];
         const setsForExercise = loggedSets.filter((s) => 
@@ -1152,22 +1152,62 @@ export default function LiveWorkout({
                     {!partner ? (
                       <div className="space-y-2">
                         <p className="text-xs text-zinc-400">Select the exercise you're pairing with:</p>
-                        <button onClick={() => handleSearchSupersetPartner(ex)} className="w-full rounded-md border border-zinc-700 py-2 text-sm text-zinc-400 hover:border-emerald-500 hover:text-emerald-400">
-                          + Pick superset partner
-                        </button>
-                        {showPartnerSearch[ex.exerciseId] && (
-                          <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950">
-                            {(partnerSubstitutes[ex.exerciseId] ?? []).map((sub) => (
-                              <button key={sub.id} onClick={() => handleSelectSupersetPartner(ex.exerciseId, sub)} className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-zinc-800">
-                                <span className="text-sm text-white">{sub.name}</span>
-                                <span className="text-xs text-zinc-500">{sub.primaryMuscle.replace(/_/g, ' ')}</span>
+
+                        {/* ── Session exercises ── */}
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-950 overflow-hidden">
+                          <p className="px-3 py-1.5 text-xs text-zinc-600 border-b border-zinc-800">In this session</p>
+                          {activeExercises
+                            .filter((e) => e.exerciseId !== ex.exerciseId)
+                            .map((e) => (
+                              <button
+                                key={e.exerciseId}
+                                onClick={() => handleSelectSupersetPartner(ex.exerciseId, {
+                                  id: e.exerciseId,
+                                  name: e.exerciseName,
+                                  primaryMuscle: e.primaryMuscle,
+                                  movementPattern: e.movementPattern,
+                                  equipment: e.equipment,
+                                  isUnilateral: e.isUnilateral,
+                                })}
+                                className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-zinc-800"
+                              >
+                                <span className="text-sm text-white">{e.exerciseName}</span>
+                                <span className="text-xs text-zinc-500">{e.primaryMuscle.replace(/_/g, ' ')}</span>
                               </button>
                             ))}
-                            {(partnerSubstitutes[ex.exerciseId] ?? []).length === 0 && (
-                              <p className="p-3 text-xs text-zinc-500">No matching exercises found.</p>
-                            )}
+                          {activeExercises.filter((e) => e.exerciseId !== ex.exerciseId).length === 0 && (
+                            <p className="px-3 py-2 text-xs text-zinc-600">No other exercises in this session.</p>
+                          )}
+                        </div>
+
+                        {/* ── Other exercises ── */}
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-950 overflow-hidden">
+                          <p className="px-3 py-1.5 text-xs text-zinc-600 border-b border-zinc-800">Add a different exercise</p>
+                          <div className="p-2">
+                            <input
+                              type="text"
+                              placeholder="Search exercises..."
+                              onChange={(e) => {
+                                setShowPartnerSearch((prev) => ({ ...prev, [ex.exerciseId]: true }));
+                                handleSearchSupersetPartner(ex);
+                              }}
+                              className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                            />
                           </div>
-                        )}
+                          {showPartnerSearch[ex.exerciseId] && (
+                            <div className="max-h-40 overflow-y-auto">
+                              {(partnerSubstitutes[ex.exerciseId] ?? []).map((sub) => (
+                                <button key={sub.id} onClick={() => handleSelectSupersetPartner(ex.exerciseId, sub)} className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-zinc-800">
+                                  <span className="text-sm text-white">{sub.name}</span>
+                                  <span className="text-xs text-zinc-500">{sub.primaryMuscle.replace(/_/g, ' ')}</span>
+                                </button>
+                              ))}
+                              {(partnerSubstitutes[ex.exerciseId] ?? []).length === 0 && (
+                                <p className="p-3 text-xs text-zinc-500">No exercises found.</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-3">
