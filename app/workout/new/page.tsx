@@ -23,8 +23,7 @@ export default async function NewWorkoutPage() {
       focus: 'Ad-hoc Workout',
       durationMins: 0,
       date: new Date(
-        new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' })
-          .split(',')[0] + 'T12:00:00'
+        new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10) + 'T12:00:00'
       ),
     },
   });
