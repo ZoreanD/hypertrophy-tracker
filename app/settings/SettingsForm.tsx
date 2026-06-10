@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateProfile } from '../actions/profile';
+import { changePassword } from '../actions/auth';
 
 const currentYear = new Date().getFullYear();
 const birthYears = Array.from({ length: currentYear - 1939 - 16 }, (_, i) => currentYear - 16 - i);
@@ -52,6 +53,24 @@ export default function SettingsForm({
   const [weeksToGoal, setWeeksToGoal] = useState<number | null>(null);
   const [form, setForm] = useState(initialValues);
 
+const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+const [pwStatus, setPwStatus] = useState<{ error?: string; success?: boolean } | null>(null);
+const [pwSubmitting, setPwSubmitting] = useState(false);
+
+const handlePasswordChange = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setPwSubmitting(true);
+  setPwStatus(null);
+  const fd = new FormData();
+  fd.append('currentPassword', pwForm.currentPassword);
+  fd.append('newPassword', pwForm.newPassword);
+  fd.append('confirmPassword', pwForm.confirmPassword);
+  const result = await changePassword(fd);
+  setPwStatus(result);
+  if (result.success) setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  setPwSubmitting(false);
+};
+
   const update = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
     setSaved(false);
@@ -85,6 +104,7 @@ export default function SettingsForm({
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-6">
 
       <div>
@@ -225,5 +245,53 @@ export default function SettingsForm({
         </div>
 
     </form>
+    <form onSubmit={handlePasswordChange} className="mt-8 space-y-4 border-t border-zinc-800 pt-8">
+      <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Change Password</h2>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-400">Current Password</label>
+        <input
+          type="password"
+          value={pwForm.currentPassword}
+          onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))}
+          autoComplete="current-password"
+          className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-400">New Password</label>
+        <input
+          type="password"
+          value={pwForm.newPassword}
+          onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))}
+          autoComplete="new-password"
+          className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-400">Confirm New Password</label>
+        <input
+          type="password"
+          value={pwForm.confirmPassword}
+          onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))}
+          autoComplete="new-password"
+          className="w-full rounded-md border border-zinc-700 bg-zinc-900 p-2 text-white focus:border-emerald-500 focus:outline-none"
+        />
+      </div>
+
+      {pwStatus?.error && <p className="text-sm text-red-400">{pwStatus.error}</p>}
+      {pwStatus?.success && <p className="text-sm text-emerald-400">✓ Password updated.</p>}
+
+      <button
+        type="submit"
+        disabled={pwSubmitting}
+        className="w-full rounded-md bg-zinc-700 py-3 font-semibold text-white hover:bg-zinc-600 disabled:opacity-50"
+      >
+        {pwSubmitting ? 'Updating…' : 'Update Password'}
+      </button>
+    </form>
+    </>
   );
 }
