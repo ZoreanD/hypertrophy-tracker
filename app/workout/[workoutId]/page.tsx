@@ -29,6 +29,21 @@ export default async function LiveWorkoutPage({
 
   const currentBodyweight = await getCurrentBodyweight(profile.id);
 
+  const allExercises = await prisma.exercise.findMany({
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      primaryMuscle: true,
+      movementPattern: true,
+      equipment: true,
+      isUnilateral: true,
+      isAssisted: true,
+      isBodyweight: true,
+      weightIsPerSide: true,
+    },
+  });
+
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
     include: {
@@ -134,7 +149,7 @@ export default async function LiveWorkoutPage({
     };
   }
 
-  return (
+return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <LiveWorkout
         workout={{
@@ -175,6 +190,8 @@ export default async function LiveWorkoutPage({
         }))}
         profileId={profile.id}
         currentBodyweight={currentBodyweight}
+        allExercises={allExercises}
+        isAdHoc={!workout.routineId}
       />
     </main>
   );

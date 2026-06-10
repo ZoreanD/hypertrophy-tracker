@@ -71,6 +71,18 @@ type SwapRecord = {
   replacement: Substitute;
 };
 
+type ExerciseOption = {
+  id: string;
+  name: string;
+  primaryMuscle: string;
+  movementPattern: string;
+  equipment: string;
+  isUnilateral: boolean;
+  isAssisted: boolean;
+  isBodyweight: boolean;
+  weightIsPerSide?: boolean;
+};
+
 type SetMode = 'STRAIGHT' | 'SUPERSET' | 'MYOREP' | 'DROPSET';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -87,12 +99,16 @@ export default function LiveWorkout({
   loggedSets: initialLoggedSets,
   profileId,
   currentBodyweight,
+  allExercises,
+  isAdHoc,
 }: {
   workout: { id: string; focus: string; date: string };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
   profileId: string;
   currentBodyweight: number | null;
+  allExercises: ExerciseOption[];
+  isAdHoc: boolean;
 }) {
   const router = useRouter();
   const startTime = useRef(Date.now());
@@ -110,6 +126,42 @@ export default function LiveWorkout({
   );
   const [activeExercises, setActiveExercises] = useState<PlannedExercise[]>(plannedExercises);
   const exMap = Object.fromEntries(activeExercises.map((e) => [e.exerciseId, e]));
+
+  const [showAddExercise, setShowAddExercise] = useState(false);
+  const [addExerciseSearch, setAddExerciseSearch] = useState('');
+  const filteredAddExercises = allExercises
+    .filter((e) =>
+      e.name.toLowerCase().includes(addExerciseSearch.toLowerCase()) &&
+      !exerciseOrder.includes(e.id)
+    )
+    .slice(0, 20);
+
+  function addAdHocExercise(ex: ExerciseOption) {
+    const newEntry: PlannedExercise = {
+      routineExerciseId: `adhoc-${ex.id}`,
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      primaryMuscle: ex.primaryMuscle,
+      movementPattern: ex.movementPattern,
+      equipment: ex.equipment,
+      isUnilateral: ex.isUnilateral,
+      isAssisted: ex.isAssisted,
+      isBodyweight: ex.isBodyweight,
+      targetSets: 3,
+      targetRepMin: 8,
+      targetRepMax: 12,
+      targetRir: 1,
+      restTimerSecs: 120,
+      progressionStyle: 'DOUBLE_PROGRESSION',
+      plannedOrder: activeExercises.length,
+      history: null,
+    };
+    setActiveExercises((prev) => [...prev, newEntry]);
+    setExerciseOrder((prev) => [...prev, ex.id]);
+    setExpandedExercise(ex.id);
+    setAddExerciseSearch('');
+    setShowAddExercise(false);
+  }
 
   // Rest timer
   const [restTimer, setRestTimer] = useState<number | null>(null);
@@ -1401,10 +1453,58 @@ export default function LiveWorkout({
       })}
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 bg-zinc-950/95 p-4 backdrop-blur">
-        <div className="mx-auto max-w-2xl">
-          <button onClick={handleFinish} disabled={isSubmitting} className="w-full rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
-            {isSubmitting ? 'Saving...' : 'Finish Workout'}
-          </button>
+        <div className="mx-auto max-w-2xl space-y-2">
+
+          {/* Add exercise search panel */}
+          {showAddExercise && (
+            <div className="rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl mb-2">
+              <div className="p-3">
+                <input
+                  type="text"
+                  value={addExerciseSearch}
+                  onChange={(e) => setAddExerciseSearch(e.target.value)}
+                  placeholder="Search exercises..."
+                  autoFocus
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+              <ul className="max-h-48 overflow-y-auto">
+                {filteredAddExercises.length === 0 && (
+                  <li className="p-3 text-center text-xs text-zinc-500">No exercises found.</li>
+                )}
+                {filteredAddExercises.map((ex) => (
+                  <li key={ex.id}>
+                    <button
+                      type="button"
+                      onClick={() => addAdHocExercise(ex)}
+                      className="flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-zinc-800"
+                    >
+                      <span className="text-sm text-white">{ex.name}</span>
+                      <span className="text-xs text-zinc-500">{ex.primaryMuscle.replace(/_/g, ' ')}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAddExercise((v) => !v)}
+              className="rounded-md border border-zinc-700 px-4 py-3 text-sm font-semibold text-zinc-400 hover:border-zinc-500 hover:text-white"
+            >
+              {showAddExercise ? '✕' : '+ Exercise'}
+            </button>
+            <button
+              onClick={handleFinish}
+              disabled={isSubmitting}
+              className="flex-1 rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : 'Finish Workout'}
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
