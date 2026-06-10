@@ -956,76 +956,112 @@ export default function LiveWorkout({
                 {/* Logged sets */}
                 {setsForExercise.length > 0 && (
                   <div className="space-y-1">
-                    {setsForExercise.map((s, i) => (
-                      <div key={s.id} className="space-y-1">
-                        <div className="flex items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2">
-                          <span className="text-xs text-zinc-500">
-                            {s.setType === 'STRAIGHT' ? (ex.isUnilateral ? `Set ${Math.floor(i / 2) + 1} ${s.side ?? ''}` : `Set ${i + 1}`)
-                            : s.setType === 'MYOREP_ACTIVATION' ? 'Activation'
-                            : s.setType === 'MYOREP_MINI' ? `Mini ${i}`
-                            : s.setType === 'DROPSET_PRIMARY' ? 'Primary'
-                            : s.setType === 'DROPSET_DROP' ? 'Drop'
-                            : s.setType === 'SUPERSET_A' ? `SS-A ${i + 1}`
-                            : `SS-B ${i + 1}`}
-                            {s.side && <span className="ml-1 text-zinc-600">{s.side}</span>}
-                          </span>
-                          <span className="text-sm font-medium text-white">
-                            {ex.isAssisted
-                              ? `${s.weightLbs}lbs assist × ${s.reps} @ ${s.rir} RIR`
-                              : `${s.weightLbs}lbs × ${s.reps} @ ${s.rir} RIR`}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {s.setType === 'STRAIGHT' && mode === 'STRAIGHT' && (
-                              <button
-                                onClick={() => setActiveDropForSet(activeDropForSet === s.id ? null : s.id)}
-                                className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
-                                  activeDropForSet === s.id
-                                    ? 'border-orange-600 text-orange-400'
-                                    : 'border-zinc-700 text-zinc-600 hover:border-orange-600 hover:text-orange-400'
-                                }`}
-                              >
-                                {activeDropForSet === s.id ? '✕' : '→ Drop'}
-                              </button>
-                            )}
-                            <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
-                          </div>
-                        </div>
-
-                        {/* Inline drop input */}
-                        {activeDropForSet === s.id && (
-                          <div className="ml-4 rounded-md border border-orange-700/50 bg-orange-950/10 p-3 space-y-2">
-                            <p className="text-xs text-orange-400">Drop set — reduce weight 20–30% and log</p>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <label className="mb-1 block text-xs text-zinc-500">Weight</label>
-                                <input type="number" step="2.5"
-                                  value={inlineDropInputs[s.id]?.weight ?? ''}
-                                  onChange={(e) => setInlineDropInputs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], weight: e.target.value } }))}
-                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" />
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs text-zinc-500">Reps</label>
-                                <input type="number"
-                                  value={inlineDropInputs[s.id]?.reps ?? ''}
-                                  onChange={(e) => setInlineDropInputs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], reps: e.target.value } }))}
-                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" />
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs text-zinc-500"><Tooltip definition={GLOSSARY.RIR}>RIR</Tooltip></label>
-                                <input type="number" step="0.5" min="0" max="5"
-                                  value={inlineDropInputs[s.id]?.rir ?? ''}
-                                  onChange={(e) => setInlineDropInputs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], rir: e.target.value } }))}
-                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" />
+                    {mode === 'SUPERSET' ? (
+                      // Group superset sets by setGroupId
+                      (() => {
+                        const groups: Record<string, LoggedSet[]> = {};
+                        setsForExercise.forEach((s) => {
+                          const key = s.setGroupId ?? s.id;
+                          if (!groups[key]) groups[key] = [];
+                          groups[key].push(s);
+                        });
+                        return Object.entries(groups).map(([groupId, groupSets], gi) => {
+                          const aSets = groupSets.filter((s) => s.setType === 'SUPERSET_A');
+                          const bSets = groupSets.filter((s) => s.setType === 'SUPERSET_B');
+                          return (
+                            <div key={groupId} className="rounded-md bg-zinc-800/50 px-3 py-2 space-y-1">
+                              <span className="text-xs text-zinc-500">Pair {gi + 1}</span>
+                              <div className="space-y-0.5">
+                                {aSets.map((s) => (
+                                  <div key={s.id} className="flex items-center justify-between">
+                                    <span className="text-xs text-zinc-500">SS-A{s.side ? ` ${s.side}` : ''}</span>
+                                    <span className="text-xs font-medium text-white">{s.weightLbs}lbs × {s.reps} @ {s.rir} RIR</span>
+                                    <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
+                                  </div>
+                                ))}
+                                {bSets.map((s) => (
+                                  <div key={s.id} className="flex items-center justify-between">
+                                    <span className="text-xs text-zinc-500">SS-B{s.side ? ` ${s.side}` : ''}</span>
+                                    <span className="text-xs font-medium text-white">{s.weightLbs}lbs × {s.reps} @ {s.rir} RIR</span>
+                                    <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                            <button onClick={() => handleInlineDrop(s.id, ex)}
-                              className="w-full rounded-md bg-orange-700/50 py-2 text-sm font-semibold text-orange-200 hover:bg-orange-700/70">
-                              Log Drop
-                            </button>
+                          );
+                        });
+                      })()
+                    ) : (
+                      setsForExercise.map((s, i) => (
+                        <div key={s.id} className="space-y-1">
+                          <div className="flex items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2">
+                            <span className="text-xs text-zinc-500">
+                              {s.setType === 'STRAIGHT' ? (ex.isUnilateral ? `Set ${Math.floor(i / 2) + 1} ${s.side ?? ''}` : `Set ${i + 1}`)
+                              : s.setType === 'MYOREP_ACTIVATION' ? 'Activation'
+                              : s.setType === 'MYOREP_MINI' ? `Mini ${i}`
+                              : s.setType === 'DROPSET_PRIMARY' ? 'Primary'
+                              : s.setType === 'DROPSET_DROP' ? 'Drop'
+                              : `Set ${i + 1}`}
+                              {s.side && s.setType !== 'STRAIGHT' && <span className="ml-1 text-zinc-600">{s.side}</span>}
+                            </span>
+                            <span className="text-sm font-medium text-white">
+                              {ex.isAssisted
+                                ? `${s.weightLbs}lbs assist × ${s.reps} @ ${s.rir} RIR`
+                                : `${s.weightLbs}lbs × ${s.reps} @ ${s.rir} RIR`}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {s.setType === 'STRAIGHT' && mode === 'STRAIGHT' && (
+                                <button
+                                  onClick={() => setActiveDropForSet(activeDropForSet === s.id ? null : s.id)}
+                                  className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
+                                    activeDropForSet === s.id
+                                      ? 'border-orange-600 text-orange-400'
+                                      : 'border-zinc-700 text-zinc-600 hover:border-orange-600 hover:text-orange-400'
+                                  }`}
+                                >
+                                  {activeDropForSet === s.id ? '✕' : '→ Drop'}
+                                </button>
+                              )}
+                              <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+                          {/* Inline drop input */}
+                          {activeDropForSet === s.id && (
+                            <div className="ml-4 rounded-md border border-orange-700/50 bg-orange-950/10 p-3 space-y-2">
+                              <p className="text-xs text-orange-400">Drop set — reduce weight 20–30% and log</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                  <label className="mb-1 block text-xs text-zinc-500">Weight</label>
+                                  <input type="number" step="2.5"
+                                    value={inlineDropInputs[s.id]?.weight ?? ''}
+                                    onChange={(e) => setInlineDropInputs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], weight: e.target.value } }))}
+                                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs text-zinc-500">Reps</label>
+                                  <input type="number"
+                                    value={inlineDropInputs[s.id]?.reps ?? ''}
+                                    onChange={(e) => setInlineDropInputs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], reps: e.target.value } }))}
+                                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs text-zinc-500"><Tooltip definition={GLOSSARY.RIR}>RIR</Tooltip></label>
+                                  <input type="number" step="0.5" min="0" max="5"
+                                    value={inlineDropInputs[s.id]?.rir ?? ''}
+                                    onChange={(e) => setInlineDropInputs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], rir: e.target.value } }))}
+                                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" />
+                                </div>
+                              </div>
+                              <button onClick={() => handleInlineDrop(s.id, ex)}
+                                className="w-full rounded-md bg-orange-700/50 py-2 text-sm font-semibold text-orange-200 hover:bg-orange-700/70">
+                                Log Drop
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
 
