@@ -1382,15 +1382,25 @@ export default function LiveWorkout({
                   <div className="space-y-3">
                     {ex.isUnilateral && (
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
-                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
-                        }`}>LEFT</span>
+                        <button
+                          type="button"
+                          onClick={() => { if (myoPhase === 'activation') setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: 'LEFT' })); }}
+                          disabled={myoPhase !== 'activation'}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
+                              ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed'
+                          }`}
+                        >LEFT</button>
                         <span className="text-xs text-zinc-600">→</span>
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
-                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
-                        }`}>RIGHT</span>
+                        <button
+                          type="button"
+                          onClick={() => { if (myoPhase === 'activation') setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: 'RIGHT' })); }}
+                          disabled={myoPhase !== 'activation'}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
+                              ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed'
+                          }`}
+                        >RIGHT</button>
                         <span className="ml-2 text-xs text-zinc-500">
                           logging {unilateralPhase[ex.exerciseId] ?? 'LEFT'} side
                         </span>
@@ -1427,15 +1437,25 @@ export default function LiveWorkout({
                   <div className="space-y-3">
                     {ex.isUnilateral && (
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
-                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
-                        }`}>LEFT</span>
+                        <button
+                          type="button"
+                          onClick={() => { if (!inDrop) setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: 'LEFT' })); }}
+                          disabled={inDrop}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
+                              ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed'
+                          }`}
+                        >LEFT</button>
                         <span className="text-xs text-zinc-600">→</span>
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
-                            ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'
-                        }`}>RIGHT</span>
+                        <button
+                          type="button"
+                          onClick={() => { if (!inDrop) setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: 'RIGHT' })); }}
+                          disabled={inDrop}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
+                              ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed'
+                          }`}
+                        >RIGHT</button>
                         <span className="ml-2 text-xs text-zinc-500">
                           logging {unilateralPhase[ex.exerciseId] ?? 'LEFT'} side
                         </span>
