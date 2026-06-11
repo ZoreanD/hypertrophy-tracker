@@ -80,6 +80,10 @@ export const EXERCISE_SCIENCE_NOTES: Record<string, string> = {
     'Allows heavy loading with neutral grip. Neutral grip reduces biceps fatigue, allowing more back-focused sets.',
   'Chest-Supported Row':
     'Eliminates lower back involvement. Best choice when posterior chain is already fatigued from deadlifts or squats.',
+  'Technogym Row Machine (Bilateral)':
+    'Plate-loaded row with guided path — highest mid-trap and rhomboid activation of any horizontal pull. Elbows-in = lat bias, elbows-out = rhomboid/trap bias. weightIsPerSide: log per-side plate load.',
+  'Technogym Row Machine (Unilateral)':
+    'Single-arm plate-loaded row. Independent arms eliminate dominant-side compensation — ideal for correcting L/R strength asymmetry. Same mid-trap/rhomboid primary emphasis as bilateral variation.',
   'Pull-Up':
     'Higher lat activation than pulldowns per multiple EMG studies. Bodyweight makes progressive overload harder — use weight belt.',
 
