@@ -899,7 +899,7 @@ export default function LiveWorkout({
           (s.exerciseId === ex.exerciseId || (mode === 'SUPERSET' && partnerForEx && s.exerciseId === partnerForEx.id)) 
           && !s.isWarmup
         );
-        const aSetsOnly = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup);
+        const aSetsOnly = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup && s.setType === 'STRAIGHT');
         const isComplete = (ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length) >= ex.targetSets;
         const isExpanded = expandedExercise === ex.exerciseId;
         const isPivoting = pivotingExerciseId === ex.exerciseId;
@@ -1076,8 +1076,8 @@ export default function LiveWorkout({
                               {s.setType === 'STRAIGHT' ? (ex.isUnilateral ? `Set ${Math.floor(i / 2) + 1} ${s.side ?? ''}` : `Set ${i + 1}`)
                               : s.setType === 'MYOREP_ACTIVATION' ? 'Activation'
                               : s.setType === 'MYOREP_MINI' ? `Mini ${i}`
-                              : s.setType === 'DROPSET_PRIMARY' ? 'Primary'
-                              : s.setType === 'DROPSET_DROP' ? 'Drop'
+                              : s.setType === 'DROPSET_PRIMARY' ? `Primary${s.side ? ` ${s.side}` : ''}`
+                              : s.setType === 'DROPSET_DROP' ? `Drop${s.side ? ` ${s.side}` : ''}`
                               : `Set ${i + 1}`}
                               {s.side && s.setType !== 'STRAIGHT' && <span className="ml-1 text-zinc-600">{s.side}</span>}
                             </span>
@@ -1159,19 +1159,40 @@ export default function LiveWorkout({
                   <div className="space-y-3">
                     {ex.isUnilateral && (
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-zinc-800 text-zinc-500'
-                        }`}>LEFT</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!unilateralPendingSide[ex.exerciseId]) {
+                              setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: 'LEFT' }));
+                            }
+                          }}
+                          disabled={!!unilateralPendingSide[ex.exerciseId]}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'LEFT'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed'
+                          }`}
+                        >LEFT</button>
                         <span className="text-xs text-zinc-600">→</span>
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-zinc-800 text-zinc-500'
-                        }`}>RIGHT</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!unilateralPendingSide[ex.exerciseId]) {
+                              setUnilateralPhase((prev) => ({ ...prev, [ex.exerciseId]: 'RIGHT' }));
+                            }
+                          }}
+                          disabled={!!unilateralPendingSide[ex.exerciseId]}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            (unilateralPhase[ex.exerciseId] ?? 'LEFT') === 'RIGHT'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 disabled:cursor-not-allowed'
+                          }`}
+                        >RIGHT</button>
                         <span className="ml-2 text-xs text-zinc-500">
                           logging {unilateralPhase[ex.exerciseId] ?? 'LEFT'} side
+                          {unilateralPendingSide[ex.exerciseId] && (
+                            <span className="ml-1 text-yellow-400">({unilateralPendingSide[ex.exerciseId]} pending)</span>
+                          )}
                         </span>
                       </div>
                     )}
@@ -1205,7 +1226,7 @@ export default function LiveWorkout({
                       </div>
                     </div>
                     <button
-                      onClick={() => updateInput(ex.exerciseId, 'isWarmup', !input.isWarmup)}
+                      onClick={() => updateInput(ex.exerciseId, 'isWarmup', !input.isWarmup, currentSide ?? undefined)}
                       className={`rounded px-3 py-1 text-xs font-medium transition ${input.isWarmup ? 'bg-yellow-600/30 text-yellow-300' : 'bg-zinc-800 text-zinc-500'}`}
                     >
                       Warmup
