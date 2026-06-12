@@ -194,6 +194,7 @@ model Exercise {
   sets             Set[]
   routineExercises RoutineExercise[]
   weightIsPerSide  Boolean           @default(false)
+  isTimeBased      Boolean           @default(false)
 }
 
 // -----------------------------------------------------------------------------
@@ -266,7 +267,8 @@ model Set {
   workoutId            String
   exerciseId           String
   weightLbs            Float
-  reps                 Int
+  reps                 Int      @default(0)
+  durationSeconds      Int?
   rir                  Float
   isWarmup             Boolean  @default(false)
   executionOrder       Int      @default(0)
