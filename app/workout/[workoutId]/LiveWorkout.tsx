@@ -129,6 +129,19 @@ export default function LiveWorkout({
 
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
+  const [adHocSetCounts, setAdHocSetCounts] = useState<Record<string, number>>({});
+
+  function getAdHocSetCount(exId: string) {
+    return adHocSetCounts[exId] ?? 3;
+  }
+
+  function adjustAdHocSetCount(exId: string, delta: number) {
+    setAdHocSetCounts((prev) => {
+      const current = prev[exId] ?? 3;
+      const next = Math.min(8, Math.max(1, current + delta));
+      return { ...prev, [exId]: next };
+    });
+  }
   const filteredAddExercises = allExercises
     .filter((e) =>
       e.name.toLowerCase().includes(addExerciseSearch.toLowerCase()) &&
@@ -147,7 +160,7 @@ export default function LiveWorkout({
       isUnilateral: ex.isUnilateral,
       isAssisted: ex.isAssisted,
       isBodyweight: ex.isBodyweight,
-      targetSets: 3,
+      targetSets: getAdHocSetCount(ex.id),
       targetRepMin: 8,
       targetRepMax: 12,
       targetRir: 1,
@@ -1517,15 +1530,32 @@ export default function LiveWorkout({
                   <li className="p-3 text-center text-xs text-zinc-500">No exercises found.</li>
                 )}
                 {filteredAddExercises.map((ex) => (
-                  <li key={ex.id}>
+                  <li key={ex.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-zinc-800">
                     <button
                       type="button"
                       onClick={() => addAdHocExercise(ex)}
-                      className="flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-zinc-800"
+                      className="flex flex-1 items-center justify-between text-left"
                     >
                       <span className="text-sm text-white">{ex.name}</span>
-                      <span className="text-xs text-zinc-500">{ex.primaryMuscle.replace(/_/g, ' ')}</span>
+                      <span className="text-xs text-zinc-500 mr-3">{ex.primaryMuscle.replace(/_/g, ' ')}</span>
                     </button>
+                    <div className="flex items-center gap-1 rounded-md border border-zinc-700 px-1">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); adjustAdHocSetCount(ex.id, -1); }}
+                        className="px-2 py-1 text-zinc-400 hover:text-white"
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center text-sm text-white">{getAdHocSetCount(ex.id)}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); adjustAdHocSetCount(ex.id, 1); }}
+                        className="px-2 py-1 text-zinc-400 hover:text-white"
+                      >
+                        +
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
