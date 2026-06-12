@@ -41,6 +41,7 @@ export default async function LiveWorkoutPage({
       isAssisted: true,
       isBodyweight: true,
       weightIsPerSide: true,
+      isTimeBased: true,
     },
   });
 
@@ -167,6 +168,7 @@ return (
           isUnilateral: re.exercise.isUnilateral,
           isAssisted: re.exercise.isAssisted,
           isBodyweight: re.exercise.isBodyweight,
+          isTimeBased: re.exercise.isTimeBased,
           targetSets: re.targetSets,
           targetRepMin: re.targetRepMin,
           targetRepMax: re.targetRepMax,
@@ -182,6 +184,7 @@ return (
           weightLbs: s.weightLbs,
           reps: s.reps,
           rir: s.rir,
+          durationSeconds: s.durationSeconds ?? null,
           isWarmup: s.isWarmup,
           executionOrder: s.executionOrder,
           setType: s.setType ?? 'STRAIGHT',

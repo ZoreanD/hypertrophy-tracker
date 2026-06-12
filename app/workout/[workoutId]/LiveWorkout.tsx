@@ -19,6 +19,7 @@ type PlannedExercise = {
   isUnilateral: boolean;
   isAssisted: boolean;
   isBodyweight: boolean;
+  isTimeBased: boolean;
   targetSets: number;
   targetRepMin: number;
   targetRepMax: number;
@@ -42,6 +43,7 @@ type LoggedSet = {
   weightLbs: number;
   reps: number;
   rir: number;
+  durationSeconds: number | null;
   isWarmup: boolean;
   executionOrder: number;
   setType: string;
@@ -81,6 +83,7 @@ type ExerciseOption = {
   isAssisted: boolean;
   isBodyweight: boolean;
   weightIsPerSide?: boolean;
+  isTimeBased?: boolean;
 };
 
 type SetMode = 'STRAIGHT' | 'SUPERSET' | 'MYOREP' | 'DROPSET';
@@ -160,6 +163,7 @@ export default function LiveWorkout({
       isUnilateral: ex.isUnilateral,
       isAssisted: ex.isAssisted,
       isBodyweight: ex.isBodyweight,
+      isTimeBased: ex.isTimeBased ?? false,
       targetSets: getAdHocSetCount(ex.id),
       targetRepMin: 8,
       targetRepMax: 12,
@@ -340,6 +344,7 @@ export default function LiveWorkout({
     side?: string | null;
     assistanceWeightLbs?: number | null;
     bodyweightLbs?: number | null;
+    durationSeconds?: number | null;
     skipTimer?: boolean;
   }) {
     // executionOrder = current position in reordered list
@@ -357,6 +362,7 @@ export default function LiveWorkout({
       side: params.side ?? null,
       assistanceWeightLbs: params.assistanceWeightLbs ?? null,
       bodyweightLbs: params.bodyweightLbs ?? null,
+      durationSeconds: params.durationSeconds ?? null,
     });
 
     if (result.success && result.setId) {
@@ -366,6 +372,7 @@ export default function LiveWorkout({
         weightLbs: params.weight,
         reps: params.reps,
         rir: params.rir,
+        durationSeconds: params.durationSeconds ?? null,
         isWarmup: params.isWarmup,
         executionOrder: execOrder >= 0 ? execOrder : 0,
         setType: params.setType,
