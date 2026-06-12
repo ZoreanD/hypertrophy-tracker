@@ -289,13 +289,54 @@ export default function LiveWorkout({
   return { weight: history ? String(history.lastWeight) : '', reps: '', rir: '', isWarmup: false };
 }
 
-  function updateInput(exerciseId: string, field: string, value: string | boolean, side?: string) {
+function updateInput(exerciseId: string, field: string, value: string | boolean, side?: string) {
   const key = side ? `${exerciseId}-${side}` : exerciseId;
   setInputs((prev) => ({
     ...prev,
     [key]: { ...getInput(exerciseId, null, side), ...prev[key], [field]: value },
   }));
 }
+
+  // ── Stopwatch (time-based exercises) ────────────────────────────────────
+  const [stopwatches, setStopwatches] = useState<Record<string, { running: boolean; elapsedSec: number; startedAt: number | null }>>({});
+  const [stopwatchTick, setStopwatchTick] = useState(0);
+
+  useEffect(() => {
+    const anyRunning = Object.values(stopwatches).some((s) => s.running);
+    if (!anyRunning) return;
+    const interval = setInterval(() => setStopwatchTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [stopwatches]);
+
+  function getStopwatchSeconds(key: string): number {
+    const sw = stopwatches[key];
+    if (!sw) return 0;
+    if (sw.running && sw.startedAt) {
+      return sw.elapsedSec + Math.floor((Date.now() - sw.startedAt) / 1000);
+    }
+    return sw.elapsedSec;
+  }
+
+  function toggleStopwatch(key: string) {
+    setStopwatches((prev) => {
+      const sw = prev[key] ?? { running: false, elapsedSec: 0, startedAt: null };
+      if (sw.running) {
+        const elapsed = sw.elapsedSec + Math.floor((Date.now() - (sw.startedAt ?? Date.now())) / 1000);
+        return { ...prev, [key]: { running: false, elapsedSec: elapsed, startedAt: null } };
+      }
+      return { ...prev, [key]: { running: true, elapsedSec: sw.elapsedSec, startedAt: Date.now() } };
+    });
+  }
+
+  function resetStopwatch(key: string) {
+    setStopwatches((prev) => ({ ...prev, [key]: { running: false, elapsedSec: 0, startedAt: null } }));
+  }
+
+  function formatDuration(totalSec: number): string {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
 
   function getMode(exerciseId: string): SetMode {
     return setModes[exerciseId] ?? 'STRAIGHT';
@@ -390,15 +431,30 @@ export default function LiveWorkout({
   async function handleLogStraightSet(ex: PlannedExercise) {
     const currentSide = ex.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
     const input = getInput(ex.exerciseId, ex.history, currentSide ?? undefined);
-
-    const weight = parseFloat(input.weight);
-    const reps = parseInt(input.reps);
     const rir = parseFloat(input.rir);
-    if (isNaN(weight) || isNaN(reps) || isNaN(rir)) return alert('Fill in weight, reps, and RIR.');
-    
+
+    let weight: number;
+    let reps: number;
+    let durationSeconds: number | null = null;
+
+    if (ex.isTimeBased) {
+      const swKey = currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId;
+      durationSeconds = getStopwatchSeconds(swKey);
+      if (durationSeconds <= 0) return alert('Start and stop the timer to record a duration.');
+      if (isNaN(rir)) return alert('Fill in RIR.');
+      weight = input.weight ? parseFloat(input.weight) : 0;
+      if (isNaN(weight)) weight = 0;
+      reps = 0;
+    } else {
+      weight = parseFloat(input.weight);
+      reps = parseInt(input.reps);
+      if (isNaN(weight) || isNaN(reps) || isNaN(rir)) return alert('Fill in weight, reps, and RIR.');
+    }
+
     const ok = await doLogSet({
       exerciseId: ex.exerciseId,
       weight, reps, rir,
+      durationSeconds,
       isWarmup: input.isWarmup,
       setType: 'STRAIGHT',
       setGroupId: null,
@@ -408,6 +464,10 @@ export default function LiveWorkout({
       assistanceWeightLbs: ex.isAssisted ? weight : null,
       bodyweightLbs: (ex.isAssisted || ex.isBodyweight) ? currentBodyweight : null,
     });
+    if (ok && ex.isTimeBased) {
+      const swKey = currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId;
+      resetStopwatch(swKey);
+    }
 
     if (ok) {
       if (ex.isUnilateral) {
@@ -1231,6 +1291,39 @@ export default function LiveWorkout({
                         )}
                       </div>
                     )}
+                    {ex.isTimeBased ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-1 block text-xs text-zinc-500">Weight (lbs, optional)</label>
+                            <input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs text-zinc-500">RIR</label>
+                            <input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center gap-3 rounded-md border border-zinc-700 bg-zinc-950 p-3">
+                          <span className="text-2xl font-mono text-white">
+                            {formatDuration(getStopwatchSeconds(currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId))}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleStopwatch(currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId)}
+                            className={`rounded-md px-4 py-2 text-sm font-semibold ${stopwatches[currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId]?.running ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}
+                          >
+                            {stopwatches[currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId]?.running ? 'Stop' : 'Start'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => resetStopwatch(currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId)}
+                            className="rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-400 hover:text-white"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="mb-1 block text-xs text-zinc-500">Weight (lbs)</label>
@@ -1245,6 +1338,7 @@ export default function LiveWorkout({
                         <input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
                       </div>
                     </div>
+                    )}
                     <button
                       onClick={() => updateInput(ex.exerciseId, 'isWarmup', !input.isWarmup, currentSide ?? undefined)}
                       className={`rounded px-3 py-1 text-xs font-medium transition ${input.isWarmup ? 'bg-yellow-600/30 text-yellow-300' : 'bg-zinc-800 text-zinc-500'}`}
