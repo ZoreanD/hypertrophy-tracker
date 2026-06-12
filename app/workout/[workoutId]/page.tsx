@@ -94,6 +94,7 @@ export default async function LiveWorkoutPage({
             weightLbs: s.weightLbs,
             reps: s.reps,
             rir: s.rir,
+            durationSeconds: s.durationSeconds ?? null,
             isWarmup: s.isWarmup,
             setType: s.setType ?? 'STRAIGHT',
             side: s.side ?? null,

@@ -338,6 +338,13 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
+  function formatSetDisplay(weight: number, reps: number, rir: number, durationSeconds?: number | null): string {
+    if (durationSeconds != null && durationSeconds > 0) {
+      return weight > 0 ? `${weight}lbs, ${formatDuration(durationSeconds)}` : formatDuration(durationSeconds);
+    }
+    return `${weight}lbs × ${reps} @ ${rir} RIR`;
+  }
+
   function getMode(exerciseId: string): SetMode {
     return setModes[exerciseId] ?? 'STRAIGHT';
   }
@@ -431,7 +438,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
   async function handleLogStraightSet(ex: PlannedExercise) {
     const currentSide = ex.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
     const input = getInput(ex.exerciseId, ex.history, currentSide ?? undefined);
-    const rir = parseFloat(input.rir);
+    let rir = parseFloat(input.rir);
 
     let weight: number;
     let reps: number;
@@ -441,10 +448,10 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       const swKey = currentSide ? `${ex.exerciseId}-${currentSide}` : ex.exerciseId;
       durationSeconds = getStopwatchSeconds(swKey);
       if (durationSeconds <= 0) return alert('Start and stop the timer to record a duration.');
-      if (isNaN(rir)) return alert('Fill in RIR.');
       weight = input.weight ? parseFloat(input.weight) : 0;
       if (isNaN(weight)) weight = 0;
       reps = 0;
+      rir = 0;
     } else {
       weight = parseFloat(input.weight);
       reps = parseInt(input.reps);
@@ -898,7 +905,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 <div className="mt-2 flex flex-wrap gap-2">
                   {ex.sets.map((s: any, i: number) => (
                     <span key={i} className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
-                      {s.weight}lbs × {s.reps} @ {s.rir} RIR
+                      {formatSetDisplay(s.weight, s.reps, s.rir, s.durationSeconds)}
                     </span>
                   ))}
                 </div>
@@ -1132,14 +1139,14 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                                 {aSets.map((s) => (
                                   <div key={s.id} className="flex items-center justify-between">
                                     <span className="text-xs text-zinc-500">SS-A{s.side ? ` ${s.side}` : ''}</span>
-                                    <span className="text-xs font-medium text-white">{s.weightLbs}lbs × {s.reps} @ {s.rir} RIR</span>
+                                    <span className="text-xs font-medium text-white">{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}</span>
                                     <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
                                   </div>
                                 ))}
                                 {bSets.map((s) => (
                                   <div key={s.id} className="flex items-center justify-between">
                                     <span className="text-xs text-zinc-500">SS-B{s.side ? ` ${s.side}` : ''}</span>
-                                    <span className="text-xs font-medium text-white">{s.weightLbs}lbs × {s.reps} @ {s.rir} RIR</span>
+                                    <span className="text-xs font-medium text-white">{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}</span>
                                     <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
                                   </div>
                                 ))}
@@ -1225,10 +1232,10 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 {/* Mode selector — only before first working set and not a superset partner */}
                 {setsForExercise.length === 0 && !supersetPartnerOf[ex.exerciseId] && (
                   <div className="flex gap-2">
-                    {(['STRAIGHT', 'SUPERSET', 'MYOREP', 'DROPSET'] as SetMode[]).map((m) => (
-                      <button key={m} onClick={() => setMode(ex.exerciseId, m)}
+                    {(ex.isTimeBased ? ['STRAIGHT'] : ['STRAIGHT', 'SUPERSET', 'MYOREP', 'DROPSET'] as SetMode[]).map((m) => (
+                      <button key={m} onClick={() => setMode(ex.exerciseId, m as SetMode)}
                         className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${mode === m ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
-                        {m === 'STRAIGHT' ? 'Straight' : m === 'SUPERSET' ? 'Superset' : m === 'MYOREP' ? 'Myo-reps' : 'Drop set'}
+                        {m === 'STRAIGHT' ? 'Straight' : m === 'SUPERSET' ? 'Superset' : m === 'MYOREP' ? 'Myo-reps': 'Drop set'}
                       </button>
                     ))}
                   </div>
@@ -1293,15 +1300,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                     )}
                     {ex.isTimeBased ? (
                       <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="mb-1 block text-xs text-zinc-500">Weight (lbs, optional)</label>
-                            <input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-xs text-zinc-500">RIR</label>
-                            <input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
-                          </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-zinc-500">Weight (lbs, optional)</label>
+                          <input type="number" step="2.5" value={input.weight} onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
                         </div>
                         <div className="flex items-center justify-center gap-3 rounded-md border border-zinc-700 bg-zinc-950 p-3">
                           <span className="text-2xl font-mono text-white">

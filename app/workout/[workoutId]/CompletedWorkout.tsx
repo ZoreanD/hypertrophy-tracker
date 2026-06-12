@@ -10,6 +10,7 @@ type LoggedSet = {
   weightLbs: number;
   reps: number;
   rir: number;
+  durationSeconds: number | null;
   isWarmup: boolean;
   setType: string;
   side: string | null;
@@ -31,6 +32,19 @@ type Summary = {
   totalSets: number;
   durationMins: number;
 };
+
+function formatDuration(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatSetDisplay(weight: number, reps: number, rir: number, durationSeconds?: number | null): string {
+  if (durationSeconds != null && durationSeconds > 0) {
+    return weight > 0 ? `${weight}lbs, ${formatDuration(durationSeconds)}` : formatDuration(durationSeconds);
+  }
+  return `${weight}lbs × ${reps} @ ${rir} RIR`;
+}
 
 export default function CompletedWorkout({
   workout,
@@ -161,7 +175,7 @@ export default function CompletedWorkout({
                 <div className="mt-2 flex flex-wrap gap-2">
                   {ex.sets.map((s: any, i: number) => (
                     <span key={i} className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
-                      {s.side ? `${s.side} ` : ''}{s.weight}lbs × {s.reps} @ {s.rir} RIR
+                      {s.side ? `${s.side} ` : ''}{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}
                     </span>
                   ))}
                 </div>
