@@ -87,6 +87,7 @@ export async function logSet(data: {
   side?: string | null;
   assistanceWeightLbs?: number | null;
   bodyweightLbs?: number | null;
+  durationSeconds?: number | null;
 }) {
   try {
     const set = await prisma.set.create({
@@ -103,6 +104,7 @@ export async function logSet(data: {
         side: data.side ?? null,
         assistanceWeightLbs: data.assistanceWeightLbs ?? null,
         bodyweightLbs: data.bodyweightLbs ?? null,
+        durationSeconds: data.durationSeconds ?? null,
       },
     });
     return { success: true, setId: set.id };
