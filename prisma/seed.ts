@@ -1201,13 +1201,16 @@ async function main() {
     try {
 await (prisma.exercise.upsert as any)({
   where: { name: ex.name },
-  update: {
+update: {
     primaryMuscle: ex.primaryMuscle,
     secondaryMuscles: ex.secondaryMuscles,
     equipment: ex.equipment,
     movementPattern: ex.movementPattern,
     isUnilateral: (ex as any).isUnilateral ?? false,
     weightIsPerSide: (ex as any).weightIsPerSide ?? false,
+    isTimeBased: (ex as any).isTimeBased ?? false,
+    isBodyweight: (ex as any).isBodyweight ?? false,
+    isAssisted: (ex as any).isAssisted ?? false,
   },
   create: {
     name: ex.name,
@@ -1217,6 +1220,9 @@ await (prisma.exercise.upsert as any)({
     movementPattern: ex.movementPattern,
     isUnilateral: (ex as any).isUnilateral ?? false,
     weightIsPerSide: (ex as any).weightIsPerSide ?? false,
+    isTimeBased: (ex as any).isTimeBased ?? false,
+    isBodyweight: (ex as any).isBodyweight ?? false,
+    isAssisted: (ex as any).isAssisted ?? false,
   },
 });
       created++;
