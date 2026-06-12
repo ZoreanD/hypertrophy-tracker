@@ -195,16 +195,18 @@ export default async function Dashboard() {
       byDate.get(key)!.push(s);
     });
 
-    progressionData = Array.from(byDate.entries()).map(([date, dateSets]) => {
-      const best = dateSets.reduce((b, s) =>
-        s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b
+    progressionData = Array.from(byDate.entries()).flatMap(([date, dateSets]) => {
+      const repSets = dateSets.filter((s) => s.reps != null);
+      if (repSets.length === 0) return [];
+      const best = repSets.reduce((b, s) =>
+        s.weightLbs * s.reps! > b.weightLbs * b.reps! ? s : b
       );
-      return {
+      return [{
         date,
-        e1RM: Math.round(best.weightLbs * (1 + best.reps / 30)),
+        e1RM: Math.round(best.weightLbs * (1 + best.reps! / 30)),
         weight: best.weightLbs,
-        reps: best.reps,
-      };
+        reps: best.reps!,
+      }];
     });
   }
 

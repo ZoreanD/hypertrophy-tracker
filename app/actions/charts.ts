@@ -20,6 +20,7 @@ export async function getExerciseHistory(profileId: string, exerciseId: string) 
   const historyMap = new Map();
 
   sets.forEach((set: any) => {
+    if (set.reps == null) return;
     const dateStr = set.workout.date.toISOString().split('T')[0];
     const e1RM = Math.round(set.weightLbs * (1 + set.reps / 30));
     const volume = set.weightLbs * set.reps; // simplified 1-set volume

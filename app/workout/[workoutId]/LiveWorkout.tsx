@@ -29,11 +29,11 @@ type PlannedExercise = {
   plannedOrder: number;
   history: {
     lastWeight: number;
-    lastReps: number;
+    lastReps: number | null;
     lastRir: number;
     lastDate: string;
     lastExecutionOrder: number;
-    allSets: { weight: number; reps: number; rir: number }[];
+    allSets: { weight: number; reps: number | null; rir: number; durationSeconds: number | null }[];
   } | null;
 };
 
@@ -41,7 +41,7 @@ type LoggedSet = {
   id: string;
   exerciseId: string;
   weightLbs: number;
-  reps: number;
+  reps: number | null;
   rir: number;
   durationSeconds: number | null;
   isWarmup: boolean;
@@ -338,7 +338,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
-  function formatSetDisplay(weight: number, reps: number, rir: number, durationSeconds?: number | null): string {
+  function formatSetDisplay(weight: number, reps: number | null, rir: number, durationSeconds?: number | null): string {
     if (durationSeconds != null && durationSeconds > 0) {
       return weight > 0 ? `${weight}lbs, ${formatDuration(durationSeconds)}` : formatDuration(durationSeconds);
     }
@@ -757,6 +757,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     if (!ex.history) return null;
     const lastOrder = ex.history.lastExecutionOrder;
     const positionChanged = Math.abs(lastOrder - currentOrder) >= 2;
+    if (ex.history.lastReps == null) return null;
     const hitTopOfRange = ex.history.lastReps >= ex.targetRepMax;
     const rirWasGood = ex.history.lastRir >= ex.targetRir;
     if (positionChanged) {
@@ -1100,7 +1101,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                   <div className="flex flex-wrap gap-2">
                     <span className="text-xs text-zinc-600">Last session:</span>
                     {ex.history.allSets.map((s, i) => (
-                      <span key={i} className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">{s.weight}lbs × {s.reps}</span>
+                      <span key={i} className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">{formatSetDisplay(s.weight, s.reps, s.rir, s.durationSeconds)}</span>
                     ))}
                   </div>
                 )}
@@ -1169,9 +1170,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                               {s.side && s.setType !== 'STRAIGHT' && <span className="ml-1 text-zinc-600">{s.side}</span>}
                             </span>
                             <span className="text-sm font-medium text-white">
-                              {ex.isAssisted
-                                ? `${s.weightLbs}lbs assist × ${s.reps} @ ${s.rir} RIR`
-                                : `${s.weightLbs}lbs × ${s.reps} @ ${s.rir} RIR`}
+                              {formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}
                             </span>
                             <div className="flex items-center gap-2">
                               {s.setType === 'STRAIGHT' && mode === 'STRAIGHT' && (

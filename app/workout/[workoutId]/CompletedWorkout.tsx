@@ -8,7 +8,7 @@ type LoggedSet = {
   exerciseId: string;
   exerciseName: string;
   weightLbs: number;
-  reps: number;
+  reps: number | null;
   rir: number;
   durationSeconds: number | null;
   isWarmup: boolean;
@@ -39,7 +39,7 @@ function formatDuration(totalSec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function formatSetDisplay(weight: number, reps: number, rir: number, durationSeconds?: number | null): string {
+function formatSetDisplay(weight: number, reps: number | null, rir: number, durationSeconds?: number | null): string {
   if (durationSeconds != null && durationSeconds > 0) {
     return weight > 0 ? `${weight}lbs, ${formatDuration(durationSeconds)}` : formatDuration(durationSeconds);
   }
@@ -238,7 +238,7 @@ export default function CompletedWorkout({
                   {sets.map((s) => (
                     <span key={s.id} className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
                       {s.side ? `${s.side} ` : ''}
-                      {ex.isAssisted ? `${s.weightLbs}lbs assist` : `${s.weightLbs}lbs`} × {s.reps} @ {s.rir} RIR
+                      {formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}
                     </span>
                   ))}
                 </div>

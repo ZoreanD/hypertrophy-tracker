@@ -203,6 +203,7 @@ export async function getExerciseHistory(
         weight: s.weightLbs,
         reps: s.reps,
         rir: s.rir,
+        durationSeconds: s.durationSeconds ?? null,
         side: s.side,
         effectiveLoad: getEffectiveLoad(s.weightLbs, s.bodyweightLbs, s.assistanceWeightLbs, isAssisted, isBodyweight, bestSet.exercise?.weightIsPerSide ?? false),
       })),
@@ -229,6 +230,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
                 isAssisted: true,
                 isBodyweight: true,
                 weightIsPerSide: true,
+                isTimeBased: true,
               },
             },
           },
@@ -258,6 +260,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       const isAssisted = routineEx.exercise.isAssisted;
       const isBodyweight = routineEx.exercise.isBodyweight;
       const weightIsPerSide = routineEx.exercise.weightIsPerSide;
+      const isTimeBased = routineEx.exercise.isTimeBased;
 
       if (setsForExercise.length === 0) {
         exerciseSummaries.push({
@@ -273,6 +276,41 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
           progressionFlag: null,
           progressionNote: '',
           asymmetryFlag: null,
+        });
+        continue;
+      }
+
+      // Time-based exercises don't have reps, so e1RM/volume progression is meaningless
+      if (isTimeBased) {
+        exerciseSummaries.push({
+          exerciseName: routineEx.exercise.name,
+          status: 'completed' as const,
+          isUnilateral,
+          isAssisted,
+          isBodyweight,
+          planned: {
+            sets: routineEx.targetSets,
+            repMin: routineEx.targetRepMin,
+            repMax: routineEx.targetRepMax,
+            rir: routineEx.targetRir,
+          },
+          sets: setsForExercise.map((s) => ({
+            weight: s.weightLbs,
+            reps: s.reps,
+            rir: s.rir,
+            durationSeconds: s.durationSeconds ?? null,
+            setType: s.setType,
+            side: s.side,
+            effectiveLoad: s.weightLbs,
+            assistanceWeight: null,
+          })),
+          progressionFlag: null,
+          progressionNote: '',
+          asymmetryFlag: null,
+          avgRestSecs: null,
+          restNote: null,
+          currentE1RM: null,
+          previousE1RM: null,
         });
         continue;
       }
