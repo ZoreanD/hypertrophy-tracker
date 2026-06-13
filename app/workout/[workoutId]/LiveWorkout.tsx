@@ -115,6 +115,13 @@ export default function LiveWorkout({
 }) {
   const router = useRouter();
   const startTime = useRef(Date.now());
+  // Tracks how many logSet calls are still in flight. Used to gate Finish Workout.
+  const pendingLogs = useRef(0);
+  // Temp IDs that were deleted before the server confirmed them. On confirmation
+  // we immediately delete the now-orphaned DB row instead of swapping the ID.
+  const cancelledTempIds = useRef<Set<string>>(new Set());
+  // Tracks which exerciseIds have a log call in flight to prevent double-taps.
+  const loggingInFlight = useRef<Set<string>>(new Set());
 
   const [loggedSets, setLoggedSets] = useState<LoggedSet[]>(initialLoggedSets);
   const [expandedExercise, setExpandedExercise] = useState<string | null>(
@@ -427,10 +434,11 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     durationSeconds?: number | null;
     skipTimer?: boolean;
   }) {
+    // Guard #3: ignore rapid double-taps on the same exercise
+    if (loggingInFlight.current.has(params.exerciseId)) return false;
+    loggingInFlight.current.add(params.exerciseId);
+
     const execOrder = exerciseOrder.indexOf(params.exerciseId);
-    // Use a temp ID so the set appears instantly; swapped for the real DB id
-    // once the server confirms. Prefix lets handleDeleteSet skip the server call
-    // if the user deletes before the round-trip completes.
     const tempId = `opt-${generateGroupId()}`;
 
     setLoggedSets((prev) => [...prev, {
@@ -448,7 +456,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     }]);
     if (!params.isWarmup && !params.skipTimer) startRestTimer(params.restSecs);
 
-    // Persist in the background; swap temp ID for real DB id on success
+    // Guard #1: increment pending count so Finish is blocked until this resolves
+    pendingLogs.current += 1;
+
     logSet({
       workoutId: workout.id,
       exerciseId: params.exerciseId,
@@ -464,8 +474,17 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       bodyweightLbs: params.bodyweightLbs ?? null,
       durationSeconds: params.durationSeconds ?? null,
     }).then((result) => {
+      pendingLogs.current -= 1;
+      loggingInFlight.current.delete(params.exerciseId);
+
       if (result.success && result.setId) {
-        setLoggedSets((prev) => prev.map((s) => s.id === tempId ? { ...s, id: result.setId! } : s));
+        if (cancelledTempIds.current.has(tempId)) {
+          // Guard #2: user deleted the set while it was in flight — clean up the DB row
+          cancelledTempIds.current.delete(tempId);
+          deleteSet(result.setId);
+        } else {
+          setLoggedSets((prev) => prev.map((s) => s.id === tempId ? { ...s, id: result.setId! } : s));
+        }
       } else {
         setLoggedSets((prev) => prev.filter((s) => s.id !== tempId));
         alert('Failed to save set — check your connection and try again.');
@@ -787,15 +806,27 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
 
   function handleDeleteSet(setId: string) {
     setLoggedSets((prev) => prev.filter((s) => s.id !== setId));
-    // If the set only exists optimistically (not yet confirmed by the server),
-    // there's nothing to delete in the DB yet.
-    if (!setId.startsWith('opt-')) deleteSet(setId);
+    if (setId.startsWith('opt-')) {
+      // Set is still in flight — register so doLogSet cleans up the DB row on confirmation
+      cancelledTempIds.current.add(setId);
+    } else {
+      deleteSet(setId);
+    }
   }
 
   // ── Finish (API route to avoid server action re-render) ──────────────────
 
   async function handleFinish() {
     setIsSubmitting(true);
+    // Wait for any optimistic set saves still in flight so the DB is fully
+    // up-to-date before finishWorkout queries it.
+    if (pendingLogs.current > 0) {
+      await new Promise<void>((resolve) => {
+        const poll = setInterval(() => {
+          if (pendingLogs.current === 0) { clearInterval(poll); resolve(); }
+        }, 50);
+      });
+    }
     const durationMins = Math.max(1, Math.round((Date.now() - startTime.current) / 60000));
     try {
       const res = await fetch('/api/finish-workout', {
