@@ -191,11 +191,41 @@ export default function LiveWorkout({
     weight: string; reps: string; rir: string; isWarmup: boolean;
   }>>({});
 
-  // Set mode per exercise
-  const [setModes, setSetModes] = useState<Record<string, SetMode>>({});
+  // Set mode per exercise — derived from already-logged sets so a mid-workout
+  // reload/remount doesn't silently revert supersets/myo-reps/dropsets to STRAIGHT.
+  const [setModes, setSetModes] = useState<Record<string, SetMode>>(() => {
+    const modes: Record<string, SetMode> = {};
+    for (const s of initialLoggedSets) {
+      if (s.isWarmup) continue;
+      if (s.setType === 'SUPERSET_A') modes[s.exerciseId] = 'SUPERSET';
+      else if (s.setType === 'MYOREP_ACTIVATION') modes[s.exerciseId] = 'MYOREP';
+      else if (s.setType === 'DROPSET_PRIMARY') modes[s.exerciseId] = 'DROPSET';
+    }
+    return modes;
+  });
 
-  // Superset state per exercise
-  const [supersetPartners, setSupersetPartners] = useState<Record<string, Substitute | null>>({});
+  // Superset state per exercise — reconstruct the A→B partner pairing from
+  // logged SUPERSET_A/SUPERSET_B sets sharing a setGroupId.
+  const [supersetPartners, setSupersetPartners] = useState<Record<string, Substitute | null>>(() => {
+    const byGroup: Record<string, { a?: string; b?: string }> = {};
+    for (const s of initialLoggedSets) {
+      if (s.isWarmup || !s.setGroupId) continue;
+      if (s.setType === 'SUPERSET_A') (byGroup[s.setGroupId] ??= {}).a = s.exerciseId;
+      else if (s.setType === 'SUPERSET_B') (byGroup[s.setGroupId] ??= {}).b = s.exerciseId;
+    }
+    const partners: Record<string, Substitute | null> = {};
+    for (const g of Object.values(byGroup)) {
+      if (!g.a || !g.b || partners[g.a]) continue;
+      const pEx = allExercises.find((e) => e.id === g.b);
+      if (pEx) {
+        partners[g.a] = {
+          id: pEx.id, name: pEx.name, primaryMuscle: pEx.primaryMuscle,
+          movementPattern: pEx.movementPattern, equipment: pEx.equipment, isUnilateral: pEx.isUnilateral,
+        };
+      }
+    }
+    return partners;
+  });
   const [supersetInputs, setSupersetInputs] = useState<Record<string, {
     weight: string; reps: string; rir: string;
   }>>({});
@@ -452,6 +482,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       if (durationSeconds <= 0) return alert('Start and stop the timer to record a duration.');
       weight = input.weight ? parseFloat(input.weight) : 0;
       if (isNaN(weight)) weight = 0;
+      // Stored as 0 (reps column is non-nullable); time-based sets are identified
+      // by durationSeconds in history/chart/progression logic, not by reps.
       reps = 0;
       rir = 0;
     } else {
@@ -774,6 +806,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
 
   function getProgressionHint(ex: PlannedExercise, currentOrder: number) {
     if (!ex.history) return null;
+    if (ex.isTimeBased) return null;
     const lastOrder = ex.history.lastExecutionOrder;
     const positionChanged = Math.abs(lastOrder - currentOrder) >= 2;
     if (ex.history.lastReps == null) return null;
@@ -1006,11 +1039,25 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
           (s.exerciseId === ex.exerciseId || (mode === 'SUPERSET' && partnerForEx && s.exerciseId === partnerForEx.id)) 
           && !s.isWarmup
         );
-        const aSetsOnly = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup && s.setType === 'STRAIGHT');
-        const completedPairs = mode === 'SUPERSET'
-          ? new Set(loggedSets.filter(s => s.exerciseId === ex.exerciseId && !s.isWarmup && s.setType === 'SUPERSET_A').map(s => s.setGroupId)).size
-          : 0;
-        const completedSetCount = mode === 'SUPERSET' ? completedPairs : (ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length);
+        // Count completed sets across every mode the exercise participates in.
+        // - STRAIGHT sets count individually (unilateral L+R = one set)
+        // - Superset pairs count once per setGroupId (counts whether this exercise
+        //   is the A source or the B partner, so both cards advance)
+        // - Each dropset cluster (DROPSET_PRIMARY) and myo-rep cluster
+        //   (MYOREP_ACTIVATION) counts as one set
+        const ownSets = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup);
+        const aSetsOnly = ownSets.filter((s) => s.setType === 'STRAIGHT');
+        const straightCount = ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length;
+        const supersetGroups = new Set(
+          ownSets.filter((s) => s.setType === 'SUPERSET_A' || s.setType === 'SUPERSET_B').map((s) => s.setGroupId)
+        ).size;
+        const dropsetGroups = new Set(
+          ownSets.filter((s) => s.setType === 'DROPSET_PRIMARY').map((s) => s.setGroupId)
+        ).size;
+        const myorepGroups = new Set(
+          ownSets.filter((s) => s.setType === 'MYOREP_ACTIVATION').map((s) => s.setGroupId)
+        ).size;
+        const completedSetCount = straightCount + supersetGroups + dropsetGroups + myorepGroups;
         const isComplete = completedSetCount >= ex.targetSets;
         const isExpanded = expandedExercise === ex.exerciseId;
         const isPivoting = pivotingExerciseId === ex.exerciseId;
@@ -1230,8 +1277,15 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                       (() => {
                         const straightSets = setsForExercise.filter(s => s.setType === 'STRAIGHT');
                         const otherSets = setsForExercise.filter(s => s.setType !== 'STRAIGHT');
+                        // Group consecutive opposite-side sets into L/R pairs. Walking
+                        // the list (rather than slicing in twos) keeps pairing aligned
+                        // even if one side of an earlier set was deleted.
                         const pairs: LoggedSet[][] = [];
-                        for (let i = 0; i < straightSets.length; i += 2) pairs.push(straightSets.slice(i, i + 2));
+                        for (const s of straightSets) {
+                          const last = pairs[pairs.length - 1];
+                          if (last && last.length < 2 && !last.some(x => x.side === s.side)) last.push(s);
+                          else pairs.push([s]);
+                        }
                         return (
                           <>
                             {pairs.map((pair, pi) => (

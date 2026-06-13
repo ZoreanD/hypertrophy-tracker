@@ -226,6 +226,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
           include: {
             exercise: {
               select: {
+                name: true,
                 isUnilateral: true,
                 isAssisted: true,
                 isBodyweight: true,
@@ -251,27 +252,57 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
 
     const exerciseSummaries = [];
 
-    for (const routineEx of workout.routine?.exercises ?? []) {
+    // Build the list of exercises to summarize: every routine exercise, plus any
+    // exercise that was logged but isn't in the routine (added mid-session via
+    // "+ Exercise", or a non-routine superset partner). Without this, ad-hoc work
+    // is silently dropped from the breakdown even though it counts toward totalSets.
+    type SummaryTarget = {
+      exerciseId: string;
+      exercise: { name: string; isUnilateral: boolean; isAssisted: boolean; isBodyweight: boolean; weightIsPerSide: boolean; isTimeBased: boolean };
+      planned: { targetSets: number; targetRepMin: number; targetRepMax: number; targetRir: number } | null;
+      restTimerSecs: number;
+    };
+
+    const exercisesToSummarize: SummaryTarget[] = (workout.routine?.exercises ?? []).map((re) => ({
+      exerciseId: re.exerciseId,
+      exercise: re.exercise,
+      planned: { targetSets: re.targetSets, targetRepMin: re.targetRepMin, targetRepMax: re.targetRepMax, targetRir: re.targetRir },
+      restTimerSecs: re.restTimerSecs ?? 120,
+    }));
+
+    const seenExerciseIds = new Set(exercisesToSummarize.map((t) => t.exerciseId));
+    for (const s of workout.sets) {
+      if (seenExerciseIds.has(s.exerciseId)) continue;
+      seenExerciseIds.add(s.exerciseId);
+      exercisesToSummarize.push({
+        exerciseId: s.exerciseId,
+        exercise: s.exercise,
+        planned: null,
+        restTimerSecs: 120,
+      });
+    }
+
+    for (const target of exercisesToSummarize) {
       const setsForExercise = workout.sets.filter(
-        (s) => s.exerciseId === routineEx.exerciseId
+        (s) => s.exerciseId === target.exerciseId
       );
 
-      const isUnilateral = routineEx.exercise.isUnilateral;
-      const isAssisted = routineEx.exercise.isAssisted;
-      const isBodyweight = routineEx.exercise.isBodyweight;
-      const weightIsPerSide = routineEx.exercise.weightIsPerSide;
-      const isTimeBased = routineEx.exercise.isTimeBased;
+      const planned = target.planned;
+      const plannedSummary = planned
+        ? { sets: planned.targetSets, repMin: planned.targetRepMin, repMax: planned.targetRepMax, rir: planned.targetRir }
+        : null;
+
+      const isUnilateral = target.exercise.isUnilateral;
+      const isAssisted = target.exercise.isAssisted;
+      const isBodyweight = target.exercise.isBodyweight;
+      const weightIsPerSide = target.exercise.weightIsPerSide;
+      const isTimeBased = target.exercise.isTimeBased;
 
       if (setsForExercise.length === 0) {
         exerciseSummaries.push({
-          exerciseName: routineEx.exercise.name,
+          exerciseName: target.exercise.name,
           status: 'skipped' as const,
-          planned: {
-            sets: routineEx.targetSets,
-            repMin: routineEx.targetRepMin,
-            repMax: routineEx.targetRepMax,
-            rir: routineEx.targetRir,
-          },
+          planned: plannedSummary,
           sets: [],
           progressionFlag: null,
           progressionNote: '',
@@ -283,17 +314,12 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       // Time-based exercises don't have reps, so e1RM/volume progression is meaningless
       if (isTimeBased) {
         exerciseSummaries.push({
-          exerciseName: routineEx.exercise.name,
+          exerciseName: target.exercise.name,
           status: 'completed' as const,
           isUnilateral,
           isAssisted,
           isBodyweight,
-          planned: {
-            sets: routineEx.targetSets,
-            repMin: routineEx.targetRepMin,
-            repMax: routineEx.targetRepMax,
-            rir: routineEx.targetRir,
-          },
+          planned: plannedSummary,
           sets: setsForExercise.map((s) => ({
             weight: s.weightLbs,
             reps: s.reps,
@@ -350,7 +376,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       // compared against a fatigued Push-day bench, and vice versa.
       const previousSets = await prisma.set.findMany({
         where: {
-          exerciseId: routineEx.exerciseId,
+          exerciseId: target.exerciseId,
           workout: {
             profileId: profile.id,
             focus: workout.focus,
@@ -455,7 +481,7 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
           : null;
 
         // Flag if consistently under-resting on compounds
-        const plannedRestSecs = routineEx.restTimerSecs ?? 120;
+        const plannedRestSecs = target.restTimerSecs ?? 120;
         const underResting = avgRestSecs !== null && avgRestSecs < plannedRestSecs * 0.7;
         const overResting = avgRestSecs !== null && avgRestSecs > 300;
 
@@ -467,17 +493,12 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
         }
 
       exerciseSummaries.push({
-        exerciseName: routineEx.exercise.name,
+        exerciseName: target.exercise.name,
         status: 'completed' as const,
         isUnilateral,
         isAssisted,
         isBodyweight,
-        planned: {
-          sets: routineEx.targetSets,
-          repMin: routineEx.targetRepMin,
-          repMax: routineEx.targetRepMax,
-          rir: routineEx.targetRir,
-        },
+        planned: plannedSummary,
         sets: setsForExercise.map((s) => ({
           weight: s.weightLbs,
           reps: s.reps,

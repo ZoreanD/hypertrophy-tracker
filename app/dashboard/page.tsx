@@ -196,7 +196,7 @@ export default async function Dashboard() {
     });
 
     progressionData = Array.from(byDate.entries()).flatMap(([date, dateSets]) => {
-      const repSets = dateSets.filter((s) => s.reps != null);
+      const repSets = dateSets.filter((s) => s.reps != null && !(s.durationSeconds != null && s.durationSeconds > 0));
       if (repSets.length === 0) return [];
       const best = repSets.reduce((b, s) =>
         s.weightLbs * s.reps! > b.weightLbs * b.reps! ? s : b
