@@ -412,7 +412,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
 
   // ── Log set helpers ──────────────────────────────────────────────────────
 
-  async function doLogSet(params: {
+  function doLogSet(params: {
     exerciseId: string;
     weight: number;
     reps: number;
@@ -427,9 +427,29 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     durationSeconds?: number | null;
     skipTimer?: boolean;
   }) {
-    // executionOrder = current position in reordered list
     const execOrder = exerciseOrder.indexOf(params.exerciseId);
-    const result = await logSet({
+    // Use a temp ID so the set appears instantly; swapped for the real DB id
+    // once the server confirms. Prefix lets handleDeleteSet skip the server call
+    // if the user deletes before the round-trip completes.
+    const tempId = `opt-${generateGroupId()}`;
+
+    setLoggedSets((prev) => [...prev, {
+      id: tempId,
+      exerciseId: params.exerciseId,
+      weightLbs: params.weight,
+      reps: params.reps,
+      rir: params.rir,
+      durationSeconds: params.durationSeconds ?? null,
+      isWarmup: params.isWarmup,
+      executionOrder: execOrder >= 0 ? execOrder : 0,
+      setType: params.setType,
+      setGroupId: params.setGroupId,
+      side: params.side ?? null,
+    }]);
+    if (!params.isWarmup && !params.skipTimer) startRestTimer(params.restSecs);
+
+    // Persist in the background; swap temp ID for real DB id on success
+    logSet({
       workoutId: workout.id,
       exerciseId: params.exerciseId,
       weightLbs: params.weight,
@@ -443,26 +463,16 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       assistanceWeightLbs: params.assistanceWeightLbs ?? null,
       bodyweightLbs: params.bodyweightLbs ?? null,
       durationSeconds: params.durationSeconds ?? null,
+    }).then((result) => {
+      if (result.success && result.setId) {
+        setLoggedSets((prev) => prev.map((s) => s.id === tempId ? { ...s, id: result.setId! } : s));
+      } else {
+        setLoggedSets((prev) => prev.filter((s) => s.id !== tempId));
+        alert('Failed to save set — check your connection and try again.');
+      }
     });
 
-    if (result.success && result.setId) {
-      setLoggedSets((prev) => [...prev, {
-        id: result.setId!,
-        exerciseId: params.exerciseId,
-        weightLbs: params.weight,
-        reps: params.reps,
-        rir: params.rir,
-        durationSeconds: params.durationSeconds ?? null,
-        isWarmup: params.isWarmup,
-        executionOrder: execOrder >= 0 ? execOrder : 0,
-        setType: params.setType,
-        setGroupId: params.setGroupId,
-        side: params.side ?? null,
-      }]);
-      if (!params.isWarmup && !params.skipTimer) startRestTimer(params.restSecs);
-      return true;
-    }
-    return false;
+    return true;
   }
 
   // ── Straight set ─────────────────────────────────────────────────────────
@@ -775,9 +785,11 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     setExpandedExercise(substitute.id);
   }
 
-  async function handleDeleteSet(setId: string) {
-    await deleteSet(setId);
+  function handleDeleteSet(setId: string) {
     setLoggedSets((prev) => prev.filter((s) => s.id !== setId));
+    // If the set only exists optimistically (not yet confirmed by the server),
+    // there's nothing to delete in the DB yet.
+    if (!setId.startsWith('opt-')) deleteSet(setId);
   }
 
   // ── Finish (API route to avoid server action re-render) ──────────────────
