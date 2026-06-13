@@ -223,6 +223,8 @@ export default function LiveWorkout({
   const [unilateralPendingSide, setUnilateralPendingSide] = useState<Record<string, 'LEFT' | 'RIGHT'>>({});
   const [activeDropForSet, setActiveDropForSet] = useState<string | null>(null);
   const [inlineDropInputs, setInlineDropInputs] = useState<Record<string, { weight: string; reps: string; rir: string }>>({});
+  const [activeSupersetPairDrop, setActiveSupersetPairDrop] = useState<string | null>(null);
+  const [supersetDropInputs, setSupersetDropInputs] = useState<Record<string, { weightA: string; repsA: string; rirA: string; weightB: string; repsB: string; rirB: string }>>({});
 
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
@@ -593,6 +595,23 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     setTimeout(() => setFlashingExercise(null), 600);
 
     if (isSameMuscle) startRestTimer(ex.restTimerSecs * 1.5);
+  }
+
+  async function handleLogSupersetDrop(ex: PlannedExercise, groupId: string) {
+    const partner = supersetPartners[ex.exerciseId];
+    if (!partner) return;
+    const d = supersetDropInputs[groupId] ?? { weightA: '', repsA: '', rirA: '', weightB: '', repsB: '', rirB: '' };
+    const wA = parseFloat(d.weightA), rA = parseInt(d.repsA), rirA = parseFloat(d.rirA);
+    const wB = parseFloat(d.weightB), rB = parseInt(d.repsB), rirB = parseFloat(d.rirB);
+    if (isNaN(wA) || isNaN(rA) || isNaN(rirA) || isNaN(wB) || isNaN(rB) || isNaN(rirB)) {
+      return alert('Fill in weight, reps, and RIR for both exercises.');
+    }
+    await doLogSet({ exerciseId: ex.exerciseId, weight: wA, reps: rA, rir: rirA, isWarmup: false, setType: 'SS_DROP_A', setGroupId: groupId, restSecs: 10 });
+    await doLogSet({ exerciseId: partner.id, weight: wB, reps: rB, rir: rirB, isWarmup: false, setType: 'SS_DROP_B', setGroupId: groupId, restSecs: 10 });
+    setSupersetDropInputs((prev) => ({ ...prev, [groupId]: { ...d, repsA: '', rirA: '', repsB: '', rirB: '' } }));
+    setActiveSupersetPairDrop(null);
+    setFlashingExercise(ex.exerciseId);
+    setTimeout(() => setFlashingExercise(null), 600);
   }
 
   // ── Myo-reps ─────────────────────────────────────────────────────────────
@@ -988,7 +1007,11 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
           && !s.isWarmup
         );
         const aSetsOnly = loggedSets.filter((s) => s.exerciseId === ex.exerciseId && !s.isWarmup && s.setType === 'STRAIGHT');
-        const isComplete = (ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length) >= ex.targetSets;
+        const completedPairs = mode === 'SUPERSET'
+          ? new Set(loggedSets.filter(s => s.exerciseId === ex.exerciseId && !s.isWarmup && s.setType === 'SUPERSET_A').map(s => s.setGroupId)).size
+          : 0;
+        const completedSetCount = mode === 'SUPERSET' ? completedPairs : (ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length);
+        const isComplete = completedSetCount >= ex.targetSets;
         const isExpanded = expandedExercise === ex.exerciseId;
         const isPivoting = pivotingExerciseId === ex.exerciseId;
         const wasSwapped = swaps.some((s) => s.replacement.id === ex.exerciseId);
@@ -1030,7 +1053,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                     {wasSwapped && <span className="rounded-full bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-400">swapped</span>}
                     {mode !== 'STRAIGHT' && <span className="rounded-full bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">{mode.toLowerCase()}</span>}
                   </div>
-                  <p className="text-xs text-zinc-500">{ex.isUnilateral ? Math.floor(aSetsOnly.length / 2) : aSetsOnly.length}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>
+                  <p className="text-xs text-zinc-500">{completedSetCount}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>
                 </div>
               </button>
 
@@ -1122,7 +1145,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 {setsForExercise.length > 0 && (
                   <div className="space-y-1">
                     {mode === 'SUPERSET' ? (
-                      // Group superset sets by setGroupId
+                      // Group superset sets by setGroupId; include drop sets per pair
                       (() => {
                         const groups: Record<string, LoggedSet[]> = {};
                         setsForExercise.forEach((s) => {
@@ -1133,6 +1156,10 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                         return Object.entries(groups).map(([groupId, groupSets], gi) => {
                           const aSets = groupSets.filter((s) => s.setType === 'SUPERSET_A');
                           const bSets = groupSets.filter((s) => s.setType === 'SUPERSET_B');
+                          const aDropSets = groupSets.filter((s) => s.setType === 'SS_DROP_A');
+                          const bDropSets = groupSets.filter((s) => s.setType === 'SS_DROP_B');
+                          const isPairDropActive = activeSupersetPairDrop === groupId;
+                          const dropInput = supersetDropInputs[groupId] ?? { weightA: '', repsA: '', rirA: '', weightB: '', repsB: '', rirB: '' };
                           return (
                             <div key={groupId} className="rounded-md bg-zinc-800/50 px-3 py-2 space-y-1">
                               <span className="text-xs text-zinc-500">Pair {gi + 1}</span>
@@ -1151,23 +1178,104 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                                     <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
                                   </div>
                                 ))}
+                                {aDropSets.map((s, di) => (
+                                  <div key={s.id} className="flex items-center justify-between">
+                                    <span className="text-xs text-orange-500">Drop {di + 1} A</span>
+                                    <span className="text-xs font-medium text-white">{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}</span>
+                                    <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
+                                  </div>
+                                ))}
+                                {bDropSets.map((s, di) => (
+                                  <div key={s.id} className="flex items-center justify-between">
+                                    <span className="text-xs text-orange-500">Drop {di + 1} B</span>
+                                    <span className="text-xs font-medium text-white">{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}</span>
+                                    <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
+                                  </div>
+                                ))}
                               </div>
+                              <button
+                                onClick={() => setActiveSupersetPairDrop(isPairDropActive ? null : groupId)}
+                                className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${isPairDropActive ? 'border-orange-600 text-orange-400' : 'border-zinc-700 text-zinc-600 hover:border-orange-600 hover:text-orange-400'}`}
+                              >
+                                {isPairDropActive ? '✕' : '→ Drop pair'}
+                              </button>
+                              {isPairDropActive && (
+                                <div className="rounded-md border border-orange-700/50 bg-orange-950/10 p-3 space-y-2">
+                                  <p className="text-xs text-orange-400">Drop both — reduce weight 20–30%</p>
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-zinc-500">{ex.exerciseName}</p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={dropInput.weightA} onChange={e => setSupersetDropInputs(prev => ({ ...prev, [groupId]: { ...dropInput, weightA: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" /></div>
+                                      <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={dropInput.repsA} onChange={e => setSupersetDropInputs(prev => ({ ...prev, [groupId]: { ...dropInput, repsA: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" /></div>
+                                      <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={dropInput.rirA} onChange={e => setSupersetDropInputs(prev => ({ ...prev, [groupId]: { ...dropInput, rirA: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" /></div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-zinc-500">{partner?.name}</p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div><label className="mb-1 block text-xs text-zinc-500">Weight</label><input type="number" step="2.5" value={dropInput.weightB} onChange={e => setSupersetDropInputs(prev => ({ ...prev, [groupId]: { ...dropInput, weightB: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" /></div>
+                                      <div><label className="mb-1 block text-xs text-zinc-500">Reps</label><input type="number" value={dropInput.repsB} onChange={e => setSupersetDropInputs(prev => ({ ...prev, [groupId]: { ...dropInput, repsB: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" /></div>
+                                      <div><label className="mb-1 block text-xs text-zinc-500">RIR</label><input type="number" step="0.5" min="0" max="5" value={dropInput.rirB} onChange={e => setSupersetDropInputs(prev => ({ ...prev, [groupId]: { ...dropInput, rirB: e.target.value } }))} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-orange-500 focus:outline-none" /></div>
+                                    </div>
+                                  </div>
+                                  <button onClick={() => handleLogSupersetDrop(ex, groupId)} className="w-full rounded-md bg-orange-700/50 py-2 text-sm font-semibold text-orange-200 hover:bg-orange-700/70">Log Drop Pair</button>
+                                </div>
+                              )}
                             </div>
                           );
                         });
+                      })()
+                    ) : ex.isUnilateral ? (
+                      // Unilateral straight sets: group consecutive L+R into one "Set N" block
+                      (() => {
+                        const straightSets = setsForExercise.filter(s => s.setType === 'STRAIGHT');
+                        const otherSets = setsForExercise.filter(s => s.setType !== 'STRAIGHT');
+                        const pairs: LoggedSet[][] = [];
+                        for (let i = 0; i < straightSets.length; i += 2) pairs.push(straightSets.slice(i, i + 2));
+                        return (
+                          <>
+                            {pairs.map((pair, pi) => (
+                              <div key={pair[0].id} className="rounded-md bg-zinc-800/50 px-3 py-2 space-y-1">
+                                <span className="text-xs text-zinc-500">Set {pi + 1}</span>
+                                {pair.map(s => (
+                                  <div key={s.id} className="flex items-center justify-between">
+                                    <span className="text-xs text-zinc-500">{s.side}</span>
+                                    <span className="text-sm font-medium text-white">{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}</span>
+                                    <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
+                                  </div>
+                                ))}
+                                {pair.length === 1 && unilateralPendingSide[ex.exerciseId] && (
+                                  <p className="text-xs text-yellow-400/70">Waiting for {pair[0].side === 'LEFT' ? 'RIGHT' : 'LEFT'} side…</p>
+                                )}
+                              </div>
+                            ))}
+                            {otherSets.map((s, i) => (
+                              <div key={s.id} className="flex items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2">
+                                <span className="text-xs text-zinc-500">
+                                  {s.setType === 'MYOREP_ACTIVATION' ? 'Activation'
+                                  : s.setType === 'MYOREP_MINI' ? `Mini ${i + 1}`
+                                  : s.setType === 'DROPSET_PRIMARY' ? `Primary${s.side ? ` ${s.side}` : ''}`
+                                  : s.setType === 'DROPSET_DROP' ? `Drop${s.side ? ` ${s.side}` : ''}`
+                                  : `Set ${i + 1}`}
+                                </span>
+                                <span className="text-sm font-medium text-white">{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}</span>
+                                <button onClick={() => handleDeleteSet(s.id)} className="text-xs text-zinc-600 hover:text-red-400">✕</button>
+                              </div>
+                            ))}
+                          </>
+                        );
                       })()
                     ) : (
                       setsForExercise.map((s, i) => (
                         <div key={s.id} className="space-y-1">
                           <div className="flex items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2">
                             <span className="text-xs text-zinc-500">
-                              {s.setType === 'STRAIGHT' ? (ex.isUnilateral ? `Set ${Math.floor(i / 2) + 1} ${s.side ?? ''}` : `Set ${i + 1}`)
+                              {s.setType === 'STRAIGHT' ? `Set ${i + 1}`
                               : s.setType === 'MYOREP_ACTIVATION' ? 'Activation'
                               : s.setType === 'MYOREP_MINI' ? `Mini ${i}`
                               : s.setType === 'DROPSET_PRIMARY' ? `Primary${s.side ? ` ${s.side}` : ''}`
                               : s.setType === 'DROPSET_DROP' ? `Drop${s.side ? ` ${s.side}` : ''}`
                               : `Set ${i + 1}`}
-                              {s.side && s.setType !== 'STRAIGHT' && <span className="ml-1 text-zinc-600">{s.side}</span>}
                             </span>
                             <span className="text-sm font-medium text-white">
                               {formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}
@@ -1347,8 +1455,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                     </button>
                     <button onClick={() => handleLogStraightSet(ex)} className="w-full rounded-md bg-zinc-700 py-2.5 text-sm font-semibold text-white hover:bg-zinc-600">
                       {ex.isUnilateral
-                        ? `Log ${unilateralPhase[ex.exerciseId] ?? 'LEFT'} — Set ${Math.floor(setsForExercise.length / 2) + 1} of ${ex.targetSets}`
-                        : `Log Set ${setsForExercise.length + 1} of ${ex.targetSets}`}
+                        ? `Log ${unilateralPhase[ex.exerciseId] ?? 'LEFT'} — Set ${completedSetCount + (unilateralPendingSide[ex.exerciseId] ? 0 : 1)} of ${ex.targetSets}`
+                        : `Log Set ${completedSetCount + 1} of ${ex.targetSets}`}
                     </button>
                   </div>
                 )}
