@@ -580,6 +580,7 @@ export async function getSubstituteExercises(
         isUnilateral: true,
         isAssisted: true,
         isBodyweight: true,
+        isTimeBased: true,
       },
       orderBy: { name: 'asc' },
     });

@@ -65,6 +65,9 @@ type Substitute = {
   movementPattern: string;
   equipment: string;
   isUnilateral: boolean;
+  isTimeBased: boolean;
+  isBodyweight: boolean;
+  isAssisted: boolean;
 };
 
 type SwapRecord = {
@@ -787,7 +790,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     setSwaps((prev) => [...prev, { originalId: originalEx.exerciseId, originalName: originalEx.exerciseName, replacement: substitute }]);
     setActiveExercises((prev) => prev.map((ex) =>
       ex.exerciseId === originalEx.exerciseId
-        ? { ...ex, exerciseId: substitute.id, exerciseName: substitute.name, primaryMuscle: substitute.primaryMuscle, equipment: substitute.equipment, history: null }
+        ? { ...ex, exerciseId: substitute.id, exerciseName: substitute.name, primaryMuscle: substitute.primaryMuscle, equipment: substitute.equipment, isUnilateral: substitute.isUnilateral, isTimeBased: substitute.isTimeBased, isBodyweight: substitute.isBodyweight, isAssisted: substitute.isAssisted, history: null }
         : ex
     ));
     // Update the order list too
@@ -1573,6 +1576,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                                   movementPattern: e.movementPattern,
                                   equipment: e.equipment,
                                   isUnilateral: e.isUnilateral,
+                                  isTimeBased: e.isTimeBased,
+                                  isBodyweight: e.isBodyweight,
+                                  isAssisted: e.isAssisted,
                                 })}
                                 className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-zinc-800"
                               >
