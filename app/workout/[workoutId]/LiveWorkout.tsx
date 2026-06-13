@@ -120,8 +120,10 @@ export default function LiveWorkout({
   // Temp IDs that were deleted before the server confirmed them. On confirmation
   // we immediately delete the now-orphaned DB row instead of swapping the ID.
   const cancelledTempIds = useRef<Set<string>>(new Set());
-  // Tracks which exerciseIds have a log call in flight to prevent double-taps.
-  const loggingInFlight = useRef<Set<string>>(new Set());
+  // Timestamp of the last doLogSet call per exerciseId. Guards against double-taps
+  // without holding a lock across the server round-trip (which would block L→R
+  // unilateral logging and multi-call superset handlers).
+  const lastLoggedAt = useRef<Record<string, number>>({});
 
   const [loggedSets, setLoggedSets] = useState<LoggedSet[]>(initialLoggedSets);
   const [expandedExercise, setExpandedExercise] = useState<string | null>(
@@ -434,9 +436,12 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     durationSeconds?: number | null;
     skipTimer?: boolean;
   }) {
-    // Guard #3: ignore rapid double-taps on the same exercise
-    if (loggingInFlight.current.has(params.exerciseId)) return false;
-    loggingInFlight.current.add(params.exerciseId);
+    // Guard against double-taps: ignore calls within 300ms of the last one for
+    // this exercise. 300ms is below human perception for a deliberate second tap
+    // but safely above the time needed for the optimistic update to render.
+    const now = Date.now();
+    if (now - (lastLoggedAt.current[params.exerciseId] ?? 0) < 300) return false;
+    lastLoggedAt.current[params.exerciseId] = now;
 
     const execOrder = exerciseOrder.indexOf(params.exerciseId);
     const tempId = `opt-${generateGroupId()}`;
@@ -475,11 +480,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       durationSeconds: params.durationSeconds ?? null,
     }).then((result) => {
       pendingLogs.current -= 1;
-      loggingInFlight.current.delete(params.exerciseId);
-
       if (result.success && result.setId) {
         if (cancelledTempIds.current.has(tempId)) {
-          // Guard #2: user deleted the set while it was in flight — clean up the DB row
+          // User deleted while in flight — clean up the now-orphaned DB row
           cancelledTempIds.current.delete(tempId);
           deleteSet(result.setId);
         } else {
@@ -489,6 +492,11 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
         setLoggedSets((prev) => prev.filter((s) => s.id !== tempId));
         alert('Failed to save set — check your connection and try again.');
       }
+    }).catch(() => {
+      // Network error or server throw — roll back and unblock Finish Workout
+      pendingLogs.current -= 1;
+      setLoggedSets((prev) => prev.filter((s) => s.id !== tempId));
+      alert('Failed to save set — check your connection and try again.');
     });
 
     return true;
