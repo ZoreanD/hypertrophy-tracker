@@ -436,12 +436,14 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     durationSeconds?: number | null;
     skipTimer?: boolean;
   }) {
-    // Guard against double-taps: ignore calls within 300ms of the last one for
-    // this exercise. 300ms is below human perception for a deliberate second tap
-    // but safely above the time needed for the optimistic update to render.
+    // Guard against double-taps: ignore calls within 300ms for the same
+    // exercise + side combination. Keying on side (not just exerciseId) lets
+    // programmatic L+R calls in the same superset handler fire without conflict,
+    // while still catching a human tapping the same button twice.
     const now = Date.now();
-    if (now - (lastLoggedAt.current[params.exerciseId] ?? 0) < 300) return false;
-    lastLoggedAt.current[params.exerciseId] = now;
+    const debounceKey = `${params.exerciseId}-${params.side ?? ''}`;
+    if (now - (lastLoggedAt.current[debounceKey] ?? 0) < 300) return false;
+    lastLoggedAt.current[debounceKey] = now;
 
     const execOrder = exerciseOrder.indexOf(params.exerciseId);
     const tempId = `opt-${generateGroupId()}`;
