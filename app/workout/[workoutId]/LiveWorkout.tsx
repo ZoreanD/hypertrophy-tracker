@@ -213,28 +213,11 @@ export default function LiveWorkout({
     return modes;
   });
 
-  // Superset state per exercise — reconstruct the A→B partner pairing from
-  // logged SUPERSET_A/SUPERSET_B sets sharing a setGroupId.
-  const [supersetPartners, setSupersetPartners] = useState<Record<string, Substitute | null>>(() => {
-    const byGroup: Record<string, { a?: string; b?: string }> = {};
-    for (const s of initialLoggedSets) {
-      if (s.isWarmup || !s.setGroupId) continue;
-      if (s.setType === 'SUPERSET_A') (byGroup[s.setGroupId] ??= {}).a = s.exerciseId;
-      else if (s.setType === 'SUPERSET_B') (byGroup[s.setGroupId] ??= {}).b = s.exerciseId;
-    }
-    const partners: Record<string, Substitute | null> = {};
-    for (const g of Object.values(byGroup)) {
-      if (!g.a || !g.b || partners[g.a]) continue;
-      const pEx = allExercises.find((e) => e.id === g.b);
-      if (pEx) {
-        partners[g.a] = {
-          id: pEx.id, name: pEx.name, primaryMuscle: pEx.primaryMuscle,
-          movementPattern: pEx.movementPattern, equipment: pEx.equipment, isUnilateral: pEx.isUnilateral,
-        };
-      }
-    }
-    return partners;
-  });
+  // Superset partner per exercise — not restored from logged sets because
+  // marking an exercise as a B-partner hides its standalone logging UI
+  // (including L/R selector), which breaks independent use after reload.
+  // Mode (SUPERSET) is restored via setModes above; user re-selects partner.
+  const [supersetPartners, setSupersetPartners] = useState<Record<string, Substitute | null>>({});
   const [supersetInputs, setSupersetInputs] = useState<Record<string, {
     weight: string; reps: string; rir: string;
   }>>({});
@@ -1443,8 +1426,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                   </div>
                 )}
 
-                {/* Mode selector — only before first working set and not a superset partner */}
-                {setsForExercise.length === 0 && !supersetPartnerOf[ex.exerciseId] && (
+                {/* Mode selector — always visible so the user can change mode even after logging */}
+                {!supersetPartnerOf[ex.exerciseId] && (
                   <div className="flex gap-2">
                     {(ex.isTimeBased ? ['STRAIGHT'] : ['STRAIGHT', 'SUPERSET', 'MYOREP', 'DROPSET'] as SetMode[]).map((m) => (
                       <button key={m} onClick={() => setMode(ex.exerciseId, m as SetMode)}
