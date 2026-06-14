@@ -150,7 +150,7 @@ export async function getExerciseHistory(
       },
       include: {
         workout: { select: { date: true, id: true } },
-        exercise: { select: { isAssisted: true, isBodyweight: true, equipment: true, weightIsPerSide: true } },
+        exercise: { select: { isAssisted: true, isBodyweight: true, isTimeBased: true, equipment: true, weightIsPerSide: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 30,
@@ -170,8 +170,12 @@ export async function getExerciseHistory(
     const lastExecutionOrder = lastSession[0]?.executionOrder ?? 0;
     const positionChanged = Math.abs(lastExecutionOrder - currentExecutionOrder) >= 2;
 
+    // Time-based exercises store reps=0, so rank by duration, not weight×reps.
+    const isTimeBased = lastSession[0]?.exercise?.isTimeBased ?? false;
     const bestSet = lastSession.reduce((best, s) =>
-      s.weightLbs * s.reps > best.weightLbs * best.reps ? s : best
+      isTimeBased
+        ? ((s.durationSeconds ?? 0) > (best.durationSeconds ?? 0) ? s : best)
+        : (s.weightLbs * s.reps > best.weightLbs * best.reps ? s : best)
     );
 
     const isAssisted = bestSet.exercise?.isAssisted ?? false;

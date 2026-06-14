@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { logSet, deleteSet, getSubstituteExercises } from '../../actions/workout-session';
+import { logSet, deleteSet, getSubstituteExercises, getExerciseHistory } from '../../actions/workout-session';
 import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
@@ -318,9 +318,12 @@ export default function LiveWorkout({
 
 function updateInput(exerciseId: string, field: string, value: string | boolean, side?: string) {
   const key = side ? `${exerciseId}-${side}` : exerciseId;
+  // Seed the base from the exercise's real history so the pre-populated weight
+  // isn't wiped when the first edit is to reps/RIR (prev[key] doesn't exist yet).
+  const history = exMap[exerciseId]?.history ?? null;
   setInputs((prev) => ({
     ...prev,
-    [key]: { ...getInput(exerciseId, null, side), ...prev[key], [field]: value },
+    [key]: { ...getInput(exerciseId, history, side), ...prev[key], [field]: value },
   }));
 }
 
@@ -583,7 +586,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     const wA = parseFloat(inputA.weight), rA = parseInt(inputA.reps), rirA = parseFloat(inputA.rir);
     const wB = parseFloat(inputB.weight), rB = parseInt(inputB.reps), rirB = parseFloat(inputB.rir);
     const sideA = exMap[ex.exerciseId]?.isUnilateral ? (unilateralPhase[ex.exerciseId] ?? 'LEFT') : null;
-    const sideB = partner && exMap[partner.id]?.isUnilateral ? (unilateralPhase[partner.id] ?? 'LEFT') : null;
+    // Use the partner's own flag — a partner pulled from substitutes isn't in exMap.
+    const sideB = partner && partner.isUnilateral ? (unilateralPhase[partner.id] ?? 'LEFT') : null;
 
     const groupId = generateGroupId();
     const isSameMuscle = ex.primaryMuscle === partner.primaryMuscle;
@@ -786,7 +790,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     setLoadingSubstitutes(false);
   }
 
-  function handleConfirmSwap(originalEx: PlannedExercise, substitute: Substitute) {
+  async function handleConfirmSwap(originalEx: PlannedExercise, substitute: Substitute) {
     setSwaps((prev) => [...prev, { originalId: originalEx.exerciseId, originalName: originalEx.exerciseName, replacement: substitute }]);
     setActiveExercises((prev) => prev.map((ex) =>
       ex.exerciseId === originalEx.exerciseId
@@ -798,6 +802,24 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     setPivotingExerciseId(null);
     setSubstitutes([]);
     setExpandedExercise(substitute.id);
+
+    // Backfill the substitute's own prior history so weight prefill and the
+    // "last time" hints work after a swap (fetched async, patched in on arrival).
+    const fetched = await getExerciseHistory(substitute.id, profileId, originalEx.plannedOrder);
+    if (!fetched) return;
+    const history = {
+      lastWeight: fetched.lastWeight,
+      lastReps: fetched.lastReps,
+      lastRir: fetched.lastRir,
+      lastDate: String(fetched.lastDate),
+      lastExecutionOrder: fetched.lastExecutionOrder,
+      allSets: fetched.allSets.map((s) => ({
+        weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
+      })),
+    };
+    setActiveExercises((prev) => prev.map((ex) =>
+      ex.exerciseId === substitute.id ? { ...ex, history } : ex
+    ));
   }
 
   function handleDeleteSet(setId: string) {
