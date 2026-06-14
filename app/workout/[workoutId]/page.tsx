@@ -133,8 +133,13 @@ export default async function LiveWorkoutPage({
     });
 
     const lastSession = Array.from(byWorkout.values())[0];
+    // Time-based exercises store reps=0, so weight×reps is always 0 — rank by
+    // duration instead so the "best set" is the longest hold, not the first.
+    const isTimeBased = re.exercise.isTimeBased;
     const bestSet = lastSession.reduce((b, s) =>
-      s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b
+      isTimeBased
+        ? ((s.durationSeconds ?? 0) > (b.durationSeconds ?? 0) ? s : b)
+        : (s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b)
     );
 
     exerciseHistories[re.exerciseId] = {
@@ -147,6 +152,7 @@ export default async function LiveWorkoutPage({
         weight: s.weightLbs,
         reps: s.reps,
         rir: s.rir,
+        durationSeconds: s.durationSeconds ?? null,
       })),
     };
   }
