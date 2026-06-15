@@ -304,9 +304,13 @@ export default function LiveWorkout({
         timerRef.current = null;
         restEndTimeRef.current = null;
         setRestTimer(null);
-        // Foreground completion — suppress the OS-scheduled notification since
-        // the user is already looking at the countdown.
-        messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
+        // Only suppress the notification if the app is genuinely in the
+        // foreground. A backgrounded tab's interval is throttled (not frozen),
+        // so it can tick late while hidden — cancelling here would kill the
+        // very notification we want to deliver.
+        if (document.visibilityState === 'visible') {
+          messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
+        }
       } else {
         setRestTimer(remaining);
       }
@@ -319,6 +323,27 @@ export default function LiveWorkout({
     restEndTimeRef.current = null;
     setRestTimer(null);
     messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
+  }
+
+  // TEMP diagnostic — reports notification capabilities and schedules a test
+  // notification 5s out so we can confirm background delivery on the device.
+  async function runNotifDiag() {
+    const supportsTrigger = 'TimestampTrigger' in window;
+    const perm = typeof Notification !== 'undefined' ? Notification.permission : 'unavailable';
+    let swState = 'none';
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      swState = reg.active ? 'active' : reg.waiting ? 'waiting' : reg.installing ? 'installing' : 'unknown';
+      reg.active?.postMessage({ type: 'START_REST_TIMER', endTime: Date.now() + 5000 });
+    } catch (e) {
+      swState = 'error: ' + (e as Error).message;
+    }
+    alert(
+      `TimestampTrigger supported: ${supportsTrigger}\n` +
+      `Notification permission: ${perm}\n` +
+      `Service worker: ${swState}\n\n` +
+      `Scheduled a test notification in 5 seconds. Switch to another app now and wait for it.`
+    );
   }
 
   function getInput(exerciseId: string, history: PlannedExercise['history'], side?: string) {
@@ -1064,9 +1089,12 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
             {new Date(workout.date.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
         </div>
-        <button onClick={handleFinish} disabled={isSubmitting} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
-          {isSubmitting ? 'Saving...' : 'Finish'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={runNotifDiag} className="rounded-md border border-zinc-700 px-2 py-2 text-xs text-zinc-400 hover:border-zinc-500" title="Test notification">🔔</button>
+          <button onClick={handleFinish} disabled={isSubmitting} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
+            {isSubmitting ? 'Saving...' : 'Finish'}
+          </button>
+        </div>
       </header>
 
       {swaps.length > 0 && (
