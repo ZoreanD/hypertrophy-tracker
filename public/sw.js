@@ -1,15 +1,17 @@
 // Zorean Hypertrophy Service Worker
-const CACHE_NAME = 'zorean-hypertrophy-v3';
+const CACHE_NAME = 'zorean-hypertrophy-v4';
 
 // ── Rest-timer notifications ────────────────────────────────────────────────
-// The page's setInterval freezes while backgrounded AND the SW itself is killed
-// after ~30s idle, so a plain setTimeout never fires for a 90-180s rest. The
-// reliable path is the Notification Triggers API (TimestampTrigger): the OS
-// fires the notification at the timestamp even with the SW and page both dead.
-// setTimeout is kept only as a fallback for browsers without trigger support.
-let restTimeoutId = null;
-
+// The page's setInterval freezes while backgrounded, and an *orphaned* SW
+// setTimeout is killed when the browser terminates the idle SW (~30s). The key
+// is event.waitUntil(): it tells the browser the SW has work in flight so it's
+// kept alive until the promise settles (browsers cap this at a few minutes,
+// which covers a normal rest). TimestampTrigger is used when available (fires
+// even with everything dead), but it's unsupported on most Android Chrome.
 const REST_NOTIF_TAG = 'rest-timer';
+
+let restTimeoutId = null;
+let restResolve = null;
 
 function restNotifOptions(extra) {
   return Object.assign({
@@ -22,35 +24,48 @@ function restNotifOptions(extra) {
   }, extra || {});
 }
 
-function cancelRestNotification() {
+// Settle any pending wait + clear the timer, so a waitUntil promise resolves
+// and the browser can release the SW.
+function settleRest() {
   if (restTimeoutId) { clearTimeout(restTimeoutId); restTimeoutId = null; }
-  // Close both already-shown and scheduled-but-not-yet-fired notifications.
-  self.registration.getNotifications({ tag: REST_NOTIF_TAG, includeTriggered: true })
+  if (restResolve) { const r = restResolve; restResolve = null; r(); }
+}
+
+function cancelRestNotification() {
+  settleRest();
+  return self.registration.getNotifications({ tag: REST_NOTIF_TAG, includeTriggered: true })
     .then((notifs) => notifs.forEach((n) => n.close()))
     .catch(() => {});
 }
 
+// Returns a promise that stays pending until the notification fires (or is
+// cancelled) — pass it to event.waitUntil to keep the SW alive.
 function scheduleRestNotification(endTime) {
-  cancelRestNotification();
+  settleRest();
   if ('TimestampTrigger' in self) {
-    self.registration.showNotification('Rest complete', restNotifOptions({
+    return self.registration.showNotification('Rest complete', restNotifOptions({
       showTrigger: new TimestampTrigger(endTime),
     }));
-  } else {
-    const delay = Math.max(0, endTime - Date.now());
+  }
+  const delay = Math.max(0, endTime - Date.now());
+  return new Promise((resolve) => {
+    restResolve = resolve;
     restTimeoutId = setTimeout(() => {
       restTimeoutId = null;
-      self.registration.showNotification('Rest complete', restNotifOptions());
+      const done = restResolve; restResolve = null;
+      self.registration.showNotification('Rest complete', restNotifOptions())
+        .then(() => done && done())
+        .catch(() => done && done());
     }, delay);
-  }
+  });
 }
 
 self.addEventListener('message', (event) => {
   const data = event.data || {};
   if (data.type === 'START_REST_TIMER') {
-    scheduleRestNotification(data.endTime);
+    event.waitUntil(scheduleRestNotification(data.endTime));
   } else if (data.type === 'CANCEL_REST_TIMER') {
-    cancelRestNotification();
+    event.waitUntil(cancelRestNotification());
   }
 });
 
