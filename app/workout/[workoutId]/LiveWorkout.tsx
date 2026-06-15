@@ -273,6 +273,8 @@ export default function LiveWorkout({
         timerRef.current = null;
         restEndTimeRef.current = null;
         setRestTimer(null);
+        // Already elapsed by the time we returned — close the notification.
+        messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
       }
     }
   }
@@ -302,6 +304,9 @@ export default function LiveWorkout({
         timerRef.current = null;
         restEndTimeRef.current = null;
         setRestTimer(null);
+        // Foreground completion — suppress the OS-scheduled notification since
+        // the user is already looking at the countdown.
+        messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
       } else {
         setRestTimer(remaining);
       }
