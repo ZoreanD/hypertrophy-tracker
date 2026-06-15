@@ -255,7 +255,15 @@ export default function LiveWorkout({
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // Snap timer display when app returns to foreground
+  // Tell the service worker to (de)schedule the background rest-complete
+  // notification. The SW fires it only if no window is visible when time's up.
+  function messageRestTimerSW(message: { type: 'START_REST_TIMER'; endTime: number } | { type: 'CANCEL_REST_TIMER' }) {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(message)).catch(() => {});
+  }
+
+  // Snap timer display when app returns to foreground (the interval is throttled
+  // while hidden, so the on-screen count can be stale on return).
   useEffect(() => {
   function onVisible() {
     if (document.visibilityState === 'visible' && restEndTimeRef.current !== null) {
@@ -265,12 +273,6 @@ export default function LiveWorkout({
         timerRef.current = null;
         restEndTimeRef.current = null;
         setRestTimer(null);
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('Rest complete', {
-            body: 'Time to log your next set.',
-            icon: '/icons/icon-192x192.png',
-          });
-        }
       }
     }
   }
@@ -291,6 +293,8 @@ export default function LiveWorkout({
     restEndTimeRef.current = endTime;
     setRestTarget(secs);
     setRestTimer(secs);
+    // The SW fires the notification at endTime even if this page is frozen.
+    messageRestTimerSW({ type: 'START_REST_TIMER', endTime });
     timerRef.current = setInterval(() => {
       const remaining = Math.round((restEndTimeRef.current! - Date.now()) / 1000);
       if (remaining <= 0) {
@@ -298,16 +302,18 @@ export default function LiveWorkout({
         timerRef.current = null;
         restEndTimeRef.current = null;
         setRestTimer(null);
-        if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState === 'hidden') {
-          new Notification('Rest complete', {
-            body: 'Time to log your next set.',
-            icon: '/icons/icon-192x192.png',
-          });
-        }
       } else {
         setRestTimer(remaining);
       }
     }, 1000);
+  }
+
+  function stopRestTimer() {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    restEndTimeRef.current = null;
+    setRestTimer(null);
+    messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
   }
 
   function getInput(exerciseId: string, history: PlannedExercise['history'], side?: string) {
@@ -836,6 +842,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
 
   async function handleFinish() {
     setIsSubmitting(true);
+    // Cancel any pending rest-timer notification so it can't fire after the
+    // workout is already done.
+    stopRestTimer();
     // Wait for any optimistic set saves still in flight so the DB is fully
     // up-to-date before finishWorkout queries it.
     if (pendingLogs.current > 0) {
@@ -1079,7 +1088,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
             </div>
             <div className="flex gap-2">
               <button onClick={() => startRestTimer(restTarget)} className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500">Reset</button>
-              <button onClick={() => { if (timerRef.current) clearInterval(timerRef.current); setRestTimer(null); }} className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500">Skip</button>
+              <button onClick={stopRestTimer} className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-500">Skip</button>
             </div>
           </div>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">

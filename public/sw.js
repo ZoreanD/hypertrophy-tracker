@@ -1,5 +1,46 @@
 // Zorean Hypertrophy Service Worker
-const CACHE_NAME = 'zorean-hypertrophy-v1';
+const CACHE_NAME = 'zorean-hypertrophy-v2';
+
+// ── Rest-timer notifications ────────────────────────────────────────────────
+// The page's setInterval is frozen while the tab is backgrounded, so the SW
+// owns firing the "rest complete" notification. The page posts the absolute
+// end time; we fire only if no app window is currently visible (otherwise the
+// on-screen countdown is enough and a notification would be noise).
+let restTimeoutId = null;
+
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type === 'START_REST_TIMER') {
+    if (restTimeoutId) clearTimeout(restTimeoutId);
+    const delay = Math.max(0, data.endTime - Date.now());
+    restTimeoutId = setTimeout(async () => {
+      restTimeoutId = null;
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const anyVisible = windows.some((c) => c.visibilityState === 'visible');
+      if (anyVisible) return;
+      self.registration.showNotification('Rest complete', {
+        body: 'Time to log your next set.',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: 'rest-timer',
+        renotify: true,
+        vibrate: [200, 100, 200],
+      });
+    }, delay);
+  } else if (data.type === 'CANCEL_REST_TIMER') {
+    if (restTimeoutId) { clearTimeout(restTimeoutId); restTimeoutId = null; }
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const c of windows) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow('/');
+    })
+  );
+});
 
 const STATIC_ASSETS = [
   '/',
