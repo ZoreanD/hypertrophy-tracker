@@ -97,6 +97,20 @@ function generateGroupId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
+// Equipment label, with a glossary tooltip for the machine types people mix up.
+// Not for use inside a <button> — the tooltip toggle would bubble to the button.
+function EquipmentLabel({ equipment, className }: { equipment: string; className?: string }) {
+  const label = equipment.replace(/_/g, ' ').toLowerCase();
+  const def = equipment === 'MACHINE_SELECTORIZED' ? GLOSSARY.selectorized
+    : equipment === 'MACHINE_PLATE_LOADED' ? GLOSSARY['plate loaded']
+    : null;
+  return (
+    <span className={className}>
+      {def ? <Tooltip definition={def}>{label}</Tooltip> : label}
+    </span>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 export default function LiveWorkout({
@@ -1268,6 +1282,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
             {/* Expanded content */}
             {isExpanded && !isPivoting && (
               <div className="space-y-4 border-t border-zinc-800 p-4">
+
+                <EquipmentLabel equipment={ex.equipment} className="text-xs text-zinc-500" />
 
                 {/* Paired as superset partner — log from the source exercise */}
                 {supersetPartnerOf[ex.exerciseId] && (

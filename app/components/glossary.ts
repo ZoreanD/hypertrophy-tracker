@@ -9,4 +9,6 @@ export const GLOSSARY: Record<string, string> = {
   "progressive overload": "Gradually increasing training stress over time — more weight, reps, or sets — to force continued adaptation. Without it, progress stalls.",
   "context change": "Exercise position in the session changed vs last time. Fatigue state differs, so performance isn't directly comparable — not counted as improved or declined.",
   "double progression": "A progression method where you increase reps within a target range before adding weight. E.g., hit 3×12 before adding load and resetting to 3×8.",
+  selectorized: "A machine with a built-in weight stack you set with a pin. One stack moves the whole bar — pick a number and go. Contrast with plate-loaded, where you slide weight plates on yourself.",
+  "plate loaded": "A machine you load with weight plates yourself (no built-in stack). Often iso-lateral — each arm/leg loads and moves independently. Contrast with selectorized (pin-and-stack).",
 };
