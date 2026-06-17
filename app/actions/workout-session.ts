@@ -218,7 +218,7 @@ export async function getExerciseHistory(
   }
 }
 
-export async function finishWorkout(workoutId: string, durationMins: number) {
+export async function finishWorkout(workoutId: string, durationMins: number, removedExerciseIds: string[] = []) {
   try {
     const profile = await getProfile();
     if (!profile) throw new Error('Not authenticated');
@@ -267,12 +267,18 @@ export async function finishWorkout(workoutId: string, durationMins: number) {
       restTimerSecs: number;
     };
 
-    const exercisesToSummarize: SummaryTarget[] = (workout.routine?.exercises ?? []).map((re) => ({
-      exerciseId: re.exerciseId,
-      exercise: re.exercise,
-      planned: { targetSets: re.targetSets, targetRepMin: re.targetRepMin, targetRepMax: re.targetRepMax, targetRir: re.targetRir },
-      restTimerSecs: re.restTimerSecs ?? 120,
-    }));
+    // Exercises the user dropped from this session are excluded from the
+    // breakdown (unless sets somehow remain for them). The routine itself is
+    // untouched — they reappear next time the routine is run.
+    const removed = new Set(removedExerciseIds);
+    const exercisesToSummarize: SummaryTarget[] = (workout.routine?.exercises ?? [])
+      .filter((re) => !(removed.has(re.exerciseId) && !workout.sets.some((s) => s.exerciseId === re.exerciseId)))
+      .map((re) => ({
+        exerciseId: re.exerciseId,
+        exercise: re.exercise,
+        planned: { targetSets: re.targetSets, targetRepMin: re.targetRepMin, targetRepMax: re.targetRepMax, targetRir: re.targetRir },
+        restTimerSecs: re.restTimerSecs ?? 120,
+      }));
 
     const seenExerciseIds = new Set(exercisesToSummarize.map((t) => t.exerciseId));
     for (const s of workout.sets) {

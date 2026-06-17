@@ -140,6 +140,10 @@ export default function LiveWorkout({
     plannedExercises.map((e) => e.exerciseId)
   );
   const [activeExercises, setActiveExercises] = useState<PlannedExercise[]>(plannedExercises);
+  // Exercises the user dropped from THIS session (routine is never modified).
+  // Passed to finishWorkout so they're excluded from the summary instead of
+  // showing as "skipped".
+  const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
   const exMap = Object.fromEntries(activeExercises.map((e) => [e.exerciseId, e]));
 
   const [showAddExercise, setShowAddExercise] = useState(false);
@@ -190,6 +194,27 @@ export default function LiveWorkout({
     setExpandedExercise(ex.id);
     setAddExerciseSearch('');
     setShowAddExercise(false);
+  }
+
+  // Drop an exercise from the current session only. Deletes any sets logged for
+  // it; never touches the saved routine.
+  function handleRemoveExercise(ex: PlannedExercise) {
+    const ownSets = loggedSets.filter((s) => s.exerciseId === ex.exerciseId);
+    const msg = ownSets.length > 0
+      ? `Remove ${ex.exerciseName} from this workout? This deletes the ${ownSets.length} set${ownSets.length === 1 ? '' : 's'} you logged for it. Your routine is not changed.`
+      : `Remove ${ex.exerciseName} from this workout? Your routine is not changed.`;
+    if (!confirm(msg)) return;
+
+    ownSets.forEach((s) => handleDeleteSet(s.id));
+    setActiveExercises((prev) => prev.filter((e) => e.exerciseId !== ex.exerciseId));
+    setExerciseOrder((prev) => prev.filter((id) => id !== ex.exerciseId));
+    setRemovedExerciseIds((prev) => prev.includes(ex.exerciseId) ? prev : [...prev, ex.exerciseId]);
+    // Clear any superset pairing that referenced this exercise as source.
+    setSupersetPartners((prev) => {
+      if (!(ex.exerciseId in prev)) return prev;
+      const next = { ...prev }; delete next[ex.exerciseId]; return next;
+    });
+    if (expandedExercise === ex.exerciseId) setExpandedExercise(null);
   }
 
   // Rest timer
@@ -889,7 +914,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       const res = await fetch('/api/finish-workout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workoutId: workout.id, durationMins }),
+        body: JSON.stringify({ workoutId: workout.id, durationMins, removedExerciseIds }),
       });
       const result = await res.json();
       if (result.success && result.summary) {
@@ -1872,6 +1897,15 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 {isComplete && (
                   <p className="text-center text-sm text-emerald-400">✓ All {ex.targetSets} sets complete</p>
                 )}
+
+                <div className="border-t border-zinc-800 pt-3 text-center">
+                  <button
+                    onClick={() => handleRemoveExercise(ex)}
+                    className="text-xs text-zinc-600 hover:text-red-400"
+                  >
+                    Remove from this workout
+                  </button>
+                </div>
               </div>
             )}
           </div>

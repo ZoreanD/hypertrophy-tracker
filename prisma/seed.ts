@@ -428,6 +428,16 @@ const exercises = [
     movementPattern: 'HORIZONTAL_PUSH',
   },
   {
+    // Plate-loaded, iso-lateral (independent arms — like pressing two dumbbells).
+    // Log the weight per arm; weightIsPerSide doubles it for e1RM/progression.
+    name: 'Hammer Strength Chest Press',
+    primaryMuscle: 'CHEST_MID_LOWER',
+    secondaryMuscles: ['FRONT_DELT', 'TRICEPS_LATERAL_HEAD', 'TRICEPS_MEDIAL_HEAD'],
+    equipment: 'MACHINE_PLATE_LOADED',
+    movementPattern: 'HORIZONTAL_PUSH',
+    weightIsPerSide: true,
+  },
+  {
     name: 'FreeMotion Dual Cross Chest Fly (Low to High)',
     primaryMuscle: 'CHEST_UPPER',
     secondaryMuscles: ['FRONT_DELT'],
