@@ -114,4 +114,24 @@ export const EXERCISE_SCIENCE_NOTES: Record<string, string> = {
     'Compound triceps movement. Less shoulder stress than wide grip. Medial and lateral head dominant.',
   'Triceps Dip':
     'Bodyweight compound. Forward lean = chest bias; upright torso = triceps bias. Long head stretched at bottom.',
+
+  // ── Medicine ball (PT-friendly) ────────────────────────────────────────────
+  // Load-limited: med balls rarely reach the ~70% 1RM needed for maximal
+  // hypertrophy (ACSM). Best for rehab, teaching, warm-ups, and high-rep work.
+  'Overhead Triceps Extension (Medicine Ball)':
+    'Overhead position maximally stretches the triceps long head (~60% of triceps mass). Maeo 2023: overhead elbow extension grew all three heads more than neutral, long head most. Strongest med-ball pick for growth — load is the limiter, so push reps near failure.',
+  'Goblet Squat (Medicine Ball)':
+    'Front-loaded squat; upright torso raises rectus femoris and ab demand. Light load suits warm-ups, rehab, or high-rep finishers.',
+  'Romanian Deadlift (Medicine Ball)':
+    'Hip-hinge pattern for hamstrings/glutes. Great for grooving the hinge in rehab; load is too light for heavy posterior-chain hypertrophy.',
+  'Floor Press (Medicine Ball)':
+    'Floor caps the range and spares the shoulder — PT-friendly horizontal press. Load-limited, so treat as high-rep chest/triceps work.',
+  'Overhead Press (Medicine Ball)':
+    'Light vertical press for the front delt; good for teaching overhead mechanics and rehab. Load is the hypertrophy bottleneck.',
+  'Pullover (Medicine Ball)':
+    'Stretches the lats and long-head triceps; shoulder-friendly. Light load = high-rep stretch work, not heavy back building.',
+  'Weighted Sit-Up (Medicine Ball)':
+    'Loaded trunk flexion. Hold the ball at the chest or overhead to add resistance to the abs; raise the lever (overhead) before chasing a heavier ball.',
+  'Russian Twist (Medicine Ball)':
+    'Rotational oblique work. Control the tempo — momentum steals tension. Move slowly rather than swinging for reps.',
 };

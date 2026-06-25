@@ -1194,6 +1194,76 @@ const exercises = [
     equipment: 'BODYWEIGHT',
     movementPattern: 'ISOLATION',
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MEDICINE BALL (PT-FRIENDLY)
+  //
+  // Load-limited tools: med balls top out light, so they can't reach the ~70%
+  // 1RM loads that drive maximal hypertrophy (ACSM). Best used for rehab/PT,
+  // movement teaching, warm-ups, and high-rep metabolite work — progress load
+  // when the ball allows. Muscle targeting matches the dumbbell/cable version
+  // of each movement. Slams/throws are excluded (no eccentric = power, not
+  // hypertrophy).
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    // Overhead position maximally stretches the triceps long head — the real
+    // hypertrophy driver here (Maeo 2023). Long head crosses the shoulder.
+    name: 'Overhead Triceps Extension (Medicine Ball)',
+    primaryMuscle: 'TRICEPS_LONG_HEAD',
+    secondaryMuscles: ['TRICEPS_MEDIAL_HEAD', 'TRICEPS_LATERAL_HEAD'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'ISOLATION',
+  },
+  {
+    name: 'Goblet Squat (Medicine Ball)',
+    primaryMuscle: 'QUAD_VASTUS_LATERALIS',
+    secondaryMuscles: ['QUAD_VASTUS_MEDIALIS', 'GLUTE_MAX', 'ABS'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'SQUAT',
+  },
+  {
+    name: 'Romanian Deadlift (Medicine Ball)',
+    primaryMuscle: 'HAMSTRING_BICEPS_FEMORIS',
+    secondaryMuscles: ['HAMSTRING_MEDIAL', 'GLUTE_MAX', 'LOWER_BACK'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'HINGE',
+  },
+  {
+    name: 'Floor Press (Medicine Ball)',
+    primaryMuscle: 'CHEST_MID_LOWER',
+    secondaryMuscles: ['FRONT_DELT', 'TRICEPS_LATERAL_HEAD', 'TRICEPS_MEDIAL_HEAD'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'HORIZONTAL_PUSH',
+  },
+  {
+    name: 'Overhead Press (Medicine Ball)',
+    primaryMuscle: 'FRONT_DELT',
+    secondaryMuscles: ['SIDE_DELT', 'TRICEPS_LONG_HEAD', 'TRICEPS_LATERAL_HEAD', 'TRAPS_UPPER'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'VERTICAL_PUSH',
+  },
+  {
+    name: 'Pullover (Medicine Ball)',
+    primaryMuscle: 'LATS',
+    secondaryMuscles: ['CHEST_MID_LOWER', 'TRICEPS_LONG_HEAD', 'TERES_MAJOR'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'ISOLATION',
+  },
+  {
+    name: 'Weighted Sit-Up (Medicine Ball)',
+    primaryMuscle: 'ABS',
+    secondaryMuscles: ['OBLIQUES', 'QUAD_RECTUS_FEMORIS'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'ISOLATION',
+  },
+  {
+    name: 'Russian Twist (Medicine Ball)',
+    primaryMuscle: 'OBLIQUES',
+    secondaryMuscles: ['ABS'],
+    equipment: 'MEDICINE_BALL',
+    movementPattern: 'ISOLATION',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
