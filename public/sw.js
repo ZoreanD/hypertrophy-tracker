@@ -1,5 +1,5 @@
 // Zorean Hypertrophy Service Worker
-const CACHE_NAME = 'zorean-hypertrophy-v4';
+const CACHE_NAME = 'zorean-hypertrophy-v5';
 
 // ── Rest-timer notifications ────────────────────────────────────────────────
 // The page's setInterval freezes while backgrounded, and an *orphaned* SW
@@ -50,12 +50,24 @@ function scheduleRestNotification(endTime) {
   const delay = Math.max(0, endTime - Date.now());
   return new Promise((resolve) => {
     restResolve = resolve;
-    restTimeoutId = setTimeout(() => {
+    restTimeoutId = setTimeout(async () => {
       restTimeoutId = null;
       const done = restResolve; restResolve = null;
-      self.registration.showNotification('Rest complete', restNotifOptions())
-        .then(() => done && done())
-        .catch(() => done && done());
+      try {
+        // If the SW was frozen on a long rest, this fires late — typically the
+        // moment the app is reopened. Skip then: a window is visible (user is
+        // already looking) or it's firing well past time. Otherwise a "rest
+        // complete" buzz pops up exactly when you return, which is the opposite
+        // of helpful.
+        const lateBy = Date.now() - endTime;
+        const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const anyVisible = windows.some((c) => c.visibilityState === 'visible');
+        if (!anyVisible && lateBy < 30000) {
+          await self.registration.showNotification('Rest complete', restNotifOptions());
+        }
+      } finally {
+        if (done) done();
+      }
     }, delay);
   });
 }
