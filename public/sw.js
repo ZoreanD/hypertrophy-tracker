@@ -91,6 +91,35 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
+// Server-sent rest-complete push (reliable for long rests, since the push
+// service wakes the SW even after it's been frozen/killed). Always show a
+// notification — Chrome penalizes silent pushes under userVisibleOnly.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { /* non-JSON */ }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Rest complete', restNotifOptions({
+      body: data.body || 'Time to log your next set.',
+    }))
+  );
+});
+
+// Re-subscribe transparently if the browser rotates the subscription.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const sub = await self.registration.pushManager.subscribe(
+        event.oldSubscription ? event.oldSubscription.options : undefined
+      );
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub),
+      });
+    } catch (e) { /* will re-subscribe on next app open */ }
+  })());
+});
+
 const STATIC_ASSETS = [
   '/',
   '/dashboard',

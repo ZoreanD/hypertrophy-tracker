@@ -31,11 +31,31 @@ model Profile {
   updatedAt      DateTime     @updatedAt
   weekStartDay   Int          @default(0)
 
+  // Rest-timer push: a scheduled push only fires if its nonce still matches —
+  // lets us cancel/supersede a scheduled notification without deleting the
+  // queued message (skip, finish, or a newer rest all rotate the nonce).
+  restNonce      String?
+  restFireAt     DateTime?
+
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   bodyMetrics       BodyMetric[]
   workouts          Workout[]
   routines          Routine[]
   scheduledWorkouts ScheduledWorkout[]
+  pushSubscriptions PushSubscription[]
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  profileId String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model BodyMetric {

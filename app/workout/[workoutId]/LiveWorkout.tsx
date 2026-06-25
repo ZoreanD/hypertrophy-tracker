@@ -97,6 +97,17 @@ function generateGroupId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
+// VAPID public key is base64url; PushManager.subscribe needs a Uint8Array.
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const buffer = new ArrayBuffer(raw.length);
+  const arr = new Uint8Array(buffer);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
 // Equipment label, with a glossary tooltip for the machine types people mix up.
 // Not for use inside a <button> — the tooltip toggle would bubble to the button.
 function EquipmentLabel({ equipment, className }: { equipment: string; className?: string }) {
@@ -301,32 +312,84 @@ export default function LiveWorkout({
     navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(message)).catch(() => {});
   }
 
-  // Snap timer display when app returns to foreground (the interval is throttled
-  // while hidden, so the on-screen count can be stale on return).
+  // Arm the server push when leaving mid-rest; cancel it (and snap the display)
+  // on return. Scheduling only on background means a fully-foreground rest never
+  // triggers a notification, and the remaining time is recomputed each time.
   useEffect(() => {
-  function onVisible() {
-    if (document.visibilityState === 'visible' && restEndTimeRef.current !== null) {
-      const remaining = Math.round((restEndTimeRef.current - Date.now()) / 1000);
-      if (remaining <= 0) {
-        clearInterval(timerRef.current!);
-        timerRef.current = null;
-        restEndTimeRef.current = null;
-        setRestTimer(null);
-        // Already elapsed by the time we returned — close the notification.
-        messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
-      }
+  function onVisibilityChange() {
+    if (restEndTimeRef.current === null) return;
+    const remaining = Math.round((restEndTimeRef.current - Date.now()) / 1000);
+
+    if (document.visibilityState === 'hidden') {
+      schedulePush(remaining);
+      return;
+    }
+
+    // Became visible — the page interval owns the rest of the countdown again.
+    cancelPush();
+    if (remaining <= 0) {
+      clearInterval(timerRef.current!);
+      timerRef.current = null;
+      restEndTimeRef.current = null;
+      setRestTimer(null);
+      messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
     }
   }
 
-  document.addEventListener('visibilitychange', onVisible);
-  return () => document.removeEventListener('visibilitychange', onVisible);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  return () => document.removeEventListener('visibilitychange', onVisibilityChange);
 }, []);
 
+  // Ask for permission and register a Web Push subscription so the server can
+  // deliver the rest-complete notification even after the SW is frozen/killed
+  // (the only reliable path for rests longer than ~2 min on Android Chrome).
   useEffect(() => {
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
+    let cancelled = false;
+    async function setupPush() {
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission().catch(() => {});
+      }
+      if (Notification.permission !== 'granted') return;
+      const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapid) return;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub =
+          (await reg.pushManager.getSubscription()) ??
+          (await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapid),
+          }));
+        if (cancelled) return;
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sub),
+        });
+      } catch (e) {
+        // No push (e.g. permission denied or unsupported) — local SW timer still
+        // covers short rests.
+      }
+    }
+    setupPush();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Server-scheduled push: armed only while the app is backgrounded mid-rest
+  // (so a foreground rest never produces a notification), cancelled on return.
+  function schedulePush(remainingSecs: number) {
+    if (remainingSecs <= 0) return;
+    fetch('/api/push/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ durationSecs: remainingSecs }),
+      keepalive: true,
+    }).catch(() => {});
   }
-}, []);
+  function cancelPush() {
+    fetch('/api/push/cancel', { method: 'POST', keepalive: true }).catch(() => {});
+  }
 
   function startRestTimer(secs: number) {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -362,6 +425,7 @@ export default function LiveWorkout({
     restEndTimeRef.current = null;
     setRestTimer(null);
     messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
+    cancelPush();
   }
 
   // TEMP diagnostic — reports notification capabilities and schedules a test
