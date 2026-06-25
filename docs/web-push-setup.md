@@ -29,6 +29,7 @@ Set these locally in `.env` and in Vercel (Project → Settings → Environment 
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | same value as `VAPID_PUBLIC_KEY` | exposed to client |
 | `VAPID_SUBJECT` | `mailto:you@example.com` | contact for push services |
 | `QSTASH_TOKEN` | console.upstash.com → QStash | **secret**; free tier is plenty |
+| `QSTASH_URL` | QStash dashboard (regional base URL) | optional; defaults to `https://qstash.upstash.io` |
 | `APP_URL` | your deployed origin, e.g. `https://your-app.vercel.app` | no trailing slash; QStash calls back here |
 
 Notes:

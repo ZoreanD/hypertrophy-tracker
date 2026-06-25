@@ -63,9 +63,10 @@ export async function scheduleRestPush(opts: {
 
   const callback = `${appUrl.replace(/\/$/, '')}/api/push/send`;
   const delay = Math.max(0, Math.round(opts.delaySecs));
+  const qstashBase = (process.env.QSTASH_URL || 'https://qstash.upstash.io').replace(/\/$/, '');
 
   try {
-    const res = await fetch(`https://qstash.upstash.io/v2/publish/${callback}`, {
+    const res = await fetch(`${qstashBase}/v2/publish/${callback}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
