@@ -218,6 +218,33 @@ export async function getExerciseHistory(
   }
 }
 
+// Discard an in-progress workout entirely: deletes it (and its sets, via
+// cascade) so it never counts as a completed workout. Refuses to delete a
+// workout that's already been finished (durationMins > 0).
+export async function cancelWorkout(workoutId: string) {
+  try {
+    const profile = await getProfile();
+    if (!profile) return { success: false, error: 'Not authenticated' };
+
+    const workout = await prisma.workout.findUnique({
+      where: { id: workoutId },
+      select: { profileId: true, durationMins: true },
+    });
+    if (!workout || workout.profileId !== profile.id) {
+      return { success: false, error: 'Workout not found' };
+    }
+    if (workout.durationMins > 0) {
+      return { success: false, error: 'Workout already completed' };
+    }
+
+    await prisma.workout.delete({ where: { id: workoutId } });
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to cancel workout:', error);
+    return { success: false, error: 'Failed to cancel workout' };
+  }
+}
+
 export async function finishWorkout(workoutId: string, durationMins: number, removedExerciseIds: string[] = []) {
   try {
     const profile = await getProfile();

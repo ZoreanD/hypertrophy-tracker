@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { logSet, deleteSet, getSubstituteExercises, getExerciseHistory } from '../../actions/workout-session';
+import { logSet, deleteSet, getSubstituteExercises, getExerciseHistory, cancelWorkout } from '../../actions/workout-session';
 import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
@@ -951,6 +951,23 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
   }
 
   // ── Finish (API route to avoid server action re-render) ──────────────────
+
+  async function handleCancelWorkout() {
+    const loggedCount = loggedSets.filter((s) => !s.isWarmup).length;
+    const msg = loggedCount > 0
+      ? `Discard this workout? The ${loggedCount} set${loggedCount === 1 ? '' : 's'} you logged will be deleted and it won't be saved.`
+      : 'Discard this workout? It won\'t be saved.';
+    if (!confirm(msg)) return;
+    setIsSubmitting(true);
+    stopRestTimer();
+    const res = await cancelWorkout(workout.id);
+    if (!res.success) {
+      setIsSubmitting(false);
+      alert(res.error || 'Could not cancel the workout.');
+      return;
+    }
+    router.push('/dashboard');
+  }
 
   async function handleFinish() {
     setIsSubmitting(true);
@@ -2035,6 +2052,24 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
               className="flex-1 rounded-md bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : 'Finish Workout'}
+            </button>
+          </div>
+
+          <div className="mt-2 flex items-center justify-center gap-6">
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard')}
+              className="text-xs text-zinc-500 hover:text-zinc-300"
+            >
+              Leave &amp; resume later
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelWorkout}
+              disabled={isSubmitting}
+              className="text-xs text-zinc-600 hover:text-red-400 disabled:opacity-50"
+            >
+              Discard workout
             </button>
           </div>
 
