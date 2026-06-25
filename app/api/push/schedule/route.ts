@@ -23,7 +23,13 @@ export async function POST(req: NextRequest) {
       data: { restNonce: nonce, restFireAt: new Date(Date.now() + secs * 1000) },
     });
 
-    const result = await scheduleRestPush({ profileId: profile.id, nonce, delaySecs: secs });
+    // Derive the public origin from the request so QStash's callback URL is
+    // always correct, regardless of whether APP_URL is configured.
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const proto = req.headers.get('x-forwarded-proto') || 'https';
+    const appUrl = host ? `${proto}://${host}` : undefined;
+
+    const result = await scheduleRestPush({ profileId: profile.id, nonce, delaySecs: secs, appUrl });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error }, { status: 502 });
     }

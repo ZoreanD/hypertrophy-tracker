@@ -55,9 +55,10 @@ export async function scheduleRestPush(opts: {
   profileId: string;
   nonce: string;
   delaySecs: number;
+  appUrl?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const token = process.env.QSTASH_TOKEN;
-  const appUrl = process.env.APP_URL;
+  const appUrl = opts.appUrl || process.env.APP_URL;
   if (!token) return { ok: false, error: 'QSTASH_TOKEN not set' };
   if (!appUrl) return { ok: false, error: 'APP_URL not set' };
 
