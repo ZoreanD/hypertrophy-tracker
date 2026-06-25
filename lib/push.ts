@@ -73,8 +73,9 @@ export async function scheduleRestPush(opts: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         'Upstash-Delay': `${delay}s`,
-        // Collapse duplicate schedules for the same rest into one queued message.
-        'Upstash-Deduplication-Id': `${opts.profileId}:${opts.nonce}`,
+        // Collapse duplicate schedules into one queued message. Nonce is unique
+        // per rest; must not contain ':' (QStash rejects it).
+        'Upstash-Deduplication-Id': opts.nonce,
       },
       body: JSON.stringify({ profileId: opts.profileId, nonce: opts.nonce }),
     });
