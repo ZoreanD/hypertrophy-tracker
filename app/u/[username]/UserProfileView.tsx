@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { followUser, unfollowUser, cloneRoutine } from '../../actions/social';
+import { followUser, unfollowUser } from '../../actions/social';
 
 type Routine = {
   id: string;
@@ -27,7 +28,6 @@ export default function UserProfileView({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [following, setFollowing] = useState(profile.isFollowing);
   const [pending, startTransition] = useTransition();
-  const [busyRoutineId, setBusyRoutineId] = useState<string | null>(null);
 
   function toggleFollow() {
     const next = !following;
@@ -37,14 +37,6 @@ export default function UserProfileView({ profile }: { profile: Profile }) {
       if (!res.success) { setFollowing(!next); alert(res.error || 'Failed'); return; }
       router.refresh();
     });
-  }
-
-  async function trial(routineId: string, asTrial: boolean) {
-    setBusyRoutineId(routineId);
-    const res = await cloneRoutine(routineId, { asTrial });
-    setBusyRoutineId(null);
-    if (!res.success) { alert(res.error || 'Could not copy routine'); return; }
-    router.push('/routines');
   }
 
   return (
@@ -93,24 +85,16 @@ export default function UserProfileView({ profile }: { profile: Profile }) {
             </div>
 
             {profile.isMe ? (
-              <p className="mt-3 text-xs text-zinc-600">This is your routine.</p>
+              <Link href={`/shared/${r.id}`} className="mt-3 inline-block text-xs text-emerald-400 hover:text-emerald-300">
+                View →
+              </Link>
             ) : r.canOpen ? (
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => trial(r.id, true)}
-                  disabled={busyRoutineId === r.id}
-                  className="flex-1 rounded-md bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                >
-                  {busyRoutineId === r.id ? 'Adding…' : 'Trial this routine'}
-                </button>
-                <button
-                  onClick={() => trial(r.id, false)}
-                  disabled={busyRoutineId === r.id}
-                  className="rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:border-zinc-500 disabled:opacity-50"
-                >
-                  Save a copy
-                </button>
-              </div>
+              <Link
+                href={`/shared/${r.id}`}
+                className="mt-3 inline-block rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+              >
+                View numbers &amp; trial →
+              </Link>
             ) : (
               <p className="mt-3 text-xs text-yellow-500/80">Follow to access this routine.</p>
             )}

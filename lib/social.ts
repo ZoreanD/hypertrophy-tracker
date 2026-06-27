@@ -37,6 +37,48 @@ export async function canViewRoutine(
   return false; // PRIVATE
 }
 
+export type ExerciseNumber = {
+  weightLbs: number;
+  reps: number;
+  rir: number;
+  durationSeconds: number | null;
+};
+
+// The owner's most recent completed session on a routine, reduced to the best
+// set per exercise. This is what powers the "live" challenge numbers — it
+// reflects the latest finish automatically (no snapshot).
+export async function getRoutineLastNumbers(
+  ownerProfileId: string,
+  routineId: string
+): Promise<{ date: Date | null; byExercise: Record<string, ExerciseNumber> }> {
+  const last = await prisma.workout.findFirst({
+    where: { profileId: ownerProfileId, routineId, durationMins: { gt: 0 } },
+    orderBy: { date: 'desc' },
+    select: {
+      date: true,
+      sets: {
+        where: { isWarmup: false },
+        select: { exerciseId: true, weightLbs: true, reps: true, rir: true, durationSeconds: true },
+      },
+    },
+  });
+  if (!last) return { date: null, byExercise: {} };
+
+  const score = (s: { weightLbs: number; reps: number; durationSeconds: number | null }) =>
+    s.durationSeconds && s.durationSeconds > 0 ? s.durationSeconds : s.weightLbs * s.reps;
+
+  const byExercise: Record<string, ExerciseNumber> = {};
+  for (const s of last.sets) {
+    const cur = byExercise[s.exerciseId];
+    if (!cur || score(s) > score(cur)) {
+      byExercise[s.exerciseId] = {
+        weightLbs: s.weightLbs, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
+      };
+    }
+  }
+  return { date: last.date, byExercise };
+}
+
 // Can this viewer see the OWNER's lift numbers? Only your own, or a routine that
 // is shared (not private) belonging to someone you follow. Numbers surface only
 // in the Following section — never on a viewer's trial/owned copies.
