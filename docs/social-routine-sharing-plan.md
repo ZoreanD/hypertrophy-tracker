@@ -18,6 +18,13 @@ that routine. Optionally clone a shared routine into your own.
   it with all the normal machinery. After you complete a trial workout you're
   prompted "Save as your routine?" — saying yes clears the flag and it's fully
   yours. A full clone is always structure-only (their numbers stripped).
+- **Your trial numbers carry over (critical).** A trial *is* your routine from
+  the start, so the workouts/sets you log while trialing attach to that routine
+  id under your profile. "Save" only flips `isTrial` — the routine id is stable,
+  so everything you logged during the trial stays attached and follows you. The
+  ONLY data excluded is the sharer's numbers, which never enter your copy (they
+  live on the sharer's side and are read live only in the Following section).
+  This rules out a "clone-only-at-save" design, which would orphan trial logs.
 - **"Live" is free.** The owner's numbers are read live from their most recent
   *completed* workout (`durationMins > 0`) on that routine, so they update the
   moment the owner finishes. No materialized snapshot to keep in sync.
