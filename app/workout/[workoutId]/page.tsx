@@ -78,6 +78,7 @@ export default async function LiveWorkoutPage({
             durationMins: workout.durationMins,
             summaryJson: workout.summaryJson ?? null,
           }}
+          trialRoutineId={workout.routine?.isTrial ? workout.routineId : null}
           plannedExercises={(workout.routine?.exercises ?? []).map((re) => ({
             exerciseId: re.exerciseId,
             exerciseName: re.exercise.name,

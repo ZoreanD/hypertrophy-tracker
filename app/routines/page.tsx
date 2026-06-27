@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import SaveTrialButton from './SaveTrialButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,13 +78,21 @@ export default async function RoutinesPage() {
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <h2 className="text-lg font-bold text-white">{routine.name}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-bold text-white">{routine.name}</h2>
+                      {routine.isTrial && (
+                        <span className="rounded-full bg-yellow-900/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-yellow-400">
+                          Trial
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-zinc-400">{routine.focus}</p>
                     {routine.notes && (
                       <p className="mt-1 text-xs text-zinc-500">{routine.notes}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    {routine.isTrial && <SaveTrialButton routineId={routine.id} />}
                     <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-300">
                       {routine.exercises.length} exercises
                     </span>

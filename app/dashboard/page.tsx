@@ -265,6 +265,9 @@ const todayWorkouts = await prisma.workout.findMany({
               <Link href="/calendar" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
                 Calendar
               </Link>
+              <Link href="/following" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                Following
+              </Link>
               <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
                 + Log
               </Link>

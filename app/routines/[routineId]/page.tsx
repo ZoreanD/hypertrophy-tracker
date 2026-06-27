@@ -4,6 +4,7 @@ import { verifyToken } from '../../../lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import RoutineBuilder from '../new/RoutineBuilder';
+import RoutineShareControl from './RoutineShareControl';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,7 @@ export default async function EditRoutinePage({
             Changes apply to future workouts only. Past sessions are unchanged.
           </p>
         </header>
+        <RoutineShareControl routineId={routine.id} initialVisibility={routine.visibility} />
         <RoutineBuilder
           exercises={exercises}
           editMode={{

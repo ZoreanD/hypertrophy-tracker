@@ -1,7 +1,9 @@
 'use client';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
+import { saveTrialAsRoutine } from '../../actions/social';
 
 type LoggedSet = {
   id: string;
@@ -50,15 +52,45 @@ export default function CompletedWorkout({
   workout,
   plannedExercises,
   loggedSets,
+  trialRoutineId = null,
 }: {
   workout: { id: string; routineId: string | null; focus: string; date: string; durationMins: number; summaryJson: any };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
+  trialRoutineId?: string | null;
 }) {
   const router = useRouter();
   const workingSets = loggedSets.filter((s) => !s.isWarmup);
   const totalSets = workingSets.length;
   const summary = workout.summaryJson as Summary | null;
+
+  // Trial routine → offer to keep it. The sets just logged stay attached.
+  const [savedTrial, setSavedTrial] = useState(false);
+  const [savingTrial, startSaveTrial] = useTransition();
+  const trialBanner = trialRoutineId && !savedTrial ? (
+    <div className="rounded-xl border border-emerald-800 bg-emerald-950/30 p-4">
+      <p className="font-semibold text-emerald-300">Keep this routine?</p>
+      <p className="mt-1 text-sm text-emerald-200/70">
+        You trialed this routine. Save it as your own — everything you logged stays with it.
+      </p>
+      <button
+        onClick={() => startSaveTrial(async () => {
+          const res = await saveTrialAsRoutine(trialRoutineId);
+          if (!res.success) { alert(res.error || 'Failed to save'); return; }
+          setSavedTrial(true);
+          router.refresh();
+        })}
+        disabled={savingTrial}
+        className="mt-3 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+      >
+        {savingTrial ? 'Saving…' : 'Save as my routine'}
+      </button>
+    </div>
+  ) : trialRoutineId && savedTrial ? (
+    <div className="rounded-xl border border-emerald-800 bg-emerald-950/30 p-4">
+      <p className="text-sm font-medium text-emerald-300">✓ Saved to your routines.</p>
+    </div>
+  ) : null;
 
   const header = (
     <header className="border-b border-zinc-800 pb-6">
@@ -91,6 +123,7 @@ export default function CompletedWorkout({
     return (
       <div className="mx-auto max-w-2xl space-y-8 p-6 md:p-12">
         {header}
+        {trialBanner}
 
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
           <p className={`text-xl font-bold ${gradeColor}`}>{grade}</p>
@@ -208,6 +241,7 @@ export default function CompletedWorkout({
   return (
     <div className="mx-auto max-w-2xl space-y-8 p-6 md:p-12">
       {header}
+      {trialBanner}
       <div className="space-y-4">
         {plannedExercises.map((ex) => {
           const sets = workingSets.filter((s) => s.exerciseId === ex.exerciseId);
