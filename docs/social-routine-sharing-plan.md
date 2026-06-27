@@ -9,10 +9,15 @@ that routine. Optionally clone a shared routine into your own.
 - **Identity = `Profile`.** All social edges hang off `Profile` (where the data
   lives). `User` keeps auth + unique `username`; we'll likely add a
   `displayName`/avatar to `Profile` later for nicer presentation.
-- **Sharing is the precondition; subscribing is the consent.** An owner marks a
-  routine shareable. A viewer then explicitly opts in ("Do you want to see
-  <owner>'s numbers and get an update every time they complete this routine?").
-  Until they opt in, they see structure only — never the owner's numbers.
+- **Following (open, required) gates the numbers.** Following is one-way and
+  needs no approval. You only ever see another user's lift numbers in the
+  **Following** section, viewing *their* routine. Numbers never appear on your
+  own copies (trial or saved).
+- **Trial vs. own routine.** "Trialing" a followed routine creates a flagged
+  clone (`isTrial = true`, numbers never copied) so you can schedule and train
+  it with all the normal machinery. After you complete a trial workout you're
+  prompted "Save as your routine?" — saying yes clears the flag and it's fully
+  yours. A full clone is always structure-only (their numbers stripped).
 - **"Live" is free.** The owner's numbers are read live from their most recent
   *completed* workout (`durationMins > 0`) on that routine, so they update the
   moment the owner finishes. No materialized snapshot to keep in sync.
@@ -34,11 +39,14 @@ model Follow {
   @@index([followingId])
 }
 
-// Routine visibility + share link + clone attribution (added to Routine).
+// Routine visibility + clone attribution + trial flag (added to Routine).
 enum RoutineVisibility { PRIVATE FOLLOWERS LINK }   // default PRIVATE
 // Routine += visibility RoutineVisibility @default(PRIVATE)
 //          shareToken String? @unique
 //          clonedFromRoutineId String?   (+ self relation for "based on …")
+//          isTrial Boolean @default(false)   // a flagged clone being test-driven
+// A trial is a normal owned Routine with isTrial=true; "Save as my routine"
+// just sets isTrial=false. Numbers are never copied into a clone or trial.
 
 // Receiver-side opt-in: I want <owner>'s numbers + live updates for THIS routine.
 model RoutineSubscription {
@@ -58,8 +66,11 @@ model RoutineSubscription {
 
 A viewer may **see a routine** if any of: they own it; `visibility = LINK` and
 they have the token; `visibility = FOLLOWERS` and they follow the owner.
-A viewer may **see the owner's numbers** only if they additionally have an
-active `RoutineSubscription`. Every shared read goes through one
+A viewer may **see the owner's numbers** only in the Following section, which
+requires that they **follow** the owner (and the routine is shared). Numbers are
+read live and shown only there — never on the viewer's trial/owned copies.
+`RoutineSubscription` is reused purely for the optional "notify me when they
+complete this routine" live update. Every shared read goes through one
 `canViewRoutine(profileId, routine)` / `canViewNumbers(...)` helper — no
 ad-hoc checks in pages.
 
@@ -67,17 +78,27 @@ ad-hoc checks in pages.
 
 1. **Share:** owner sets a routine's visibility (FOLLOWERS or LINK); LINK mints
    a `shareToken` → `/r/<token>`.
-2. **Discover:** search users by username → profile page → Follow. Profile page
-   lists that user's shared routines.
-3. **View shared routine:** structure always; if subscribed, each exercise shows
-   the owner's latest `weight × reps @ RIR` (dated) next to your own targets —
-   the challenge line.
-4. **Opt in:** "See <owner>'s numbers + get updates" → creates
-   `RoutineSubscription`.
-5. **Save:** deep-copy into the viewer's routines (records `clonedFromRoutineId`).
-6. **Live update:** when the owner finishes a workout on a shared routine, push
-   to all subscribers via the existing Web Push pipeline ("Alex finished Push
-   Day — see their numbers"). Immediate send (no QStash delay needed).
+2. **Discover + follow:** search users by username → profile page → Follow (open,
+   no approval).
+3. **Following section (dashboard):** people you follow → their shared routines,
+   each showing the owner's latest `weight × reps @ RIR` per exercise (dated),
+   live. This is the *only* place their numbers appear.
+4. **Trial:** from a followed routine, "Trial this" creates a flagged clone
+   (`isTrial = true`, `clonedFromRoutineId` set, no numbers) in your account and
+   lets you schedule it to your calendar like any routine. Your trial workouts
+   show *your* numbers only.
+5. **Save-after-completion:** when you finish a workout on a trial routine, prompt
+   "Save as your routine?" → sets `isTrial = false`. It's now fully yours; the
+   owner's numbers were never in it.
+6. **Live update (optional per routine):** toggle "notify me when <owner>
+   completes this" → `RoutineSubscription`. On the owner's finish, push to
+   subscribers via the existing Web Push pipeline ("Alex finished Push Day").
+   Immediate send (no QStash delay needed).
+
+### Dashboard sections
+- **Your routines** — owned, `isTrial = false`.
+- **Trialing** — `isTrial = true`; test-drives with a "Save as my routine" path.
+- **Following** — followed users + their shared routines with live numbers.
 
 ## Reuse
 
@@ -101,12 +122,17 @@ ad-hoc checks in pages.
 - **Phase 4 — Polish:** clone attribution UI, subscription/follow management,
   privacy controls (stop sharing, remove follower, block), `Profile.displayName`.
 
-## Open questions to resolve before Phase 1
+## Resolved decisions
 
-- Can you subscribe to a routine's updates via link **without** following the
-  person, or is following a prerequisite? (Leaning: link can grant view +
-  subscribe without a follow; follow is for discovery.)
-- Do owners need to approve followers (private accounts), or is following open?
-- Should a cloned routine keep showing the original owner's numbers, or does it
-  become fully your own (no link back)? (Leaning: clone is yours; the *original*
-  shared routine is where you watch their numbers.)
+- **Following is required** to see numbers, and following is **open** (no
+  approval).
+- A **clone/trial becomes fully yours**; numbers are stripped (never copied).
+  You only watch the owner's numbers on *their* routine in the Following section.
+- **Trial = flagged clone** (`isTrial`), promoted to a real routine via the
+  post-completion "Save as your routine?" prompt.
+
+## Phasing note
+
+Phase 1 now includes the Follow graph + Following section + Trial flow (since
+trialing is how you engage a followed routine). Numbers (Phase 2) light up the
+Following section. Live-update push is Phase 3.
