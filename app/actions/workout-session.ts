@@ -578,6 +578,35 @@ export async function finishWorkout(workoutId: string, durationMins: number, rem
       },
     });
 
+    // Live updates: notify followers who subscribed to this routine. Best-effort
+    // — never let a push failure break finishing the workout.
+    try {
+      if (workout.routineId) {
+        const subs = await prisma.routineSubscription.findMany({
+          where: { routineId: workout.routineId, notifyOnComplete: true },
+          select: { subscriberId: true },
+        });
+        if (subs.length > 0) {
+          const owner = await prisma.user.findUnique({
+            where: { id: profile.userId },
+            select: { username: true },
+          });
+          const routineName = workout.routine?.name ?? workout.focus;
+          const { sendPushToProfile } = await import('../../lib/push');
+          await Promise.all(
+            subs.map((s) =>
+              sendPushToProfile(s.subscriberId, {
+                title: `@${owner?.username ?? 'A lifter'} finished ${routineName}`,
+                body: 'See their latest numbers.',
+              })
+            )
+          );
+        }
+      }
+    } catch (notifyErr) {
+      console.error('Subscriber notify failed:', notifyErr);
+    }
+
     const { revalidatePath: revalidate } = await import('next/cache');
     revalidate('/dashboard');
     revalidate('/calendar');

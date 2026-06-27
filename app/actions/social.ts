@@ -4,7 +4,7 @@ import prisma from '../../lib/prisma';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { getProfileFromCookie } from '../../lib/session';
-import { isFollowing, canViewRoutine } from '../../lib/social';
+import { isFollowing, canViewRoutine, canViewNumbers } from '../../lib/social';
 
 // ── Follow graph ─────────────────────────────────────────────────────────────
 
@@ -142,6 +142,36 @@ export async function setRoutineVisibility(
   });
   revalidatePath('/routines');
   return { success: true, shareToken: visibility === 'LINK' ? shareToken : null };
+}
+
+// ── Live-update subscription ─────────────────────────────────────────────────
+
+// Follower opt-in: notify me each time the owner completes this routine.
+// Requires following the owner (canViewNumbers).
+export async function setRoutineSubscription(routineId: string, subscribed: boolean) {
+  const me = await getProfileFromCookie();
+  if (!me) return { success: false, error: 'Not authenticated' };
+
+  const routine = await prisma.routine.findUnique({
+    where: { id: routineId },
+    select: { profileId: true, visibility: true, shareToken: true },
+  });
+  if (!routine) return { success: false, error: 'Routine not found' };
+  if (routine.profileId === me.id) return { success: false, error: "Can't subscribe to your own routine" };
+
+  const allowed = await canViewNumbers(me.id, routine);
+  if (!allowed) return { success: false, error: 'Follow first' };
+
+  if (subscribed) {
+    await prisma.routineSubscription.upsert({
+      where: { subscriberId_routineId: { subscriberId: me.id, routineId } },
+      update: { notifyOnComplete: true },
+      create: { subscriberId: me.id, routineId, notifyOnComplete: true },
+    });
+  } else {
+    await prisma.routineSubscription.deleteMany({ where: { subscriberId: me.id, routineId } });
+  }
+  return { success: true };
 }
 
 // ── Clone / trial / save ─────────────────────────────────────────────────────

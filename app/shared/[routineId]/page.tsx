@@ -4,6 +4,7 @@ import prisma from '../../../lib/prisma';
 import { getProfileFromCookie } from '../../../lib/session';
 import { canViewRoutine, canViewNumbers, getRoutineLastNumbers } from '../../../lib/social';
 import SharedRoutineActions from './SharedRoutineActions';
+import SubscribeToggle from './SubscribeToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,13 @@ export default async function SharedRoutinePage({
   const numbers = showNumbers ? await getRoutineLastNumbers(routine.profileId, routine.id) : null;
   const username = routine.profile.user.username;
 
+  const subscribed = !isMe && showNumbers
+    ? !!(await prisma.routineSubscription.findUnique({
+        where: { subscriberId_routineId: { subscriberId: me.id, routineId: routine.id } },
+        select: { id: true },
+      }))
+    : false;
+
   const dateLabel = numbers?.date
     ? new Date(numbers.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null;
@@ -82,6 +90,9 @@ export default async function SharedRoutinePage({
         </header>
 
         {!isMe && <SharedRoutineActions routineId={routine.id} />}
+        {!isMe && showNumbers && (
+          <SubscribeToggle routineId={routine.id} username={username} initialSubscribed={subscribed} />
+        )}
 
         <section className="space-y-3">
           {routine.exercises.map((re) => {
