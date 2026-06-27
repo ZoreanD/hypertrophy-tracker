@@ -43,6 +43,40 @@ model Profile {
   routines          Routine[]
   scheduledWorkouts ScheduledWorkout[]
   pushSubscriptions PushSubscription[]
+
+  // Social graph (Strava-style, one-way, open)
+  following            Follow[]              @relation("Following")  // rows where I am the follower
+  followers            Follow[]              @relation("Followers")  // rows where I am being followed
+  routineSubscriptions RoutineSubscription[]                         // routines I track for live updates
+}
+
+// One-way follow edge. follower -> following.
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  Profile @relation("Following", fields: [followerId],  references: [id], onDelete: Cascade)
+  following Profile @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+// Receiver opt-in to be notified when the owner completes a shared routine.
+model RoutineSubscription {
+  id               String   @id @default(uuid())
+  subscriberId     String
+  routineId        String
+  notifyOnComplete Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  subscriber Profile @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  routine    Routine @relation(fields: [routineId],    references: [id], onDelete: Cascade)
+
+  @@unique([subscriberId, routineId])
+  @@index([routineId])
 }
 
 model PushSubscription {
@@ -222,6 +256,12 @@ model Exercise {
 // ROUTINE PLANNING
 // -----------------------------------------------------------------------------
 
+enum RoutineVisibility {
+  PRIVATE
+  FOLLOWERS
+  LINK
+}
+
 model Routine {
   id        String   @id @default(uuid())
   profileId String
@@ -232,10 +272,20 @@ model Routine {
   createdAt        DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Sharing / social
+  visibility          RoutineVisibility @default(PRIVATE)
+  shareToken          String?           @unique   // for LINK visibility
+  isTrial             Boolean           @default(false)  // a flagged clone being test-driven
+  clonedFromRoutineId String?           // attribution; "based on <owner>'s routine"
+
   profile           Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
   exercises         RoutineExercise[]
   workouts          Workout[]
   scheduledWorkouts ScheduledWorkout[]
+  subscriptions     RoutineSubscription[]
+
+  clonedFrom Routine?  @relation("RoutineClones", fields: [clonedFromRoutineId], references: [id], onDelete: SetNull)
+  clones     Routine[] @relation("RoutineClones")
 }
 
 model RoutineExercise {
