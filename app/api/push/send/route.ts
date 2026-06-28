@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     await sendPushToProfile(profileId, {
       title: 'Rest complete',
       body: pickRestMessage(),
-    });
+    }, { ttlSecs: 180 }); // rest nudge is stale fast — don't deliver late
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -22,20 +22,32 @@ export type RestPushPayload = {
 
 // Send a notification to every device subscribed for this profile. Dead
 // subscriptions (410 Gone / 404) are pruned so they don't pile up.
-export async function sendPushToProfile(profileId: string, payload: RestPushPayload): Promise<void> {
+// urgency 'high' tells the push service to wake the device immediately even in
+// Android Doze (otherwise normal-priority pushes are deferred until the user
+// next unlocks/opens an app). ttlSecs caps how long it's worth delivering.
+export async function sendPushToProfile(
+  profileId: string,
+  payload: RestPushPayload,
+  options?: { urgency?: 'very-low' | 'low' | 'normal' | 'high'; ttlSecs?: number }
+): Promise<void> {
   if (!ensureConfigured()) {
     console.warn('[push] VAPID keys missing — cannot send push');
     return;
   }
   const subs = await prisma.pushSubscription.findMany({ where: { profileId } });
   const body = JSON.stringify(payload);
+  const sendOpts = {
+    urgency: options?.urgency ?? 'high',
+    TTL: options?.ttlSecs ?? 3600,
+  };
 
   await Promise.all(
     subs.map(async (sub) => {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          body
+          body,
+          sendOpts
         );
       } catch (err: any) {
         const status = err?.statusCode;
