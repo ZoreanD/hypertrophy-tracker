@@ -5,15 +5,21 @@ import { hashPassword, verifyPassword, signToken, verifyToken } from '../../lib/
 import { cookies } from 'next/headers';
 
 export async function registerUser(formData: FormData) {
-  const username = formData.get('username') as string;
+  const username = ((formData.get('username') as string) ?? '').trim();
   const password = formData.get('password') as string;
 
   if (!username || !password || password.length < 6) {
     return { error: 'Username and a password of at least 6 characters are required.' };
   }
+  if (username.length < 3 || username.length > 20) {
+    return { error: 'Username must be 3–20 characters.' };
+  }
 
   try {
-    const existingUser = await prisma.user.findUnique({ where: { username } });
+    // Case-insensitive uniqueness so "Zorean" and "zorean" can't both exist.
+    const existingUser = await prisma.user.findFirst({
+      where: { username: { equals: username, mode: 'insensitive' } },
+    });
     if (existingUser) {
       return { error: 'Username is already taken.' };
     }
@@ -34,7 +40,11 @@ export async function registerUser(formData: FormData) {
 
     // Brand new users always go to setup
     return { success: true, redirectTo: '/setup' };
-  } catch (error) {
+  } catch (error: any) {
+    // Unique-constraint violation (e.g. a race between the check and create).
+    if (error?.code === 'P2002') {
+      return { error: 'Username is already taken.' };
+    }
     console.error('Registration error:', error);
     return { error: 'An unexpected error occurred while creating your account.' };
   }
@@ -49,7 +59,10 @@ export async function loginUser(formData: FormData) {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { username } });
+    // Case-insensitive so login matches regardless of how they typed their name.
+    const user = await prisma.user.findFirst({
+      where: { username: { equals: username.trim(), mode: 'insensitive' } },
+    });
     if (!user) return { error: 'Invalid username or password.' };
 
     const isValid = await verifyPassword(password, user.passwordHash);
