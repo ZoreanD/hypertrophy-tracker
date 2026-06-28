@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 
-type ThemeId = 'default' | 'ffxiv-dark' | 'ffxiv-blue' | 'ffxiv-light';
+type ThemeId = 'default' | 'ffxiv-dark' | 'ffxiv-blue' | 'ffxiv-light' | 'ffxiv-white';
 
 const THEMES: { id: ThemeId; label: string; swatch: [string, string, string] }[] = [
   { id: 'default',     label: 'Default',    swatch: ['#09090b', '#27272a', '#34d399'] },
   { id: 'ffxiv-dark',  label: 'Charcoal',   swatch: ['#14110c', '#2c2519', '#e0b35c'] },
   { id: 'ffxiv-blue',  label: 'Slate Blue', swatch: ['#0a1622', '#1b3551', '#e0b35c'] },
   { id: 'ffxiv-light', label: 'Parchment',  swatch: ['#f4ecd8', '#ddcaa3', '#8a5e22'] },
+  { id: 'ffxiv-white', label: 'White',      swatch: ['#f5f6f8', '#d8dce1', '#dc2626'] },
 ];
 
 function applyTheme(id: ThemeId) {

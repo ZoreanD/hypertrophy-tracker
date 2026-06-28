@@ -38,6 +38,13 @@
   --c-emerald-800: #065f46;
   --c-emerald-900: #064e3b;
   --c-emerald-950: #022c22;
+
+  /* Status colors — only the foreground shades are themed (overridden in light
+     themes for contrast); defaults are Tailwind's exact values. */
+  --c-red-300: #fca5a5;    --c-red-400: #f87171;    --c-red-500: #ef4444;
+  --c-yellow-300: #fde047; --c-yellow-400: #facc15; --c-yellow-500: #eab308;
+  --c-orange-300: #fdba74; --c-orange-400: #fb923c; --c-orange-500: #f97316;
+  --c-blue-300: #93c5fd;   --c-blue-400: #60a5fa;   --c-blue-500: #3b82f6;
 }
 
 /* ── FFXIV Dark — warm charcoal + gold ─────────────────────────────────────── */
@@ -133,6 +140,48 @@
   --c-emerald-950: #fbf3df;
 }
 
+/* ── FFXIV White — cool neutral silver, light theme ────────────────────────── */
+[data-theme="ffxiv-white"] {
+  color-scheme: light;
+
+  --c-white: #1c2026;   /* primary text becomes dark */
+
+  --c-zinc-50:  #0f1216;
+  --c-zinc-100: #1c2026;
+  --c-zinc-200: #2b3036;
+  --c-zinc-300: #3d444d;
+  --c-zinc-400: #545c67;
+  --c-zinc-500: #6b7480;
+  --c-zinc-600: #9aa2ad;
+  --c-zinc-700: #c2c8d0;
+  --c-zinc-800: #d8dce1;
+  --c-zinc-900: #eceef1;
+  --c-zinc-950: #f5f6f8;
+
+  --c-emerald-50:  #2a1f0b;
+  --c-emerald-100: #4a3714;
+  --c-emerald-200: #6f521f;
+  --c-emerald-300: #946f2e;
+  --c-emerald-400: #9a6f15;   /* accent text — readable on light silver */
+  --c-emerald-500: #a9772e;
+  --c-emerald-600: #8a5e22;   /* accent button bg */
+  --c-emerald-700: #6f4c1c;
+  --c-emerald-800: #ecca85;
+  --c-emerald-900: #f6e7bf;
+  --c-emerald-950: #fbf3df;
+}
+
+/* Light-theme contrast pass — darken status text so it reads on a light bg.
+   Red stays vivid (high contrast + pops on white, by request). Applies to both
+   light themes. */
+[data-theme="ffxiv-light"],
+[data-theme="ffxiv-white"] {
+  --c-red-300: #ef4444;    --c-red-400: #dc2626;    --c-red-500: #b91c1c;
+  --c-yellow-300: #ca8a04; --c-yellow-400: #a16207; --c-yellow-500: #854d0e;
+  --c-orange-300: #ea580c; --c-orange-400: #c2410c; --c-orange-500: #9a3412;
+  --c-blue-300: #3b82f6;   --c-blue-400: #2563eb;   --c-blue-500: #1d4ed8;
+}
+
 /* Map Tailwind's palette to the themeable variables. `inline` makes utilities
    emit `var(--c-…)` directly, so [data-theme] overrides cascade normally. */
 @theme inline {
@@ -161,6 +210,19 @@
   --color-emerald-800: var(--c-emerald-800);
   --color-emerald-900: var(--c-emerald-900);
   --color-emerald-950: var(--c-emerald-950);
+
+  --color-red-300: var(--c-red-300);
+  --color-red-400: var(--c-red-400);
+  --color-red-500: var(--c-red-500);
+  --color-yellow-300: var(--c-yellow-300);
+  --color-yellow-400: var(--c-yellow-400);
+  --color-yellow-500: var(--c-yellow-500);
+  --color-orange-300: var(--c-orange-300);
+  --color-orange-400: var(--c-orange-400);
+  --color-orange-500: var(--c-orange-500);
+  --color-blue-300: var(--c-blue-300);
+  --color-blue-400: var(--c-blue-400);
+  --color-blue-500: var(--c-blue-500);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -221,4 +283,22 @@ body, body * {
 [data-theme="ffxiv-light"] body {
   background-image: radial-gradient(120% 80% at 50% 0%, rgba(138, 94, 34, 0.06), transparent 60%);
   background-attachment: fixed;
+}
+[data-theme="ffxiv-white"] body {
+  background-image: radial-gradient(120% 80% at 50% 0%, rgba(80, 90, 110, 0.06), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Light themes flip `text-white` to dark for body copy, but solid dark-colored
+   buttons still need light text. Force it back on those (not yellow — dark text
+   reads better on amber). */
+[data-theme="ffxiv-light"] [class*="bg-emerald-600"],
+[data-theme="ffxiv-white"] [class*="bg-emerald-600"],
+[data-theme="ffxiv-light"] [class*="bg-red-600"],
+[data-theme="ffxiv-white"] [class*="bg-red-600"],
+[data-theme="ffxiv-light"] [class*="bg-red-500"],
+[data-theme="ffxiv-white"] [class*="bg-red-500"],
+[data-theme="ffxiv-light"] [class*="bg-orange-700"],
+[data-theme="ffxiv-white"] [class*="bg-orange-700"] {
+  color: #fafafa;
 }
