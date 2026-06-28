@@ -256,8 +256,8 @@ const todayWorkouts = await prisma.workout.findMany({
               })}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Link href="/settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-                Settings
+              <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
+                + Log
               </Link>
               <Link href="/routines" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
                 Routines
@@ -268,11 +268,11 @@ const todayWorkouts = await prisma.workout.findMany({
               <Link href="/following" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
                 Following
               </Link>
-              <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
-                + Log
-              </Link>
               <Link href="/history" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
                 History
+              </Link>
+              <Link href="/settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                Settings
               </Link>
               <LogoutButton />
             </div>
