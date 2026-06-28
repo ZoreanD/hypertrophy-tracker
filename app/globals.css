@@ -182,9 +182,13 @@ body, body * {
    needed.
    ──────────────────────────────────────────────────────────────────────────── */
 
-/* Elegant serif headings (FFXIV menu feel). */
+/* Engraved-caps display serif for titles (FFXIV menu feel). */
 [data-theme^="ffxiv"] h1,
-[data-theme^="ffxiv"] h2,
+[data-theme^="ffxiv"] h2 {
+  font-family: var(--font-cinzel), Palatino, "Palatino Linotype", Georgia, serif;
+  letter-spacing: 0.02em;
+}
+/* Smaller subheadings keep a readable book serif (Cinzel is caps-only). */
 [data-theme^="ffxiv"] h3 {
   font-family: Palatino, "Palatino Linotype", "Iowan Old Style", Georgia, serif;
   letter-spacing: 0.01em;

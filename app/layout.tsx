@@ -1,5 +1,15 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { Cinzel } from 'next/font/google';
+
+// FFXIV-style engraved-caps display serif for headings (used only by the
+// ffxiv-* themes; exposed as a CSS variable).
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  weight: ['400', '600', '700'],
+  variable: '--font-cinzel',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -31,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={cinzel.variable}>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
