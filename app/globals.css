@@ -354,3 +354,28 @@ body, body * {
   align-items: center;
   justify-content: center;
 }
+
+/* Ornate framed icon plates — only in icon mode + an ffxiv theme. Thick gold
+   border, inset bevel, and a subtle well so each reads as an FFXIV icon. */
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav a,
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav button {
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--c-emerald-400) 60%, var(--c-zinc-600));
+  background-image: linear-gradient(to bottom,
+    color-mix(in srgb, var(--c-white) 14%, transparent),
+    rgba(0, 0, 0, 0.2));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--c-emerald-400) 28%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--c-white) 24%, transparent),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.28),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+}
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav a:hover,
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav button:hover {
+  border-color: var(--c-emerald-400);
+}
+/* Tint the icon gold to match the frame (accent button keeps its own text). */
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav a:not([class*="bg-emerald-600"]) .nav-ico,
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav button:not([class*="bg-emerald-600"]) .nav-ico {
+  color: var(--c-emerald-400);
+}

@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { logoutUser } from '../actions/auth';
+import NavIcon from '../components/NavIcon';
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function LogoutButton() {
       title="Log out"
       className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-red-800 hover:text-red-400"
     >
-      <span className="nav-ico" aria-hidden>🚪</span><span className="nav-label">Log Out</span>
+      <span className="nav-ico" aria-hidden><NavIcon name="logout" /></span><span className="nav-label">Log Out</span>
     </button>
   );
 }
