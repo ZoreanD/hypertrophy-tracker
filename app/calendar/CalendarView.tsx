@@ -35,6 +35,15 @@ const FOCUS_COLORS: Record<string, string> = {
   Cardio: 'bg-rose-900/60 text-rose-300 border-rose-700',
 };
 
+// Base hue per focus (exposed as --chip on the chip). The dark themes use the
+// Tailwind classes above unchanged; light themes recolor from this hue (see
+// globals.css .cal-chip) so chips stay readable on a light background.
+const FOCUS_HUE: Record<string, string> = {
+  Push: '#3b82f6', Pull: '#a855f7', Legs: '#22c55e', Upper: '#06b6d4',
+  Lower: '#14b8a6', Fullbody: '#eab308', Chest: '#ef4444', Back: '#6366f1',
+  Shoulders: '#f97316', Arms: '#ec4899', Core: '#84cc16', Cardio: '#f43f5e',
+};
+
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -191,7 +200,8 @@ export default function CalendarView({
                 {items.slice(0, 2).map((item) => (
                   <div
                     key={item.id}
-                    className={`truncate rounded border px-1 py-0.5 text-xs ${
+                    style={{ '--chip': FOCUS_HUE[item.routineFocus] ?? '#71717a' } as React.CSSProperties}
+                    className={`cal-chip truncate rounded border px-1 py-0.5 text-xs ${
                       FOCUS_COLORS[item.routineFocus] ?? 'bg-zinc-800 text-zinc-300 border-zinc-700'
                     }`}
                   >

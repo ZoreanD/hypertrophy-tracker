@@ -158,17 +158,19 @@
   --c-zinc-900: #eceef1;
   --c-zinc-950: #f5f6f8;
 
-  --c-emerald-50:  #2a1f0b;
-  --c-emerald-100: #4a3714;
-  --c-emerald-200: #6f521f;
-  --c-emerald-300: #946f2e;
-  --c-emerald-400: #9a6f15;   /* accent text — readable on light silver */
-  --c-emerald-500: #a9772e;
-  --c-emerald-600: #8a5e22;   /* accent button bg */
-  --c-emerald-700: #6f4c1c;
-  --c-emerald-800: #ecca85;
-  --c-emerald-900: #f6e7bf;
-  --c-emerald-950: #fbf3df;
+  /* FF14-style burnt orange/red accent (instead of brown). Stays distinct from
+     the pure red used for "over-MRV"/destructive. */
+  --c-emerald-50:  #2a1405;
+  --c-emerald-100: #4a2410;
+  --c-emerald-200: #6f3518;
+  --c-emerald-300: #9a4a1c;   /* accent text on faint banners */
+  --c-emerald-400: #b45309;   /* accent text / MAV — dark enough on silver */
+  --c-emerald-500: #c2410c;   /* bars / markers */
+  --c-emerald-600: #c2410c;   /* accent button bg (burnt orange) */
+  --c-emerald-700: #9a3412;
+  --c-emerald-800: #f8d9bf;
+  --c-emerald-900: #fce7d6;
+  --c-emerald-950: #fff4ea;
 }
 
 /* Light-theme contrast pass — darken status text so it reads on a light bg.
@@ -301,4 +303,14 @@ body, body * {
 [data-theme="ffxiv-light"] [class*="bg-orange-700"],
 [data-theme="ffxiv-white"] [class*="bg-orange-700"] {
   color: #fafafa;
+}
+
+/* Calendar focus chips: dark themes keep their Tailwind classes; light themes
+   recolor from the chip's --chip hue so they stay readable on a light bg
+   (darkened hue text on a pale tint of the same hue). */
+[data-theme="ffxiv-light"] .cal-chip,
+[data-theme="ffxiv-white"] .cal-chip {
+  background-color: color-mix(in srgb, var(--chip) 18%, transparent);
+  border-color: color-mix(in srgb, var(--chip) 45%, transparent);
+  color: color-mix(in srgb, var(--chip) 72%, #000);
 }
