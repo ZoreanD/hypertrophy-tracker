@@ -31,6 +31,17 @@ export default async function RoutinesPage() {
     orderBy: { createdAt: 'desc' },
   });
 
+  // Resolve "based on @owner" attribution for cloned/trialed routines.
+  const sourceIds = [...new Set(routines.map((r) => r.clonedFromRoutineId).filter(Boolean))] as string[];
+  const sources = sourceIds.length
+    ? await prisma.routine.findMany({
+        where: { id: { in: sourceIds } },
+        select: { id: true, profile: { select: { user: { select: { username: true } } } } },
+      })
+    : [];
+  const sourceOwner: Record<string, string> = {};
+  for (const s of sources) sourceOwner[s.id] = s.profile.user.username;
+
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
@@ -87,6 +98,14 @@ export default async function RoutinesPage() {
                       )}
                     </div>
                     <p className="text-sm text-zinc-400">{routine.focus}</p>
+                    {routine.clonedFromRoutineId && sourceOwner[routine.clonedFromRoutineId] && (
+                      <Link
+                        href={`/shared/${routine.clonedFromRoutineId}`}
+                        className="mt-1 inline-block text-xs text-zinc-500 hover:text-emerald-400"
+                      >
+                        based on @{sourceOwner[routine.clonedFromRoutineId]}'s routine
+                      </Link>
+                    )}
                     {routine.notes && (
                       <p className="mt-1 text-xs text-zinc-500">{routine.notes}</p>
                     )}

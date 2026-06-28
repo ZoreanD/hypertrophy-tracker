@@ -63,7 +63,7 @@ export default async function EditRoutinePage({
             Changes apply to future workouts only. Past sessions are unchanged.
           </p>
         </header>
-        <RoutineShareControl routineId={routine.id} initialVisibility={routine.visibility} />
+        <RoutineShareControl routineId={routine.id} initialVisibility={routine.visibility} initialShareToken={routine.shareToken} />
         <RoutineBuilder
           exercises={exercises}
           editMode={{

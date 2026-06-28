@@ -16,7 +16,15 @@ export default function FollowingHub({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserHit[]>([]);
   const [searching, setSearching] = useState(false);
+  const [followingList, setFollowingList] = useState(following);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function unfollow(profileId: string) {
+    setFollowingList((prev) => prev.filter((u) => u.profileId !== profileId));
+    const res = await unfollowUser(profileId);
+    if (!res.success) { alert(res.error || 'Failed'); router.refresh(); return; }
+    router.refresh();
+  }
 
   function onChange(value: string) {
     setQuery(value);
@@ -80,19 +88,22 @@ export default function FollowingHub({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">People you follow</h2>
-        {following.length === 0 ? (
+        {followingList.length === 0 ? (
           <p className="text-sm text-zinc-500">You're not following anyone yet. Search above to get started.</p>
         ) : (
           <div className="divide-y divide-zinc-800 overflow-hidden rounded-lg border border-zinc-800">
-            {following.map((u) => (
-              <Link
-                key={u.profileId}
-                href={`/u/${encodeURIComponent(u.username)}`}
-                className="flex items-center justify-between px-3 py-3 hover:bg-zinc-900/50"
-              >
-                <span className="text-sm font-medium text-white">@{u.username}</span>
-                <span className="text-xs text-zinc-500">View routines →</span>
-              </Link>
+            {followingList.map((u) => (
+              <div key={u.profileId} className="flex items-center justify-between px-3 py-3 hover:bg-zinc-900/50">
+                <Link href={`/u/${encodeURIComponent(u.username)}`} className="text-sm font-medium text-white hover:text-emerald-400">
+                  @{u.username}
+                </Link>
+                <button
+                  onClick={() => unfollow(u.profileId)}
+                  className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                >
+                  Unfollow
+                </button>
+              </div>
             ))}
           </div>
         )}
