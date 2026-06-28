@@ -255,7 +255,7 @@ const todayWorkouts = await prisma.workout.findMany({
                 weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago',
               })}
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="ff-nav flex flex-wrap gap-2">
               <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
                 + Log
               </Link>
