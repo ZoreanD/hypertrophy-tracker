@@ -24,6 +24,16 @@ const REST_MESSAGES = [
   'Back to work, champ.',
   "Gains don't make themselves. Next set!",
   'Stop scrolling, start lifting. 💪',
+  // Anime motivation
+  'Surpass your limits. Right here. Right now. — Yami',
+  'Go beyond. Plus Ultra! — All Might',
+  'Believe it — next set. — Naruto',
+  'Power up. Your cooldown is over. — Goku',
+  // Playful
+  'Rest complete. Villain arc loading.',
+  'Channel your inner main character.',
+  'Your future self is watching. Lift.',
+  "That set won't lift itself.",
 ];
 function pickRestMessage() {
   return REST_MESSAGES[Math.floor(Math.random() * REST_MESSAGES.length)];
