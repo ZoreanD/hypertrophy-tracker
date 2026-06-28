@@ -174,3 +174,47 @@ body {
 body, body * {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PHASE B — FFXIV ornate framing
+   Only applies when an `ffxiv-*` theme is active; the default theme is untouched.
+   Scoped to the app's consistent panel/button patterns so no component edits are
+   needed.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Elegant serif headings (FFXIV menu feel). */
+[data-theme^="ffxiv"] h1,
+[data-theme^="ffxiv"] h2,
+[data-theme^="ffxiv"] h3 {
+  font-family: Palatino, "Palatino Linotype", "Iowan Old Style", Georgia, serif;
+  letter-spacing: 0.01em;
+}
+
+/* Framed panels — card-like containers (rounded-xl + a zinc border) get a gold
+   inset hairline, a top highlight, and a soft drop shadow. */
+[data-theme^="ffxiv"] [class*="rounded-xl"][class*="border-zinc"] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--c-emerald-400) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--c-white) 8%, transparent),
+    0 6px 18px -6px rgba(0, 0, 0, 0.45);
+}
+
+/* Beveled accent buttons. */
+[data-theme^="ffxiv"] [class*="bg-emerald-600"] {
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Subtle backdrop depth behind the whole app. */
+[data-theme="ffxiv-dark"] body {
+  background-image: radial-gradient(120% 80% at 50% 0%, rgba(224, 179, 92, 0.05), transparent 60%);
+  background-attachment: fixed;
+}
+[data-theme="ffxiv-blue"] body {
+  background-image: radial-gradient(120% 80% at 50% 0%, rgba(155, 186, 216, 0.07), transparent 60%);
+  background-attachment: fixed;
+}
+[data-theme="ffxiv-light"] body {
+  background-image: radial-gradient(120% 80% at 50% 0%, rgba(138, 94, 34, 0.06), transparent 60%);
+  background-attachment: fixed;
+}
