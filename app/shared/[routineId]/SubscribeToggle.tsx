@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { setRoutineSubscription } from '../../actions/social';
+import { ensurePushSubscription } from '../../../lib/pushClient';
 
 export default function SubscribeToggle({
   routineId,
@@ -15,9 +16,17 @@ export default function SubscribeToggle({
   const [subscribed, setSubscribed] = useState(initialSubscribed);
   const [pending, startTransition] = useTransition();
 
-  function toggle() {
+  async function toggle() {
     const next = !subscribed;
     setSubscribed(next); // optimistic
+    // Enabling: request notification permission + register this device now
+    // (this click is the user gesture browsers require for the prompt).
+    if (next) {
+      const result = await ensurePushSubscription({ prompt: true });
+      if (result === 'denied') {
+        alert("You're subscribed, but notifications are blocked. Enable them in your browser settings to get live updates.");
+      }
+    }
     startTransition(async () => {
       const res = await setRoutineSubscription(routineId, next);
       if (!res.success) { setSubscribed(!next); alert(res.error || 'Failed'); }

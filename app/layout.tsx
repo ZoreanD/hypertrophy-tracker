@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Cinzel } from 'next/font/google';
+import PushRegistrar from './components/PushRegistrar';
 
 // FFXIV-style engraved-caps display serif for headings (used only by the
 // ffxiv-* themes; exposed as a CSS variable).
@@ -52,6 +53,7 @@ export default function RootLayout({
         }} />
       </head>
       <body className="bg-zinc-950 text-white antialiased">
+        <PushRegistrar />
         {children}
         <script dangerouslySetInnerHTML={{
           __html: `
