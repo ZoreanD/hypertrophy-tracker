@@ -89,7 +89,7 @@ export default async function SharedRoutinePage({
           </p>
         </header>
 
-        {!isMe && <SharedRoutineActions routineId={routine.id} />}
+        {!isMe && <SharedRoutineActions routineId={routine.id} token={token ?? null} />}
         {!isMe && showNumbers && (
           <SubscribeToggle routineId={routine.id} username={username} initialSubscribed={subscribed} />
         )}

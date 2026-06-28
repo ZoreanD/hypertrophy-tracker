@@ -82,7 +82,9 @@ export async function getUserPublicProfile(username: string) {
     where: {
       profileId: ownerId,
       isTrial: false,
-      visibility: isMe ? undefined : { in: ['FOLLOWERS', 'LINK'] },
+      // LINK routines are intentionally unlisted — reachable only via their
+      // share link, not browsable on the public profile.
+      visibility: isMe ? undefined : 'FOLLOWERS',
     },
     select: {
       id: true, name: true, focus: true, visibility: true,

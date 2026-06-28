@@ -4,13 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { cloneRoutine } from '../../actions/social';
 
-export default function SharedRoutineActions({ routineId }: { routineId: string }) {
+export default function SharedRoutineActions({
+  routineId,
+  token,
+}: {
+  routineId: string;
+  token?: string | null;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<null | 'trial' | 'copy'>(null);
 
   async function run(asTrial: boolean) {
     setBusy(asTrial ? 'trial' : 'copy');
-    const res = await cloneRoutine(routineId, { asTrial });
+    const res = await cloneRoutine(routineId, { asTrial, token });
     setBusy(null);
     if (!res.success) { alert(res.error || 'Could not copy routine'); return; }
     router.push('/routines');
