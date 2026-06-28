@@ -51,9 +51,9 @@
 [data-theme="ffxiv-dark"] {
   color-scheme: dark;
 
-  /* Icon-plate frame (bright gold) + icon color (red) */
-  --ff-frame-gold: #f2c85a;
-  --ff-icon-red: #ef4444;
+  /* Icon plates: gold icon + border on a red well */
+  --ff-gold: #f2c85a;
+  --ff-icon-bg-red: #93211f;
 
   --c-white: #f7f1e3;
 
@@ -86,8 +86,8 @@
 [data-theme="ffxiv-blue"] {
   color-scheme: dark;
 
-  --ff-frame-gold: #f2c85a;
-  --ff-icon-red: #ef4444;
+  --ff-gold: #f2c85a;
+  --ff-icon-bg-red: #8a2230;
 
   --c-white: #f0f6fc;
 
@@ -120,9 +120,9 @@
 [data-theme="ffxiv-light"] {
   color-scheme: light;
 
-  /* Darker gold + vivid red so they read on the light parchment well */
-  --ff-frame-gold: #9a6a1e;
-  --ff-icon-red: #b91c1c;
+  /* Deeper gold (reads on the light page) + a warm red well */
+  --ff-gold: #cf9b34;
+  --ff-icon-bg-red: #a3301f;
 
   --c-white: #2a2015;   /* primary text becomes dark */
 
@@ -155,9 +155,9 @@
 [data-theme="ffxiv-white"] {
   color-scheme: light;
 
-  /* Darker gold + vivid red so they read on the light silver well */
-  --ff-frame-gold: #b8860b;
-  --ff-icon-red: #c0202a;
+  /* Deeper gold (reads on the light page) + a vivid red well */
+  --ff-gold: #c79320;
+  --ff-icon-bg-red: #c0202a;
 
   --c-white: #1c2026;   /* primary text becomes dark */
 
@@ -370,31 +370,33 @@ body, body * {
   justify-content: center;
 }
 
-/* Ornate framed icon plates — only in icon mode + an ffxiv theme. Bright gold
-   frame on a dark well with red icons; "+ Log" keeps its inverted accent plate. */
+/* Ornate framed icon plates — only in icon mode + an ffxiv theme. FF14 style:
+   gold icon + gold border on a RED well. "+ Log" is inverted (gold well, red
+   icon) so the primary action stands out. */
 [data-nav-icons][data-theme^="ffxiv"] .ff-nav a,
 [data-nav-icons][data-theme^="ffxiv"] .ff-nav button {
   border-width: 2px;
-  border-color: var(--ff-frame-gold);
+  border-color: var(--ff-gold);
+  background-color: var(--ff-icon-bg-red);
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.28));
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--ff-frame-gold) 35%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -2px 6px rgba(0, 0, 0, 0.30),
-    0 0 5px color-mix(in srgb, var(--ff-frame-gold) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.3),
+    0 0 5px color-mix(in srgb, var(--ff-gold) 30%, transparent),
     0 2px 4px rgba(0, 0, 0, 0.45);
 }
-/* Dark well + red icon for the non-accent plates. */
-[data-nav-icons][data-theme^="ffxiv"] .ff-nav a:not([class*="bg-emerald-600"]),
-[data-nav-icons][data-theme^="ffxiv"] .ff-nav button:not([class*="bg-emerald-600"]) {
-  background-color: var(--c-zinc-950);
-  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.28));
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav .nav-ico {
+  color: var(--ff-gold);
 }
-[data-nav-icons][data-theme^="ffxiv"] .ff-nav a:not([class*="bg-emerald-600"]) .nav-ico,
-[data-nav-icons][data-theme^="ffxiv"] .ff-nav button:not([class*="bg-emerald-600"]) .nav-ico {
-  color: var(--ff-icon-red);
+/* "+ Log" inverted: gold well, red icon. */
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav [class*="bg-emerald-600"] {
+  background-color: var(--ff-gold);
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(0, 0, 0, 0.14));
+}
+[data-nav-icons][data-theme^="ffxiv"] .ff-nav [class*="bg-emerald-600"] .nav-ico {
+  color: var(--ff-icon-bg-red);
 }
 [data-nav-icons][data-theme^="ffxiv"] .ff-nav a:hover,
 [data-nav-icons][data-theme^="ffxiv"] .ff-nav button:hover {
-  border-color: color-mix(in srgb, var(--ff-frame-gold) 75%, #fff);
-  filter: brightness(1.08);
+  filter: brightness(1.1);
 }
