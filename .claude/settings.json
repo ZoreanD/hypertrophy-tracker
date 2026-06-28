@@ -4,17 +4,10 @@
       "WebSearch",
       "Bash(npx prisma *)",
       "Bash(git commit -q -m ' *)",
-      "Bash(npm install *)",
-      "Bash(node -e \"require\\('web-push'\\); console.log\\('require OK'\\)\")",
-      "Bash(node -e \"const w=require\\('web-push'\\);const k=w.generateVAPIDKeys\\(\\);console.log\\('VAPID_PUBLIC_KEY='+k.publicKey\\);console.log\\('VAPID_PRIVATE_KEY='+k.privateKey\\);\")",
-      "Bash(node -e ' *)",
-      "Bash(grep -v \"^$\")",
-      "Bash(timeout 240 npm run build)",
       "Bash(git fetch *)",
-      "Bash(vercel --version)",
-      "Bash(npx vercel *)",
-      "Bash(curl -s https://zorean-hypertrophy.vercel.app/api/push/debug)",
-      "Bash(grep -vE \"Warning|SSL|libpq|trace|prepare|^$\")"
+      "Bash(npm install *)",
+      "Bash(node -e ' *)",
+      "Bash(timeout 240 npm run build)"
     ]
   }
 }
