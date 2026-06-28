@@ -4,6 +4,7 @@ import { verifyToken } from '../../lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import SettingsForm from './SettingsForm';
+import ThemeSwitcher from './ThemeSwitcher';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ export default async function SettingsPage() {
             ← Dashboard
           </Link>
         </header>
+        <ThemeSwitcher />
         <SettingsForm
           initialValues={{
             heightFt: String(heightFt),

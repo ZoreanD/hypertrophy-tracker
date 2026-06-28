@@ -1,26 +1,176 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   THEME SYSTEM
+   Components use Tailwind's `zinc` (greys) + `emerald` (accent) + `white`.
+   We remap those palettes to CSS variables (--c-*), so changing the variables
+   re-themes the whole app with no component edits.
+
+   :root = DEFAULT theme (today's exact zinc/emerald values — unchanged).
+   [data-theme="…"] blocks override the variables for alternate themes.
+   ──────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  --c-white: #ffffff;
+
+  --c-zinc-50:  #fafafa;
+  --c-zinc-100: #f4f4f5;
+  --c-zinc-200: #e4e4e7;
+  --c-zinc-300: #d4d4d8;
+  --c-zinc-400: #a1a1aa;
+  --c-zinc-500: #71717a;
+  --c-zinc-600: #52525b;
+  --c-zinc-700: #3f3f46;
+  --c-zinc-800: #27272a;
+  --c-zinc-900: #18181b;
+  --c-zinc-950: #09090b;
+
+  --c-emerald-50:  #ecfdf5;
+  --c-emerald-100: #d1fae5;
+  --c-emerald-200: #a7f3d0;
+  --c-emerald-300: #6ee7b7;
+  --c-emerald-400: #34d399;
+  --c-emerald-500: #10b981;
+  --c-emerald-600: #059669;
+  --c-emerald-700: #047857;
+  --c-emerald-800: #065f46;
+  --c-emerald-900: #064e3b;
+  --c-emerald-950: #022c22;
 }
 
+/* ── FFXIV Dark — warm charcoal + gold ─────────────────────────────────────── */
+[data-theme="ffxiv-dark"] {
+  color-scheme: dark;
+
+  --c-white: #f7f1e3;
+
+  --c-zinc-50:  #faf6ec;
+  --c-zinc-100: #f3ecda;
+  --c-zinc-200: #e8ddc4;
+  --c-zinc-300: #d8c9a4;
+  --c-zinc-400: #b3a079;
+  --c-zinc-500: #9a8a66;
+  --c-zinc-600: #4d4230;
+  --c-zinc-700: #3a3120;
+  --c-zinc-800: #2c2519;
+  --c-zinc-900: #1d1913;
+  --c-zinc-950: #14110c;
+
+  --c-emerald-50:  #fbf3df;
+  --c-emerald-100: #f6e7bf;
+  --c-emerald-200: #eed29a;
+  --c-emerald-300: #ecca85;
+  --c-emerald-400: #e0b35c;
+  --c-emerald-500: #cf9d45;
+  --c-emerald-600: #b8893a;
+  --c-emerald-700: #946f2e;
+  --c-emerald-800: #6f521f;
+  --c-emerald-900: #4a3714;
+  --c-emerald-950: #2a1f0b;
+}
+
+/* ── FFXIV Blue — slate-blue panels + gold accent ──────────────────────────── */
+[data-theme="ffxiv-blue"] {
+  color-scheme: dark;
+
+  --c-white: #f0f6fc;
+
+  --c-zinc-50:  #f6f9fd;
+  --c-zinc-100: #eef4fb;
+  --c-zinc-200: #dce8f5;
+  --c-zinc-300: #c2d6ec;
+  --c-zinc-400: #9bbad8;
+  --c-zinc-500: #6f97bd;
+  --c-zinc-600: #356088;
+  --c-zinc-700: #284a6e;
+  --c-zinc-800: #1b3551;
+  --c-zinc-900: #102338;
+  --c-zinc-950: #0a1622;
+
+  --c-emerald-50:  #fbf3df;
+  --c-emerald-100: #f6e7bf;
+  --c-emerald-200: #eed29a;
+  --c-emerald-300: #ecca85;
+  --c-emerald-400: #e0b35c;
+  --c-emerald-500: #cf9d45;
+  --c-emerald-600: #b8893a;
+  --c-emerald-700: #946f2e;
+  --c-emerald-800: #6f521f;
+  --c-emerald-900: #4a3714;
+  --c-emerald-950: #2a1f0b;
+}
+
+/* ── FFXIV Parchment — light theme (inverts the grey scale) ─────────────────── */
+[data-theme="ffxiv-light"] {
+  color-scheme: light;
+
+  --c-white: #2a2015;   /* primary text becomes dark */
+
+  --c-zinc-50:  #1b1410;
+  --c-zinc-100: #2a2015;
+  --c-zinc-200: #3b2f1f;
+  --c-zinc-300: #51422d;
+  --c-zinc-400: #6f5a3e;
+  --c-zinc-500: #877051;
+  --c-zinc-600: #b39a6e;
+  --c-zinc-700: #cbb487;
+  --c-zinc-800: #ddcaa3;
+  --c-zinc-900: #ece0c6;
+  --c-zinc-950: #f4ecd8;
+
+  --c-emerald-50:  #2a1f0b;
+  --c-emerald-100: #4a3714;
+  --c-emerald-200: #6f521f;
+  --c-emerald-300: #946f2e;
+  --c-emerald-400: #876a1e;   /* accent text — dark enough to read on parchment */
+  --c-emerald-500: #a9772e;
+  --c-emerald-600: #8a5e22;   /* accent button bg */
+  --c-emerald-700: #6f4c1c;
+  --c-emerald-800: #ecca85;
+  --c-emerald-900: #f6e7bf;
+  --c-emerald-950: #fbf3df;
+}
+
+/* Map Tailwind's palette to the themeable variables. `inline` makes utilities
+   emit `var(--c-…)` directly, so [data-theme] overrides cascade normally. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-white: var(--c-white);
+
+  --color-zinc-50:  var(--c-zinc-50);
+  --color-zinc-100: var(--c-zinc-100);
+  --color-zinc-200: var(--c-zinc-200);
+  --color-zinc-300: var(--c-zinc-300);
+  --color-zinc-400: var(--c-zinc-400);
+  --color-zinc-500: var(--c-zinc-500);
+  --color-zinc-600: var(--c-zinc-600);
+  --color-zinc-700: var(--c-zinc-700);
+  --color-zinc-800: var(--c-zinc-800);
+  --color-zinc-900: var(--c-zinc-900);
+  --color-zinc-950: var(--c-zinc-950);
+
+  --color-emerald-50:  var(--c-emerald-50);
+  --color-emerald-100: var(--c-emerald-100);
+  --color-emerald-200: var(--c-emerald-200);
+  --color-emerald-300: var(--c-emerald-300);
+  --color-emerald-400: var(--c-emerald-400);
+  --color-emerald-500: var(--c-emerald-500);
+  --color-emerald-600: var(--c-emerald-600);
+  --color-emerald-700: var(--c-emerald-700);
+  --color-emerald-800: var(--c-emerald-800);
+  --color-emerald-900: var(--c-emerald-900);
+  --color-emerald-950: var(--c-emerald-950);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Smooth the swap when switching themes. */
+body, body * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
