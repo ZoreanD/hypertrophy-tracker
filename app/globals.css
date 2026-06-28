@@ -330,3 +330,27 @@ body, body * {
   background-color: var(--c-zinc-700);
   border-color: var(--c-emerald-400);
 }
+
+/* ── Optional icon navigation (toggled in Settings) ────────────────────────────
+   Off by default: icons hidden, text labels shown (current behavior). When
+   [data-nav-icons] is set on <html>, the nav collapses to square framed icon
+   buttons (FFXIV-style). Works in any theme. */
+.nav-ico { display: none; }
+
+[data-nav-icons] .ff-nav .nav-label { display: none; }
+[data-nav-icons] .ff-nav .nav-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+[data-nav-icons] .ff-nav a,
+[data-nav-icons] .ff-nav button {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

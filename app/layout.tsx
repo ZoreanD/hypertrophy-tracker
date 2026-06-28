@@ -46,9 +46,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
         <meta name="mobile-web-app-capable" content="yes" />
-        {/* Apply saved theme before paint to avoid a flash of the default. */}
+        {/* Apply saved theme + nav style before paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{
-          __html: `try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}`
+          __html: `try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t;if(localStorage.getItem('navIcons')==='1')document.documentElement.dataset.navIcons='1';}catch(e){}`
         }} />
       </head>
       <body className="bg-zinc-950 text-white antialiased">

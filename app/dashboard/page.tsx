@@ -256,23 +256,23 @@ const todayWorkouts = await prisma.workout.findMany({
               })}
             </p>
             <div className="ff-nav flex flex-wrap gap-2">
-              <Link href="/workout/new" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
-                + Log
+              <Link href="/workout/new" title="Log a workout" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
+                <span className="nav-ico" aria-hidden>🏋️</span><span className="nav-label">+ Log</span>
               </Link>
-              <Link href="/routines" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-                Routines
+              <Link href="/routines" title="Routines" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                <span className="nav-ico" aria-hidden>📋</span><span className="nav-label">Routines</span>
               </Link>
-              <Link href="/calendar" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-                Calendar
+              <Link href="/calendar" title="Calendar" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                <span className="nav-ico" aria-hidden>📅</span><span className="nav-label">Calendar</span>
               </Link>
-              <Link href="/following" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-                Following
+              <Link href="/following" title="Following" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                <span className="nav-ico" aria-hidden>👥</span><span className="nav-label">Following</span>
               </Link>
-              <Link href="/history" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-                History
+              <Link href="/history" title="History" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                <span className="nav-ico" aria-hidden>🕑</span><span className="nav-label">History</span>
               </Link>
-              <Link href="/settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
-                Settings
+              <Link href="/settings" title="Settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                <span className="nav-ico" aria-hidden>⚙️</span><span className="nav-label">Settings</span>
               </Link>
               <LogoutButton />
             </div>

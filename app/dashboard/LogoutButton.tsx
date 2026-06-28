@@ -14,9 +14,10 @@ export default function LogoutButton() {
   return (
     <button
       onClick={handleLogout}
+      title="Log out"
       className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-red-800 hover:text-red-400"
     >
-      Log Out
+      <span className="nav-ico" aria-hidden>🚪</span><span className="nav-label">Log Out</span>
     </button>
   );
 }

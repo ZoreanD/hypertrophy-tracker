@@ -19,10 +19,12 @@ function applyTheme(id: ThemeId) {
 
 export default function ThemeSwitcher() {
   const [active, setActive] = useState<ThemeId>('default');
+  const [navIcons, setNavIcons] = useState(false);
 
   useEffect(() => {
     const saved = (localStorage.getItem('theme') as ThemeId) || 'default';
     setActive(saved);
+    setNavIcons(localStorage.getItem('navIcons') === '1');
   }, []);
 
   function pick(id: ThemeId) {
@@ -31,6 +33,17 @@ export default function ThemeSwitcher() {
     try {
       if (id === 'default') localStorage.removeItem('theme');
       else localStorage.setItem('theme', id);
+    } catch { /* storage unavailable */ }
+  }
+
+  function toggleNavIcons() {
+    const next = !navIcons;
+    setNavIcons(next);
+    if (next) document.documentElement.dataset.navIcons = '1';
+    else delete document.documentElement.dataset.navIcons;
+    try {
+      if (next) localStorage.setItem('navIcons', '1');
+      else localStorage.removeItem('navIcons');
     } catch { /* storage unavailable */ }
   }
 
@@ -55,6 +68,21 @@ export default function ThemeSwitcher() {
             <p className="mt-2 text-sm font-medium text-zinc-200">{t.label}</p>
           </button>
         ))}
+      </div>
+
+      <div className="mt-5 flex items-center justify-between border-t border-zinc-800 pt-4">
+        <div>
+          <p className="text-sm font-medium text-zinc-200">Icon navigation</p>
+          <p className="mt-0.5 text-xs text-zinc-500">Compact the top nav into FFXIV-style icon buttons.</p>
+        </div>
+        <button
+          role="switch"
+          aria-checked={navIcons}
+          onClick={toggleNavIcons}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition ${navIcons ? 'bg-emerald-600' : 'bg-zinc-700'}`}
+        >
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${navIcons ? 'left-[1.375rem]' : 'left-0.5'}`} />
+        </button>
       </div>
     </div>
   );
