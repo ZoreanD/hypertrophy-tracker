@@ -17,7 +17,7 @@ export const REST_MESSAGES = [
   'Surpass your limits. Right here. Right now. — Yami',
   'Go beyond. Plus Ultra! — All Might',
   'Believe it — next set. — Naruto',
-  'Power up. Your cooldown is over. — Goku',
+  "It's over 9000! — Vegeta",
   // Playful
   'Rest complete. Villain arc loading.',
   'Channel your inner main character.',
