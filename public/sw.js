@@ -1,5 +1,5 @@
 // Zorean Hypertrophy Service Worker
-const CACHE_NAME = 'zorean-hypertrophy-v5';
+const CACHE_NAME = 'zorean-hypertrophy-v6';
 
 // ── Rest-timer notifications ────────────────────────────────────────────────
 // The page's setInterval freezes while backgrounded, and an *orphaned* SW
@@ -10,12 +10,31 @@ const CACHE_NAME = 'zorean-hypertrophy-v5';
 // even with everything dead), but it's unsupported on most Android Chrome.
 const REST_NOTIF_TAG = 'rest-timer';
 
+// Rotating "rest complete" nudges. Keep in sync with lib/restMessages.ts.
+const REST_MESSAGES = [
+  'Time to log your next set.',
+  "Rest's up — back to the iron.",
+  'Recovered? Go get the next one.',
+  'Your next set is waiting.',
+  "Break's over. Let's move.",
+  'Hop back in and log it.',
+  "One more set — you've got this.",
+  'The bar is calling your name.',
+  "Don't let it cool down. Next set!",
+  'Back to work, champ.',
+  "Gains don't make themselves. Next set!",
+  'Stop scrolling, start lifting. 💪',
+];
+function pickRestMessage() {
+  return REST_MESSAGES[Math.floor(Math.random() * REST_MESSAGES.length)];
+}
+
 let restTimeoutId = null;
 let restResolve = null;
 
 function restNotifOptions(extra) {
   return Object.assign({
-    body: 'Time to log your next set.',
+    body: pickRestMessage(),
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: REST_NOTIF_TAG,
@@ -98,9 +117,10 @@ self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { /* non-JSON */ }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Rest complete', restNotifOptions({
-      body: data.body || 'Time to log your next set.',
-    }))
+    self.registration.showNotification(
+      data.title || 'Rest complete',
+      restNotifOptions(data.body ? { body: data.body } : {})
+    )
   );
 });
 

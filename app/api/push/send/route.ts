@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { sendPushToProfile } from '../../../../lib/push';
+import { pickRestMessage } from '../../../../lib/restMessages';
 
 // QStash delayed callback. Fires the push only if the nonce still matches the
 // profile's active rest (i.e. it wasn't cancelled or superseded). The nonce is
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     });
     await sendPushToProfile(profileId, {
       title: 'Rest complete',
-      body: 'Time to log your next set.',
+      body: pickRestMessage(),
     });
 
     return NextResponse.json({ ok: true });
