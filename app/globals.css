@@ -45,6 +45,10 @@
   --c-yellow-300: #fde047; --c-yellow-400: #facc15; --c-yellow-500: #eab308;
   --c-orange-300: #fdba74; --c-orange-400: #fb923c; --c-orange-500: #f97316;
   --c-blue-300: #93c5fd;   --c-blue-400: #60a5fa;   --c-blue-500: #3b82f6;
+
+  /* Completed-workout green — themed per palette so it stays on-theme. */
+  --c-green-400: #4ade80; --c-green-500: #22c55e; --c-green-600: #16a34a;
+  --c-green-700: #15803d; --c-green-950: #052e16;
 }
 
 /* ── FFXIV Dark — warm charcoal + gold ─────────────────────────────────────── */
@@ -54,6 +58,10 @@
   /* Icon plates: gold icon + border on a red well */
   --ff-gold: #f2c85a;
   --ff-icon-bg-red: #93211f;
+
+  /* Warm on-theme green for completed */
+  --c-green-400: #a3cf6b; --c-green-500: #84b94a; --c-green-600: #6a9c38;
+  --c-green-700: #547e2c; --c-green-950: #16240c;
 
   --c-white: #f7f1e3;
 
@@ -88,6 +96,10 @@
 
   --ff-gold: #f2c85a;
   --ff-icon-bg-red: #8a2230;
+
+  /* Teal-leaning on-theme green for completed */
+  --c-green-400: #5cd6a8; --c-green-500: #2bbd84; --c-green-600: #1f9e6b;
+  --c-green-700: #197d55; --c-green-950: #07261b;
 
   --c-white: #f0f6fc;
 
@@ -124,6 +136,10 @@
   --ff-gold: #cf9b34;
   --ff-icon-bg-red: #a3301f;
 
+  /* Dark olive green (readable on parchment); light tint for completed bg */
+  --c-green-400: #3f6b22; --c-green-500: #3f6b22; --c-green-600: #34591c;
+  --c-green-700: #4a7a2a; --c-green-950: #e6f0d8;
+
   --c-white: #2a2015;   /* primary text becomes dark */
 
   --c-zinc-50:  #1b1410;
@@ -158,6 +174,10 @@
   /* Deeper gold (reads on the light page) + a vivid red well */
   --ff-gold: #c79320;
   --ff-icon-bg-red: #c0202a;
+
+  /* Forest green (readable on silver); light tint for completed bg */
+  --c-green-400: #2e7d32; --c-green-500: #2e7d32; --c-green-600: #1b5e20;
+  --c-green-700: #3a8a3f; --c-green-950: #e2f0e3;
 
   --c-white: #1c2026;   /* primary text becomes dark */
 
@@ -240,6 +260,12 @@
   --color-blue-300: var(--c-blue-300);
   --color-blue-400: var(--c-blue-400);
   --color-blue-500: var(--c-blue-500);
+
+  --color-green-400: var(--c-green-400);
+  --color-green-500: var(--c-green-500);
+  --color-green-600: var(--c-green-600);
+  --color-green-700: var(--c-green-700);
+  --color-green-950: var(--c-green-950);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -328,7 +354,9 @@ body, body * {
 [data-theme="ffxiv-light"] [class*="bg-red-500"],
 [data-theme="ffxiv-white"] [class*="bg-red-500"],
 [data-theme="ffxiv-light"] [class*="bg-orange-700"],
-[data-theme="ffxiv-white"] [class*="bg-orange-700"] {
+[data-theme="ffxiv-white"] [class*="bg-orange-700"],
+[data-theme="ffxiv-light"] [class*="bg-green-600"],
+[data-theme="ffxiv-white"] [class*="bg-green-600"] {
   color: #fafafa;
 }
 
