@@ -54,7 +54,7 @@ export default function TodayWorkoutCard({
         <p className="font-semibold text-white">{routineName}</p>
         <p className="text-sm text-zinc-400">{routineFocus}</p>
         {isCompleted && (
-          <p className="mt-0.5 text-xs text-emerald-400">✓ Completed · {existingDurationMins} mins</p>
+          <p className="mt-0.5 text-xs font-semibold text-green-500">✓ Completed · {existingDurationMins} mins</p>
         )}
         {isInProgress && (
           <p className="mt-0.5 text-xs text-yellow-400">⏳ In progress</p>

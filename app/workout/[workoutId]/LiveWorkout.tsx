@@ -305,6 +305,42 @@ export default function LiveWorkout({
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
+  // ── Resume support ──────────────────────────────────────────────────────────
+  // Persist the in-progress client state (swaps, modes, inputs, order) to
+  // localStorage so "Leave & resume later" returns you exactly where you were.
+  // Logged sets already persist server-side; this covers the unsaved bits.
+  const STATE_KEY = `zh-workout-${workout.id}`;
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STATE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s.activeExercises) setActiveExercises(s.activeExercises);
+        if (s.exerciseOrder) setExerciseOrder(s.exerciseOrder);
+        if (s.swaps) setSwaps(s.swaps);
+        if (s.setModes) setSetModes(s.setModes);
+        if (s.supersetPartners) setSupersetPartners(s.supersetPartners);
+        if (s.removedExerciseIds) setRemovedExerciseIds(s.removedExerciseIds);
+        if (s.inputs) setInputs(s.inputs);
+        if (s.supersetInputs) setSupersetInputs(s.supersetInputs);
+        if (s.unilateralPhase) setUnilateralPhase(s.unilateralPhase);
+      }
+    } catch { /* ignore corrupt snapshot */ }
+    restoredRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!restoredRef.current) return; // don't clobber the snapshot before restore
+    try {
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+        activeExercises, exerciseOrder, swaps, setModes, supersetPartners,
+        removedExerciseIds, inputs, supersetInputs, unilateralPhase,
+      }));
+    } catch { /* storage full / unavailable */ }
+  }, [activeExercises, exerciseOrder, swaps, setModes, supersetPartners, removedExerciseIds, inputs, supersetInputs, unilateralPhase]);
+
   // Tell the service worker to (de)schedule the background rest-complete
   // notification. The SW fires it only if no window is visible when time's up.
   function messageRestTimerSW(message: { type: 'START_REST_TIMER'; endTime: number } | { type: 'CANCEL_REST_TIMER' }) {
@@ -921,6 +957,21 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     setSubstitutes([]);
     setExpandedExercise(substitute.id);
 
+    // Ask whether to keep the original rest timer or set a new one — a swapped
+    // movement often warrants a different rest (e.g. leg ext -> Bulgarians).
+    const currentRest = originalEx.restTimerSecs;
+    const answer = window.prompt(
+      `Rest timer for ${substitute.name} (seconds).\nKeep ${currentRest}s, or type a new value:`,
+      String(currentRest)
+    );
+    if (answer !== null) {
+      const parsed = parseInt(answer, 10);
+      const newRest = Number.isFinite(parsed) && parsed > 0 ? parsed : currentRest;
+      setActiveExercises((prev) => prev.map((ex) =>
+        ex.exerciseId === substitute.id ? { ...ex, restTimerSecs: newRest } : ex
+      ));
+    }
+
     // Backfill the substitute's own prior history so weight prefill and the
     // "last time" hints work after a swap (fetched async, patched in on arrival).
     const fetched = await getExerciseHistory(substitute.id, profileId, originalEx.plannedOrder);
@@ -960,6 +1011,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     if (!confirm(msg)) return;
     setIsSubmitting(true);
     stopRestTimer();
+    try { localStorage.removeItem(STATE_KEY); } catch { /* ignore */ }
     const res = await cancelWorkout(workout.id);
     if (!res.success) {
       setIsSubmitting(false);
@@ -974,6 +1026,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     // Cancel any pending rest-timer notification so it can't fire after the
     // workout is already done.
     stopRestTimer();
+    try { localStorage.removeItem(STATE_KEY); } catch { /* ignore */ }
     // Wait for any optimistic set saves still in flight so the DB is fully
     // up-to-date before finishWorkout queries it.
     if (pendingLogs.current > 0) {
@@ -1273,7 +1326,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
         return (
           <div key={exId} className={`rounded-xl border transition-all duration-300 ${
             flashingExercise === ex.exerciseId ? 'border-emerald-400 bg-emerald-950/40 scale-[1.01]'
-            : isComplete ? 'border-emerald-700 bg-emerald-950/20'
+            : isComplete ? 'border-green-700 bg-green-950/25'
             : isPivoting ? 'border-yellow-600 bg-yellow-950/10'
             : isExpanded ? 'border-zinc-600 bg-zinc-900'
             : 'border-zinc-800 bg-zinc-900/30'
@@ -1290,13 +1343,13 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
               </div>
 
               <button className="flex flex-1 items-center gap-3 text-left" onClick={() => { setExpandedExercise(isExpanded ? null : ex.exerciseId); setPivotingExerciseId(null); }}>
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isComplete ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isComplete ? 'bg-green-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
                   {isComplete ? '✓' : index + 1}
                 </span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className={`font-semibold ${isComplete ? 'text-emerald-300' : 'text-white'}`}>{ex.exerciseName}</p>
-                    {wasSwapped && <span className="rounded-full bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-400">swapped</span>}
+                    <p className={`font-semibold ${isComplete ? 'text-green-500' : 'text-white'}`}>{ex.exerciseName}</p>
+                    {wasSwapped && <span className="rounded-full border border-orange-500/40 bg-orange-500/15 px-1.5 py-0.5 text-xs font-medium text-orange-400">swapped</span>}
                     {mode !== 'STRAIGHT' && <span className="rounded-full bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">{mode.toLowerCase()}</span>}
                   </div>
                   <p className="text-xs text-zinc-500">{completedSetCount}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>

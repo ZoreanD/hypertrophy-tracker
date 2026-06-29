@@ -178,6 +178,9 @@ export default function CalendarView({
           const items = scheduledByDate[dateStr] ?? [];
           const isToday = dateStr === today;
           const isSelected = dateStr === selectedDate;
+          // `green` is intentionally un-themed, so completed days read green in
+          // every theme (the accent emerald turns gold in the ffxiv themes).
+          const hasCompleted = items.some((it) => it.completedWorkoutId);
 
           return (
             <button
@@ -186,6 +189,8 @@ export default function CalendarView({
               className={`min-h-[72px] rounded-lg border p-1.5 text-left transition-colors ${
                 isSelected
                   ? 'border-emerald-500 bg-emerald-950/30'
+                  : hasCompleted
+                  ? 'border-green-600 bg-green-950/35'
                   : isToday
                   ? 'border-zinc-500 bg-zinc-800/50'
                   : 'border-zinc-800 bg-zinc-900/30 hover:border-zinc-600'

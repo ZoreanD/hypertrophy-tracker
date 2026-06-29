@@ -115,7 +115,7 @@ export default function CompletedWorkout({
     const skipped = summary.exerciseSummaries.filter((e) => e.status === 'skipped').length;
 
     let grade = '', gradeColor = '';
-    if (declined === 0 && improved > 0) { grade = 'Strong session'; gradeColor = 'text-emerald-400'; }
+    if (declined === 0 && improved > 0) { grade = 'Strong session'; gradeColor = 'text-green-500'; }
     else if (declined === 0) { grade = 'Solid session — held your numbers'; gradeColor = 'text-zinc-200'; }
     else if (declined <= 1) { grade = 'Good session — minor dips noted'; gradeColor = 'text-yellow-400'; }
     else { grade = 'Tough session'; gradeColor = 'text-red-400'; }
@@ -128,7 +128,7 @@ export default function CompletedWorkout({
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
           <p className={`text-xl font-bold ${gradeColor}`}>{grade}</p>
           <div className="mt-3 flex flex-wrap gap-4 text-sm">
-            {improved > 0 && <span className="text-emerald-400">↑ {improved} improved</span>}
+            {improved > 0 && <span className="text-green-500">↑ {improved} improved</span>}
             {maintained > 0 && <span className="text-zinc-400">→ {maintained} maintained</span>}
             {declined > 0 && <span className="text-red-400">↓ {declined} declined</span>}
             {contextChange > 0 && <span className="text-yellow-400">⇄ {contextChange} position change</span>}

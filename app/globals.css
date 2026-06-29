@@ -302,8 +302,20 @@ body, body * {
   background-attachment: fixed;
 }
 [data-theme="ffxiv-white"] body {
-  background-image: radial-gradient(120% 80% at 50% 0%, rgba(80, 90, 110, 0.06), transparent 60%);
+  background-image:
+    radial-gradient(110% 70% at 15% -10%, rgba(120, 140, 170, 0.18), transparent 55%),
+    radial-gradient(110% 70% at 100% 0%, rgba(150, 130, 110, 0.14), transparent 55%),
+    linear-gradient(160deg, #eef1f6 0%, #e0e4ec 60%, #d7dbe4 100%);
   background-attachment: fixed;
+}
+
+/* FF14-style frosted glass: translucent, blurred panels so the backdrop shows
+   through slightly. White theme only. */
+[data-theme="ffxiv-white"] [class*="rounded-xl"][class*="border-zinc"],
+[data-theme="ffxiv-white"] [class*="rounded-lg"][class*="border-zinc"] {
+  background-color: color-mix(in srgb, var(--c-zinc-900) 66%, transparent);
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
 }
 
 /* Light themes flip `text-white` to dark for body copy, but solid dark-colored
