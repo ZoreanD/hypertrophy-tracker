@@ -41,11 +41,23 @@ function formatDuration(totalSec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function formatSetDisplay(weight: number, reps: number | null, rir: number, durationSeconds?: number | null): string {
+function formatSetDisplay(
+  weight: number,
+  reps: number | null,
+  rir: number,
+  durationSeconds?: number | null,
+  effectiveLoad?: number | null,
+): string {
   if (durationSeconds != null && durationSeconds > 0) {
     return weight > 0 ? `${weight}lbs, ${formatDuration(durationSeconds)}` : formatDuration(durationSeconds);
   }
-  return `${weight}lbs × ${reps} @ ${rir} RIR`;
+  // Show the working load in parens when it differs from the entered weight
+  // (assisted = bw − assist, weighted bodyweight = bw + added, per-side ×2).
+  const eff =
+    effectiveLoad != null && Math.round(effectiveLoad) !== Math.round(weight)
+      ? ` (${Math.round(effectiveLoad)} working)`
+      : '';
+  return `${weight}lbs${eff} × ${reps} @ ${rir} RIR`;
 }
 
 export default function CompletedWorkout({
@@ -208,7 +220,7 @@ export default function CompletedWorkout({
                 <div className="mt-2 flex flex-wrap gap-2">
                   {ex.sets.map((s: any, i: number) => (
                     <span key={i} className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
-                      {s.side ? `${s.side} ` : ''}{formatSetDisplay(s.weightLbs, s.reps, s.rir, s.durationSeconds)}
+                      {s.side ? `${s.side} ` : ''}{formatSetDisplay(s.weight ?? s.weightLbs, s.reps, s.rir, s.durationSeconds, s.effectiveLoad)}
                     </span>
                   ))}
                 </div>
