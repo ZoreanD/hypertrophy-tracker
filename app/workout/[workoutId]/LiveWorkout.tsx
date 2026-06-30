@@ -1706,9 +1706,10 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                         <input type="number" step="5" value={input.weight}
                           onChange={(e) => updateInput(ex.exerciseId, 'weight', e.target.value, currentSide ?? undefined)}
                           className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
-                        {currentBodyweight && input.weight && (
-                          <p className="mt-1 text-xs text-zinc-600">
-                            Effective load: {Math.round(currentBodyweight - parseFloat(input.weight))}lbs
+                        {currentBodyweight && input.weight && !isNaN(parseFloat(input.weight)) && (
+                          <p className="mt-1 text-sm font-semibold text-emerald-400">
+                            Working load: {Math.max(0, Math.round((currentBodyweight - parseFloat(input.weight)) * 10) / 10)} lbs
+                            <span className="ml-1 text-xs font-normal text-zinc-500">({currentBodyweight} bw − {parseFloat(input.weight)} assist)</span>
                           </p>
                         )}
                       </div>
@@ -1754,6 +1755,12 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                         <input type="number" step="0.5" min="0" max="5" value={input.rir} onChange={(e) => updateInput(ex.exerciseId, 'rir', e.target.value, currentSide ?? undefined)} className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-center text-sm text-white focus:border-emerald-500 focus:outline-none" />
                       </div>
                     </div>
+                    )}
+                    {ex.isBodyweight && currentBodyweight && input.weight && !isNaN(parseFloat(input.weight)) && (
+                      <p className="text-sm font-semibold text-emerald-400">
+                        Working load: {Math.round((currentBodyweight + parseFloat(input.weight)) * 10) / 10} lbs
+                        <span className="ml-1 text-xs font-normal text-zinc-500">({currentBodyweight} bw + {parseFloat(input.weight)} added)</span>
+                      </p>
                     )}
                     <button
                       onClick={() => updateInput(ex.exerciseId, 'isWarmup', !input.isWarmup, currentSide ?? undefined)}
