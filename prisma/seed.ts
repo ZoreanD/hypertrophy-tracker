@@ -1288,8 +1288,8 @@ update: {
     isUnilateral: (ex as any).isUnilateral ?? false,
     weightIsPerSide: (ex as any).weightIsPerSide ?? false,
     isTimeBased: (ex as any).isTimeBased ?? false,
-    isBodyweight: (ex as any).isBodyweight ?? false,
-    isAssisted: (ex as any).isAssisted ?? false,
+    isBodyweight: (ex as any).isBodyweight ?? (ex.equipment === 'BODYWEIGHT'),
+    isAssisted: (ex as any).isAssisted ?? (ex.equipment === 'ASSISTED_BODYWEIGHT'),
   },
   create: {
     name: ex.name,
@@ -1300,8 +1300,8 @@ update: {
     isUnilateral: (ex as any).isUnilateral ?? false,
     weightIsPerSide: (ex as any).weightIsPerSide ?? false,
     isTimeBased: (ex as any).isTimeBased ?? false,
-    isBodyweight: (ex as any).isBodyweight ?? false,
-    isAssisted: (ex as any).isAssisted ?? false,
+    isBodyweight: (ex as any).isBodyweight ?? (ex.equipment === 'BODYWEIGHT'),
+    isAssisted: (ex as any).isAssisted ?? (ex.equipment === 'ASSISTED_BODYWEIGHT'),
   },
 });
       created++;
