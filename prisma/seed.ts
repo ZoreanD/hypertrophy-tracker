@@ -627,6 +627,15 @@ const exercises = [
     movementPattern: 'ISOLATION',
   },
   {
+    name: 'Cable Rear Delt Fly (Single Arm)',
+    primaryMuscle: 'REAR_DELT',
+    secondaryMuscles: ['TRAPS_MID', 'RHOMBOIDS'],
+    equipment: 'CABLE',
+    movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
+  },
+  {
     name: 'Cable Rear Delt Pull',
     primaryMuscle: 'REAR_DELT',
     secondaryMuscles: ['TRAPS_MID'],
