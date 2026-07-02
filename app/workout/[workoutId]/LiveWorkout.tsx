@@ -1973,7 +1973,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 )}
 
                 {/* ── DROP SET input ── */}
-                {mode === 'DROPSET' && !isComplete && !supersetPartnerOf[ex.exerciseId] && (
+                {/* Drop sets stay available after the exercise is complete —
+                    they're commonly a finisher after the working sets. */}
+                {mode === 'DROPSET' && !supersetPartnerOf[ex.exerciseId] && (
                   <div className="space-y-3">
                     {ex.isUnilateral && (
                       <div className="flex items-center gap-2">
