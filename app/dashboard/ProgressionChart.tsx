@@ -18,6 +18,8 @@ type Exercise = {
   name: string;
 };
 
+type Metric = 'weight' | 'e1RM';
+
 export default function ProgressionChart({
   exercises,
   defaultExerciseId,
@@ -32,11 +34,11 @@ export default function ProgressionChart({
   const [selectedId, setSelectedId] = useState(defaultExerciseId);
   const [data, setData] = useState<DataPoint[]>(initialData);
   const [loading, setLoading] = useState(false);
+  const [metric, setMetric] = useState<Metric>('weight');
 
   async function handleExerciseChange(exerciseId: string) {
     setSelectedId(exerciseId);
     setLoading(true);
-
     const res = await fetch(`/api/progression?exerciseId=${exerciseId}&profileId=${profileId}`);
     if (res.ok) {
       const json = await res.json();
@@ -45,9 +47,25 @@ export default function ProgressionChart({
     setLoading(false);
   }
 
+  // "How long have I been at this weight?" — count the trailing sessions whose
+  // top-set weight equals the most recent one.
+  const latest = data.length ? data[data.length - 1] : null;
+  let streak = 0;
+  let streakStart = latest?.date ?? '';
+  if (latest) {
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (data[i].weight === latest.weight) { streak++; streakStart = data[i].date; }
+      else break;
+    }
+  }
+  const fmtDate = (d: string) =>
+    new Date(d.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const metricLabel = metric === 'weight' ? 'Top set' : 'e1RM';
+
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <select
           value={selectedId}
           onChange={(e) => handleExerciseChange(e.target.value)}
@@ -57,8 +75,29 @@ export default function ProgressionChart({
             <option key={ex.id} value={ex.id}>{ex.name}</option>
           ))}
         </select>
-        <span className="text-xs text-zinc-500">Estimated 1RM (Epley formula)</span>
+        <div className="flex gap-1">
+          {(['weight', 'e1RM'] as Metric[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMetric(m)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                metric === m ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              }`}
+            >
+              {m === 'weight' ? 'Top set' : 'e1RM'}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {latest && (
+        <p className="text-xs text-zinc-500">
+          Latest top set: <span className="font-semibold text-white">{latest.weight} lbs × {latest.reps}</span>
+          {streak >= 2 && (
+            <> · held this weight <span className="font-semibold text-emerald-400">{streak} sessions</span> since {fmtDate(streakStart)}</>
+          )}
+        </p>
+      )}
 
       {loading ? (
         <div className="flex h-48 items-center justify-center">
@@ -92,12 +131,12 @@ export default function ProgressionChart({
               />
               <Tooltip
                 contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', fontSize: 12 }}
-                formatter={(value: any) => [`${value}lbs`, 'e1RM']}
+                formatter={(value: any) => [`${value}lbs`, metricLabel]}
                 labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               />
               <Line
                 type="monotone"
-                dataKey="e1RM"
+                dataKey={metric}
                 stroke="#10b981"
                 strokeWidth={2}
                 dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
