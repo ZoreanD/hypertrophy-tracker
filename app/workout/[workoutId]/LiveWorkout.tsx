@@ -1072,17 +1072,42 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     return { type: 'maintain' as const, text: `Last: ${ex.history.lastReps} reps @ ${ex.history.lastWeight}lbs (${ex.history.lastRir} RIR)` };
   }
 
-  function getWarmupSuggestions(lastWeight: number, sessionIndex: number) {
+  // Convert between the weight you SELECT and the effective working load.
+  // Assisted: select = the pin/stack; effective = bodyweight − pin (lighter =
+  // MORE assistance = HIGHER pin). Bodyweight: select = added weight; effective
+  // = bodyweight + added. Otherwise select === effective.
+  function effectiveOf(ex: PlannedExercise, selectWeight: number): number {
+    const bw = currentBodyweight;
+    if (ex.isAssisted && bw != null) return bw - selectWeight;
+    if (ex.isBodyweight && bw != null) return bw + selectWeight;
+    return selectWeight;
+  }
+  function selectForEffective(ex: PlannedExercise, effective: number): number {
+    const bw = currentBodyweight;
+    if (ex.isAssisted && bw != null) return Math.max(0, bw - effective);
+    if (ex.isBodyweight && bw != null) return Math.max(0, effective - bw);
+    return effective;
+  }
+  const loadIsConverted = (ex: PlannedExercise) =>
+    (ex.isAssisted || ex.isBodyweight) && currentBodyweight != null;
+
+  function getWarmupSuggestions(ex: PlannedExercise, lastWeight: number, sessionIndex: number) {
     const round = (w: number) => Math.round(w / 2.5) * 2.5;
-    if (sessionIndex <= 1) {
-      return [
-        { pct: 40, weight: round(lastWeight * 0.4), reps: 10 },
-        { pct: 65, weight: round(lastWeight * 0.65), reps: 5 },
-      ];
-    }
-    return [
-      { pct: 60, weight: round(lastWeight * 0.6), reps: 5 },
-    ];
+    const workingEff = effectiveOf(ex, lastWeight);
+    // Suggestion is a % of the working EFFECTIVE load, then converted back to
+    // the weight to actually select on the machine.
+    const build = (pct: number, reps: number) => {
+      const eff = (workingEff * pct) / 100;
+      return { pct, weight: round(selectForEffective(ex, eff)), effective: round(eff), reps };
+    };
+    if (sessionIndex <= 1) return [build(40, 10), build(65, 5)];
+    return [build(60, 5)];
+  }
+
+  // Suggested drop weight (~15% lighter effective) from the set being dropped.
+  function getDropSuggestion(ex: PlannedExercise, lastStraightWeight: number): number {
+    const round = (w: number) => Math.round(w / 2.5) * 2.5;
+    return round(selectForEffective(ex, effectiveOf(ex, lastStraightWeight) * 0.85));
   }
 
   // ── Summary screen ────────────────────────────────────────────────────────
@@ -1433,10 +1458,12 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 {/* Warm-up suggestions */}
                 {ex.history && setsForExercise.length === 0 && (
                   <div className="rounded-lg bg-zinc-800/50 px-3 py-2 space-y-1">
-                    <p className="text-xs text-zinc-500 font-medium">Suggested warm-up</p>
-                    {getWarmupSuggestions(ex.history.lastWeight, index).map((s, i) => (
+                    <p className="text-xs text-zinc-500 font-medium">
+                      Suggested warm-up{ex.isAssisted ? ' (weight to select on the machine)' : ''}
+                    </p>
+                    {getWarmupSuggestions(ex, ex.history.lastWeight, index).map((s, i) => (
                       <p key={i} className="text-xs text-zinc-400">
-                        {s.pct}% — {s.weight}lbs × {s.reps} reps
+                        {s.pct}% — {s.weight}lbs{loadIsConverted(ex) ? ` (→ ${s.effective} working)` : ''} × {s.reps} reps
                       </p>
                     ))}
                   </div>
@@ -1603,7 +1630,17 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                             <div className="flex items-center gap-2">
                               {s.setType === 'STRAIGHT' && mode === 'STRAIGHT' && (
                                 <button
-                                  onClick={() => setActiveDropForSet(activeDropForSet === s.id ? null : s.id)}
+                                  onClick={() => {
+                                    const opening = activeDropForSet !== s.id;
+                                    setActiveDropForSet(opening ? s.id : null);
+                                    if (opening) {
+                                      const suggested = getDropSuggestion(ex, s.weightLbs);
+                                      setInlineDropInputs((prev) => ({
+                                        ...prev,
+                                        [s.id]: { weight: String(suggested), reps: prev[s.id]?.reps ?? '', rir: prev[s.id]?.rir ?? '' },
+                                      }));
+                                    }
+                                  }}
                                   className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
                                     activeDropForSet === s.id
                                       ? 'border-orange-600 text-orange-400'
@@ -1620,7 +1657,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                           {/* Inline drop input */}
                           {activeDropForSet === s.id && (
                             <div className="ml-4 rounded-md border border-orange-700/50 bg-orange-950/10 p-3 space-y-2">
-                              <p className="text-xs text-orange-400">Drop set — reduce weight 20–30% and log</p>
+                              <p className="text-xs text-orange-400">
+                                Drop set — suggested {getDropSuggestion(ex, s.weightLbs)}lbs ({'≈'}15% lighter{ex.isAssisted ? ' load' : ''}). Adjust and log.
+                              </p>
                               <div className="grid grid-cols-3 gap-2">
                                 <div>
                                   <label className="mb-1 block text-xs text-zinc-500">Weight</label>
