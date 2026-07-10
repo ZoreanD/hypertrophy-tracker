@@ -133,7 +133,7 @@ export default function ProgressionChart({
               <Tooltip
                 contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', fontSize: 12 }}
                 formatter={(value: any) => [`${value}lbs`, metricLabel]}
-                labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                labelFormatter={(label) => new Date(String(label).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               />
               <Line
                 type="monotone"
