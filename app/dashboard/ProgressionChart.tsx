@@ -117,10 +117,11 @@ export default function ProgressionChart({
                 stroke="#52525b"
                 fontSize={10}
                 tickMargin={8}
-                tickFormatter={(v) => {
-                  const d = new Date(v);
-                  return `${d.getMonth() + 1}/${d.getDate()}`;
-                }}
+                minTickGap={28}
+                tickFormatter={(v) =>
+                  new Date(String(v).slice(0, 10) + 'T12:00:00')
+                    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                }
               />
               <YAxis
                 stroke="#52525b"
