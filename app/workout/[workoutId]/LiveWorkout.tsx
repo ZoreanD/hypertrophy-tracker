@@ -1544,7 +1544,19 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                           <>
                             {pairs.map((pair, pi) => (
                               <div key={pair[0].id} className="rounded-md bg-zinc-800/50 px-3 py-2 space-y-1">
-                                <span className="text-xs text-zinc-500">Set {pi + 1}</span>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-zinc-500">Set {pi + 1}</span>
+                                  {/* Unilateral drops run through DROPSET mode's L/R flow
+                                      (works even after the exercise/workout is complete). */}
+                                  {mode === 'STRAIGHT' && pi === pairs.length - 1 && (
+                                    <button
+                                      onClick={() => setMode(ex.exerciseId, 'DROPSET')}
+                                      className="rounded border border-zinc-700 px-1.5 py-0.5 text-xs text-zinc-600 transition-colors hover:border-orange-600 hover:text-orange-400"
+                                    >
+                                      → Drop
+                                    </button>
+                                  )}
+                                </div>
                                 {pair.map(s => (
                                   <div key={s.id} className="flex items-center justify-between">
                                     <span className="text-xs text-zinc-500">{s.side}</span>
