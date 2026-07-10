@@ -244,6 +244,8 @@ const todayWorkouts = await prisma.workout.findMany({
   select: { id: true, routineId: true, durationMins: true },
 });
 
+const inProgressAdHoc = recentWorkouts.filter((w) => w.durationMins === 0 && !w.routineId);
+
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       <div className="mx-auto max-w-4xl space-y-8">
@@ -287,6 +289,27 @@ const todayWorkouts = await prisma.workout.findMany({
             <p className="mt-2 text-sm text-zinc-500 italic">"{quote}"</p>
           </div>
         </header>
+
+        {/* Continue Workout */}
+      {inProgressAdHoc.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-xl font-semibold text-zinc-200">Continue Workout</h2>
+          <div className="space-y-2">
+            {inProgressAdHoc.map((w) => (
+              <Link key={w.id} href={`/workout/${w.id}`}
+                className="flex items-center justify-between rounded-xl border border-yellow-700 bg-yellow-900/20 p-4 hover:border-yellow-500">
+                <div>
+                  <p className="font-semibold text-white">{w.focus}</p>
+                  <p className="mt-0.5 text-xs text-yellow-400">
+                    ⏳ In progress · started {w.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold text-yellow-400">Continue →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
         {/* Today's Sessions */}
       {todayScheduled.length > 0 && (
@@ -429,17 +452,20 @@ const todayWorkouts = await prisma.workout.findMany({
             <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
               <ul className="divide-y divide-zinc-800">
                 {recentWorkouts.map((workout: any) => (
-                  <li key={workout.id} className="flex items-center justify-between p-4 hover:bg-zinc-800/50">
-                    <div>
-                      <p className="font-medium text-white">{workout.focus}</p>
-                      <p className="text-sm text-zinc-400">
-                        {workout.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-zinc-300">{workout.durationMins} mins</p>
-                      <p className="text-xs text-zinc-600">{workout.sets.length} sets</p>
-                    </div>
+                  <li key={workout.id}>
+                    <Link href={`/workout/${workout.id}`} className="flex items-center justify-between p-4 hover:bg-zinc-800/50">
+                      <div>
+                        <p className="font-medium text-white">{workout.focus}</p>
+                        <p className="text-sm text-zinc-400">
+                          {workout.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {workout.durationMins === 0 && <span className="ml-2 text-yellow-400">⏳ in progress</span>}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-zinc-300">{workout.durationMins} mins</p>
+                        <p className="text-xs text-zinc-600">{workout.sets.length} sets</p>
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>

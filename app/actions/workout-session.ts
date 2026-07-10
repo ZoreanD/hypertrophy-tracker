@@ -1,8 +1,11 @@
 'use server';
 
 import prisma from '../../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
+import { revalidatePath } from 'next/cache';
+import { getTodayBoundsUTC } from '../../lib/today';
 
 async function getProfile() {
   const cookieStore = await cookies();
@@ -242,6 +245,45 @@ export async function cancelWorkout(workoutId: string) {
   } catch (error) {
     console.error('Failed to cancel workout:', error);
     return { success: false, error: 'Failed to cancel workout' };
+  }
+}
+
+// Undo an accidental "Finish Workout" — clears the completion flag and summary
+// so the workout page falls back to the live logging view. Restricted to
+// workouts completed today; logged Sets are untouched either way.
+export async function reopenWorkout(workoutId: string) {
+  try {
+    const profile = await getProfile();
+    if (!profile) return { success: false, error: 'Not authenticated' };
+
+    const workout = await prisma.workout.findUnique({
+      where: { id: workoutId },
+      select: { profileId: true, durationMins: true, date: true },
+    });
+    if (!workout || workout.profileId !== profile.id) {
+      return { success: false, error: 'Workout not found' };
+    }
+    if (workout.durationMins === 0) {
+      return { success: false, error: 'Workout is not completed' };
+    }
+
+    const { start, end } = getTodayBoundsUTC();
+    if (workout.date < start || workout.date > end) {
+      return { success: false, error: 'Can only reopen a workout completed today' };
+    }
+
+    await prisma.workout.update({
+      where: { id: workoutId },
+      data: { durationMins: 0, summaryJson: Prisma.JsonNull },
+    });
+
+    revalidatePath('/dashboard');
+    revalidatePath('/calendar');
+    revalidatePath('/history');
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to reopen workout:', error);
+    return { success: false, error: 'Failed to reopen workout' };
   }
 }
 

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
 import { saveTrialAsRoutine } from '../../actions/social';
+import { reopenWorkout } from '../../actions/workout-session';
 
 type LoggedSet = {
   id: string;
@@ -65,16 +66,37 @@ export default function CompletedWorkout({
   plannedExercises,
   loggedSets,
   trialRoutineId = null,
+  canReopen = false,
 }: {
   workout: { id: string; routineId: string | null; focus: string; date: string; durationMins: number; summaryJson: any };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
   trialRoutineId?: string | null;
+  canReopen?: boolean;
 }) {
   const router = useRouter();
   const workingSets = loggedSets.filter((s) => !s.isWarmup);
   const totalSets = workingSets.length;
   const summary = workout.summaryJson as Summary | null;
+
+  const [reopening, startReopen] = useTransition();
+  function handleReopen() {
+    if (!confirm("Reopen this workout? Its summary will be cleared and you'll go back to logging.")) return;
+    startReopen(async () => {
+      const res = await reopenWorkout(workout.id);
+      if (!res.success) { alert(res.error || 'Could not reopen the workout.'); return; }
+      router.refresh();
+    });
+  }
+  const reopenButton = canReopen ? (
+    <button
+      onClick={handleReopen}
+      disabled={reopening}
+      className="w-full rounded-md border border-yellow-700 py-3 font-semibold text-yellow-400 hover:bg-yellow-950/30 disabled:opacity-50"
+    >
+      {reopening ? 'Reopening…' : 'Reopen workout'}
+    </button>
+  ) : null;
 
   // Trial routine → offer to keep it. The sets just logged stay attached.
   const [savedTrial, setSavedTrial] = useState(false);
@@ -244,6 +266,7 @@ export default function CompletedWorkout({
           >
             Back to Dashboard
           </button>
+          {reopenButton}
         </div>
       </div>
     );
@@ -308,6 +331,7 @@ export default function CompletedWorkout({
           >
             Back to Dashboard
           </button>
+          {reopenButton}
         </div>
     </div>
   );

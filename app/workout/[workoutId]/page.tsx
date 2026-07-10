@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import LiveWorkout from './LiveWorkout';
 import CompletedWorkout from './CompletedWorkout';
 import { getCurrentBodyweight } from '../../actions/workout-session';
+import { getTodayBoundsUTC } from '../../../lib/today';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,8 @@ export default async function LiveWorkoutPage({
 
   // Completed workout — show read-only view
   if (workout.durationMins > 0) {
+    const { start, end } = getTodayBoundsUTC();
+    const canReopen = workout.date >= start && workout.date <= end;
     return (
       <main className="min-h-screen bg-zinc-950 text-zinc-100">
         <CompletedWorkout
@@ -78,6 +81,7 @@ export default async function LiveWorkoutPage({
             durationMins: workout.durationMins,
             summaryJson: workout.summaryJson ?? null,
           }}
+          canReopen={canReopen}
           trialRoutineId={workout.routine?.isTrial ? workout.routineId : null}
           plannedExercises={(workout.routine?.exercises ?? []).map((re) => ({
             exerciseId: re.exerciseId,
