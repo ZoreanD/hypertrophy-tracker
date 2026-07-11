@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
 import { saveTrialAsRoutine } from '../../actions/social';
+import { reopenWorkout } from '../../actions/workout-session';
 
 type LoggedSet = {
   id: string;
@@ -65,15 +66,28 @@ export default function CompletedWorkout({
   plannedExercises,
   loggedSets,
   trialRoutineId = null,
+  canReopen = false,
 }: {
   workout: { id: string; routineId: string | null; focus: string; date: string; durationMins: number; summaryJson: any };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
   trialRoutineId?: string | null;
+  canReopen?: boolean;
 }) {
   const router = useRouter();
   const workingSets = loggedSets.filter((s) => !s.isWarmup);
   const totalSets = workingSets.length;
+
+  const [reopening, startReopen] = useTransition();
+  function reopen() {
+    if (!confirm('Reopen this workout to keep logging? It will go back to in progress.')) return;
+    startReopen(async () => {
+      const res = await reopenWorkout(workout.id);
+      if (!res.success) { alert(res.error || 'Could not reopen.'); return; }
+      router.push(`/workout/${workout.id}`);
+      router.refresh();
+    });
+  }
   const summary = workout.summaryJson as Summary | null;
 
   // Trial routine → offer to keep it. The sets just logged stay attached.
@@ -115,6 +129,15 @@ export default function CompletedWorkout({
       <p className="mt-1 text-zinc-400">
         {workout.durationMins} mins · {totalSets} working sets · Completed
       </p>
+      {canReopen && (
+        <button
+          onClick={reopen}
+          disabled={reopening}
+          className="mt-3 rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white disabled:opacity-50"
+        >
+          {reopening ? 'Reopening…' : '↺ Reopen to keep logging'}
+        </button>
+      )}
     </header>
   );
 

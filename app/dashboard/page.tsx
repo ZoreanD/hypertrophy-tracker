@@ -241,8 +241,12 @@ const todayWorkouts = await prisma.workout.findMany({
     profileId: profile.id,
     date: { gte: todayStartUTC, lte: todayEndUTC },
   },
-  select: { id: true, routineId: true, durationMins: true },
+  select: { id: true, routineId: true, durationMins: true, focus: true },
 });
+
+// In-progress workouts (durationMins 0) — including ad-hoc ones that aren't tied
+// to a scheduled routine, so they're resumable from the dashboard.
+const inProgressWorkouts = todayWorkouts.filter((w) => w.durationMins === 0);
 
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
@@ -287,6 +291,29 @@ const todayWorkouts = await prisma.workout.findMany({
             <p className="mt-2 text-sm text-zinc-500 italic">"{quote}"</p>
           </div>
         </header>
+
+        {/* In-progress workouts (resume) — covers ad-hoc, which aren't scheduled */}
+        {inProgressWorkouts.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-xl font-semibold text-zinc-200">In progress</h2>
+            <div className="space-y-2">
+              {inProgressWorkouts.map((w) => (
+                <div key={w.id} className="flex items-center justify-between rounded-xl border border-yellow-800/60 bg-yellow-950/10 p-4">
+                  <div>
+                    <p className="font-semibold text-white">{w.focus}</p>
+                    <p className="text-xs text-yellow-400">⏳ In progress{w.routineId ? '' : ' · ad-hoc'}</p>
+                  </div>
+                  <Link
+                    href={`/workout/${w.id}`}
+                    className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                  >
+                    Resume
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Today's Sessions */}
       {todayScheduled.length > 0 && (

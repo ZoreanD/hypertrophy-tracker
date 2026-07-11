@@ -1026,7 +1026,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     // Cancel any pending rest-timer notification so it can't fire after the
     // workout is already done.
     stopRestTimer();
-    try { localStorage.removeItem(STATE_KEY); } catch { /* ignore */ }
+    // Note: we intentionally keep the saved state (localStorage) on finish so a
+    // "Reopen" (accidental completion) can restore swaps/modes/inputs. It's
+    // cleared on Discard and keyed per workout id, so it can't leak into others.
     // Wait for any optimistic set saves still in flight so the DB is fully
     // up-to-date before finishWorkout queries it.
     if (pendingLogs.current > 0) {

@@ -1,6 +1,7 @@
 'use server';
 
 import prisma from '../../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 
@@ -43,18 +44,22 @@ export async function startWorkout(routineId: string, scheduledDate: string) {
     });
     if (!routine) throw new Error('Routine not found');
 
-    // Idempotent: return existing workout if one already exists for this routine+date
-    const existingWorkout = await prisma.workout.findFirst({
+    // Resume an IN-PROGRESS workout for this routine+date (avoids accidental
+    // duplicates from double-tapping Start). If the existing one(s) are already
+    // finished, fall through and create a new instance — so the same routine can
+    // be done more than once in a day.
+    const inProgress = await prisma.workout.findFirst({
       where: {
         profileId: profile.id,
         routineId,
         date: new Date(scheduledDate),
+        durationMins: 0,
       },
       orderBy: { date: 'desc' },
     });
 
-    if (existingWorkout) {
-      return { success: true, workoutId: existingWorkout.id };
+    if (inProgress) {
+      return { success: true, workoutId: inProgress.id };
     }
 
     const workout = await prisma.workout.create({
@@ -242,6 +247,43 @@ export async function cancelWorkout(workoutId: string) {
   } catch (error) {
     console.error('Failed to cancel workout:', error);
     return { success: false, error: 'Failed to cancel workout' };
+  }
+}
+
+// Un-finish a workout that was completed by accident — sets it back to
+// in-progress (durationMins 0, clears the summary) so it can be resumed. Only
+// allowed for TODAY's workout, so you can't retroactively edit history.
+export async function reopenWorkout(workoutId: string) {
+  try {
+    const profile = await getProfile();
+    if (!profile) return { success: false, error: 'Not authenticated' };
+
+    const workout = await prisma.workout.findUnique({
+      where: { id: workoutId },
+      select: { profileId: true, date: true },
+    });
+    if (!workout || workout.profileId !== profile.id) {
+      return { success: false, error: 'Workout not found' };
+    }
+
+    // "Today" in the app's reference (Central, matches how workout dates are set).
+    const todayStr = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const workoutStr = new Date(workout.date).toISOString().slice(0, 10);
+    if (workoutStr !== todayStr) {
+      return { success: false, error: "Only today's workout can be reopened." };
+    }
+
+    await prisma.workout.update({
+      where: { id: workoutId },
+      data: { durationMins: 0, summaryJson: Prisma.DbNull },
+    });
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to reopen workout:', error);
+    return { success: false, error: 'Failed to reopen workout' };
   }
 }
 

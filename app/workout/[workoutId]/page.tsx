@@ -79,6 +79,7 @@ export default async function LiveWorkoutPage({
             summaryJson: workout.summaryJson ?? null,
           }}
           trialRoutineId={workout.routine?.isTrial ? workout.routineId : null}
+          canReopen={workout.date.toISOString().slice(0, 10) === new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10)}
           plannedExercises={(workout.routine?.exercises ?? []).map((re) => ({
             exerciseId: re.exerciseId,
             exerciseName: re.exercise.name,
