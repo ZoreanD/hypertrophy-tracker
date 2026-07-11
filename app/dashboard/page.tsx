@@ -244,9 +244,10 @@ const todayWorkouts = await prisma.workout.findMany({
   select: { id: true, routineId: true, durationMins: true, focus: true },
 });
 
-// In-progress workouts (durationMins 0) — including ad-hoc ones that aren't tied
-// to a scheduled routine, so they're resumable from the dashboard.
-const inProgressWorkouts = todayWorkouts.filter((w) => w.durationMins === 0);
+// In-progress ad-hoc workouts (no routine) — these aren't covered by the
+// scheduled "Today" cards, so surface them here so they're resumable. Scheduled
+// routine workouts already show their in-progress state in TodayWorkoutCard.
+const inProgressWorkouts = todayWorkouts.filter((w) => w.durationMins === 0 && !w.routineId);
 
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
