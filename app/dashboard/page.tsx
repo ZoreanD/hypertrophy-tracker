@@ -11,56 +11,9 @@ import { GLOSSARY } from '../components/glossary';
 import ProgressionChart from './ProgressionChart';
 import TodayWorkoutCard from './TodayWorkoutCard';
 import { getHourlyQuote } from './quotes';
+import { VOLUME_LANDMARKS, addSetVolume } from '../../lib/volume';
 
 export const dynamic = 'force-dynamic';
-
-const VOLUME_LANDMARKS: Record<string, { mev: number; mav: number; label: string }> = {
-  CHEST: { mev: 8, mav: 18, label: 'Chest' },
-  BACK: { mev: 8, mav: 20, label: 'Back' },
-  QUADS: { mev: 8, mav: 18, label: 'Quads' },
-  HAMSTRINGS: { mev: 6, mav: 16, label: 'Hamstrings' },
-  GLUTES: { mev: 0, mav: 12, label: 'Glutes' },
-  SIDE_REAR_DELT: { mev: 8, mav: 22, label: 'Delts' },
-  BICEPS: { mev: 6, mav: 14, label: 'Biceps' },
-  TRICEPS: { mev: 4, mav: 12, label: 'Triceps' },
-  CALVES: { mev: 6, mav: 16, label: 'Calves' },
-  ABS: { mev: 0, mav: 12, label: 'Abs' },
-};
-
-const MUSCLE_GROUP_MAP: Record<string, string> = {
-  CHEST_UPPER: 'CHEST',
-  CHEST_MID_LOWER: 'CHEST',
-  LATS: 'BACK',
-  TRAPS_MID: 'BACK',
-  TRAPS_UPPER: 'BACK',
-  TRAPS_LOWER: 'BACK',
-  RHOMBOIDS: 'BACK',
-  TERES_MAJOR: 'BACK',
-  LOWER_BACK: 'BACK',
-  FRONT_DELT: 'SIDE_REAR_DELT',
-  SIDE_DELT: 'SIDE_REAR_DELT',
-  REAR_DELT: 'SIDE_REAR_DELT',
-  BICEPS_LONG_HEAD: 'BICEPS',
-  BICEPS_SHORT_HEAD: 'BICEPS',
-  BRACHIALIS: 'BICEPS',
-  BRACHIORADIALIS: 'BICEPS',
-  TRICEPS_LONG_HEAD: 'TRICEPS',
-  TRICEPS_LATERAL_HEAD: 'TRICEPS',
-  TRICEPS_MEDIAL_HEAD: 'TRICEPS',
-  QUAD_VASTUS_LATERALIS: 'QUADS',
-  QUAD_VASTUS_MEDIALIS: 'QUADS',
-  QUAD_RECTUS_FEMORIS: 'QUADS',
-  HAMSTRING_BICEPS_FEMORIS: 'HAMSTRINGS',
-  HAMSTRING_MEDIAL: 'HAMSTRINGS',
-  GLUTE_MAX: 'GLUTES',
-  GLUTE_MED: 'GLUTES',
-  HIP_ABDUCTOR: 'GLUTES',
-  HIP_ADDUCTOR: 'GLUTES',
-  GASTROCNEMIUS: 'CALVES',
-  SOLEUS: 'CALVES',
-  ABS: 'ABS',
-  OBLIQUES: 'ABS',
-};
 
 export default async function Dashboard() {
   const cookieStore = await cookies();
@@ -107,11 +60,12 @@ export default async function Dashboard() {
     orderBy: { date: 'desc' },
   });
 
+  // Direct sets credit the primary muscle group 1.0; each distinct secondary
+  // group gets a fractional (0.5) "indirect" set. See lib/volume.ts.
   const weeklySetsByGroup: Record<string, number> = {};
   recentWorkouts.forEach((workout) => {
     workout.sets.forEach((set) => {
-      const group = MUSCLE_GROUP_MAP[set.exercise.primaryMuscle] ?? set.exercise.primaryMuscle;
-      weeklySetsByGroup[group] = (weeklySetsByGroup[group] || 0) + 1;
+      addSetVolume(weeklySetsByGroup, set.exercise.primaryMuscle, set.exercise.secondaryMuscles);
     });
   });
 

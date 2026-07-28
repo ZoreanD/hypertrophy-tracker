@@ -782,9 +782,13 @@ const exercises = [
     weightIsPerSide: true,
   },
   {
-    name: 'Croc Row',
+    name: 'Kroc Row',
+    // Heavy, high-rep single-arm DB row w/ body english (Kroczaleski). Distinct
+    // from a strict row: heavy upper-trap (shrug + momentum under load), big
+    // grip/forearm demand, and erector/lower-back isometric from the unsupported
+    // bent-over position. Lats primary; teres major assists.
     primaryMuscle: 'LATS',
-    secondaryMuscles: ['TRAPS_MID', 'RHOMBOIDS', 'BICEPS_SHORT_HEAD', 'REAR_DELT'],
+    secondaryMuscles: ['TRAPS_UPPER', 'TRAPS_MID', 'RHOMBOIDS', 'TERES_MAJOR', 'REAR_DELT', 'BICEPS_SHORT_HEAD', 'FOREARMS', 'LOWER_BACK'],
     equipment: 'DUMBBELL',
     movementPattern: 'HORIZONTAL_PULL',
     isUnilateral: true,

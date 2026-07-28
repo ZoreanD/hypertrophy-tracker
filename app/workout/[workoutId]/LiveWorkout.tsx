@@ -7,6 +7,22 @@ import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
 
+// Compact labeled −/+ stepper used in the add-exercise config panel.
+function AdHocStepper({ label, value, onDec, onInc }: {
+  label: string; value: number; onDec: () => void; onInc: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</span>
+      <div className="flex items-center gap-1 rounded-md border border-zinc-700">
+        <button type="button" onClick={onDec} className="px-2 py-1 text-zinc-400 hover:text-white">−</button>
+        <span className="w-7 text-center text-sm text-white">{value}</span>
+        <button type="button" onClick={onInc} className="px-2 py-1 text-zinc-400 hover:text-white">+</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────
 
 type PlannedExercise = {
@@ -173,16 +189,24 @@ export default function LiveWorkout({
 
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
-  const [adHocSetCounts, setAdHocSetCounts] = useState<Record<string, number>>({});
+  // The search result currently expanded for target config (sets/reps/RIR)
+  // before it's added. Null = list is collapsed to plain rows.
+  const [configuringId, setConfiguringId] = useState<string | null>(null);
+  type AdHocConfig = { sets: number; repMin: number; repMax: number; rir: number };
+  const [adHocConfigs, setAdHocConfigs] = useState<Record<string, AdHocConfig>>({});
 
-  function getAdHocSetCount(exId: string) {
-    return adHocSetCounts[exId] ?? 3;
+  function getAdHocConfig(exId: string): AdHocConfig {
+    return adHocConfigs[exId] ?? { sets: 3, repMin: 8, repMax: 12, rir: 1 };
   }
 
-  function adjustAdHocSetCount(exId: string, delta: number) {
-    setAdHocSetCounts((prev) => {
-      const current = prev[exId] ?? 3;
-      const next = Math.min(8, Math.max(1, current + delta));
+  function adjustAdHocConfig(exId: string, field: keyof AdHocConfig, delta: number) {
+    setAdHocConfigs((prev) => {
+      const cur = prev[exId] ?? { sets: 3, repMin: 8, repMax: 12, rir: 1 };
+      const next = { ...cur };
+      if (field === 'sets') next.sets = Math.min(10, Math.max(1, cur.sets + delta));
+      else if (field === 'rir') next.rir = Math.min(6, Math.max(0, cur.rir + delta));
+      else if (field === 'repMin') next.repMin = Math.min(next.repMax, Math.max(1, cur.repMin + delta));
+      else if (field === 'repMax') next.repMax = Math.max(next.repMin, Math.min(300, cur.repMax + delta));
       return { ...prev, [exId]: next };
     });
   }
@@ -194,6 +218,7 @@ export default function LiveWorkout({
     .slice(0, 20);
 
   function addAdHocExercise(ex: ExerciseOption) {
+    const cfg = getAdHocConfig(ex.id);
     const newEntry: PlannedExercise = {
       routineExerciseId: `adhoc-${ex.id}`,
       exerciseId: ex.id,
@@ -205,10 +230,12 @@ export default function LiveWorkout({
       isAssisted: ex.isAssisted,
       isBodyweight: ex.isBodyweight,
       isTimeBased: ex.isTimeBased ?? false,
-      targetSets: getAdHocSetCount(ex.id),
-      targetRepMin: 8,
-      targetRepMax: 12,
-      targetRir: 1,
+      targetSets: cfg.sets,
+      // Time-based exercises store their target as a seconds range in the same
+      // rep fields (matching how routines persist time-based targets).
+      targetRepMin: cfg.repMin,
+      targetRepMax: cfg.repMax,
+      targetRir: cfg.rir,
       restTimerSecs: 120,
       progressionStyle: 'DOUBLE_PROGRESSION',
       plannedOrder: activeExercises.length,
@@ -218,6 +245,7 @@ export default function LiveWorkout({
     setExerciseOrder((prev) => [...prev, ex.id]);
     setExpandedExercise(ex.id);
     setAddExerciseSearch('');
+    setConfiguringId(null);
     setShowAddExercise(false);
   }
 
@@ -560,6 +588,52 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       [next[i], next[i + 1]] = [next[i + 1], next[i]];
       return next;
     });
+  }
+
+  // ── Drag-to-reorder (pointer-based; works on touch + mouse) ────────────────
+  // Grab the grip handle and drag a card up/down; the list reflows live. Uses
+  // pointer capture so we keep getting move/up events even off the handle.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingRef = useRef<string | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const exerciseOrderRef = useRef(exerciseOrder);
+  useEffect(() => { exerciseOrderRef.current = exerciseOrder; }, [exerciseOrder]);
+
+  function handleDragStart(e: React.PointerEvent, exId: string) {
+    e.preventDefault();
+    draggingRef.current = exId;
+    setDraggingId(exId);
+    // Collapse any open card so all rows are short and easy to drop between.
+    setExpandedExercise(null);
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  }
+
+  function handleDragMove(e: React.PointerEvent) {
+    const id = draggingRef.current;
+    if (!id) return;
+    const ids = exerciseOrderRef.current;
+    const y = e.clientY;
+    // Target = first card whose vertical midpoint is below the pointer.
+    let target = ids.length - 1;
+    for (let i = 0; i < ids.length; i++) {
+      const el = cardRefs.current[ids[i]];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (y < r.top + r.height / 2) { target = i; break; }
+    }
+    const from = ids.indexOf(id);
+    if (from === -1 || from === target) return;
+    const next = [...ids];
+    next.splice(from, 1);
+    next.splice(target, 0, id);
+    setExerciseOrder(next);
+  }
+
+  function handleDragEnd(e: React.PointerEvent) {
+    if (!draggingRef.current) return;
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    draggingRef.current = null;
+    setDraggingId(null);
   }
 
   // ── Log set helpers ──────────────────────────────────────────────────────
@@ -1351,22 +1425,35 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
         const dropSetsLogged = setsForExercise.filter((s) => s.setType === 'DROPSET_DROP').length;
 
         return (
-          <div key={exId} className={`rounded-xl border transition-all duration-300 ${
-            flashingExercise === ex.exerciseId ? 'border-emerald-400 bg-emerald-950/40 scale-[1.01]'
+          <div key={exId}
+            ref={(el) => { cardRefs.current[exId] = el; }}
+            className={`rounded-xl border transition-all duration-300 ${
+            draggingId === exId ? 'border-emerald-500 bg-zinc-900 opacity-90 shadow-lg ring-1 ring-emerald-500/40'
+            : flashingExercise === ex.exerciseId ? 'border-emerald-400 bg-emerald-950/40 scale-[1.01]'
             : isComplete ? 'border-green-700 bg-green-950/25'
             : isPivoting ? 'border-yellow-600 bg-yellow-950/10'
             : isExpanded ? 'border-zinc-600 bg-zinc-900'
             : 'border-zinc-800 bg-zinc-900/30'
           }`}>
 
-            {/* Exercise header with reorder buttons */}
+            {/* Exercise header with drag handle + step arrows */}
             <div className="flex items-center p-4 gap-2">
-              {/* Reorder */}
-              <div className="flex flex-col gap-0.5 shrink-0">
-                <button onClick={() => moveUp(exId)} disabled={index === 0}
-                  className="rounded px-1 py-0.5 text-xs text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▲</button>
-                <button onClick={() => moveDown(exId)} disabled={index === exerciseOrder.length - 1}
-                  className="rounded px-1 py-0.5 text-xs text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▼</button>
+              {/* Drag to reorder (grip); arrows remain for single-step nudges */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  aria-label="Drag to reorder"
+                  onPointerDown={(e) => handleDragStart(e, exId)}
+                  onPointerMove={handleDragMove}
+                  onPointerUp={handleDragEnd}
+                  onPointerCancel={handleDragEnd}
+                  className={`cursor-grab touch-none select-none rounded px-1 text-base leading-none text-zinc-600 hover:text-zinc-300 ${draggingId === exId ? 'cursor-grabbing text-emerald-400' : ''}`}
+                >⠿</button>
+                <div className="flex flex-col gap-0.5">
+                  <button onClick={() => moveUp(exId)} disabled={index === 0}
+                    className="rounded px-1 py-0.5 text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▲</button>
+                  <button onClick={() => moveDown(exId)} disabled={index === exerciseOrder.length - 1}
+                    className="rounded px-1 py-0.5 text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▼</button>
+                </div>
               </div>
 
               <button className="flex flex-1 items-center gap-3 text-left" onClick={() => { setExpandedExercise(isExpanded ? null : ex.exerciseId); setPivotingExerciseId(null); }}>
@@ -1379,7 +1466,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                     {wasSwapped && <span className="rounded-full border border-orange-500/40 bg-orange-500/15 px-1.5 py-0.5 text-xs font-medium text-orange-400">swapped</span>}
                     {mode !== 'STRAIGHT' && <span className="rounded-full bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">{mode.toLowerCase()}</span>}
                   </div>
-                  <p className="text-xs text-zinc-500">{completedSetCount}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} reps · {ex.targetRir} RIR</p>
+                  <p className="text-xs text-zinc-500">{completedSetCount}/{ex.targetSets} sets · {ex.targetRepMin}–{ex.targetRepMax} {ex.isTimeBased ? 'sec' : 'reps'} · {ex.targetRir} RIR</p>
                 </div>
               </button>
 
@@ -2116,39 +2203,53 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                   className="w-full rounded-md border border-zinc-700 bg-zinc-950 p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
                 />
               </div>
-              <ul className="max-h-48 overflow-y-auto">
+              <ul className="max-h-72 overflow-y-auto">
                 {filteredAddExercises.length === 0 && (
                   <li className="p-3 text-center text-xs text-zinc-500">No exercises found.</li>
                 )}
-                {filteredAddExercises.map((ex) => (
-                  <li key={ex.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-zinc-800">
-                    <button
-                      type="button"
-                      onClick={() => addAdHocExercise(ex)}
-                      className="flex flex-1 items-center justify-between text-left"
-                    >
-                      <span className="text-sm text-white">{ex.name}</span>
-                      <span className="text-xs text-zinc-500 mr-3">{ex.primaryMuscle.replace(/_/g, ' ')}</span>
-                    </button>
-                    <div className="flex items-center gap-1 rounded-md border border-zinc-700 px-1">
+                {filteredAddExercises.map((ex) => {
+                  const isConfiguring = configuringId === ex.id;
+                  const cfg = getAdHocConfig(ex.id);
+                  const timeBased = ex.isTimeBased ?? false;
+                  return (
+                    <li key={ex.id} className="border-b border-zinc-800 last:border-b-0">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); adjustAdHocSetCount(ex.id, -1); }}
-                        className="px-2 py-1 text-zinc-400 hover:text-white"
+                        onClick={() => setConfiguringId(isConfiguring ? null : ex.id)}
+                        className={`flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-zinc-800 ${isConfiguring ? 'bg-zinc-800' : ''}`}
                       >
-                        −
+                        <span className="text-sm text-white">{ex.name}</span>
+                        <span className="ml-2 text-xs text-zinc-500">{ex.primaryMuscle.replace(/_/g, ' ')}</span>
                       </button>
-                      <span className="w-6 text-center text-sm text-white">{getAdHocSetCount(ex.id)}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); adjustAdHocSetCount(ex.id, 1); }}
-                        className="px-2 py-1 text-zinc-400 hover:text-white"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </li>
-                ))}
+
+                      {isConfiguring && (
+                        <div className="space-y-3 border-t border-zinc-800 bg-zinc-950/40 px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                            <AdHocStepper label="Sets" value={cfg.sets}
+                              onDec={() => adjustAdHocConfig(ex.id, 'sets', -1)}
+                              onInc={() => adjustAdHocConfig(ex.id, 'sets', 1)} />
+                            <AdHocStepper label={timeBased ? 'Min sec' : 'Min reps'} value={cfg.repMin}
+                              onDec={() => adjustAdHocConfig(ex.id, 'repMin', timeBased ? -5 : -1)}
+                              onInc={() => adjustAdHocConfig(ex.id, 'repMin', timeBased ? 5 : 1)} />
+                            <AdHocStepper label={timeBased ? 'Max sec' : 'Max reps'} value={cfg.repMax}
+                              onDec={() => adjustAdHocConfig(ex.id, 'repMax', timeBased ? -5 : -1)}
+                              onInc={() => adjustAdHocConfig(ex.id, 'repMax', timeBased ? 5 : 1)} />
+                            <AdHocStepper label="RIR" value={cfg.rir}
+                              onDec={() => adjustAdHocConfig(ex.id, 'rir', -1)}
+                              onInc={() => adjustAdHocConfig(ex.id, 'rir', 1)} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => addAdHocExercise(ex)}
+                            className="w-full rounded-md bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                          >
+                            Add · {cfg.sets} × {cfg.repMin}–{cfg.repMax}{timeBased ? 's' : ''} · {cfg.rir} RIR
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
