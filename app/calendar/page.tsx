@@ -7,7 +7,11 @@ import CalendarView from './CalendarView';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; month?: string }>;
+}) {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
   if (!token) return redirect('/login');
@@ -20,9 +24,16 @@ export default async function CalendarPage() {
   });
   if (!profile) return redirect('/setup');
 
+  // Month to display is driven by the URL so any past/future month loads its own
+  // scheduled + completed data (server-fetched below). Defaults to the current
+  // month. Clamped to sane bounds so a hand-typed URL can't break the query.
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const parsedYear = Number((await searchParams).year);
+  const parsedMonth = Number((await searchParams).month);
+  const year = Number.isInteger(parsedYear) && parsedYear >= 2000 && parsedYear <= 2100
+    ? parsedYear : now.getFullYear();
+  const month = Number.isInteger(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12
+    ? parsedMonth : now.getMonth() + 1;
 
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0, 23, 59, 59);

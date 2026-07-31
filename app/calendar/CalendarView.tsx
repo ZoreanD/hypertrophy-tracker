@@ -49,8 +49,8 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
 export default function CalendarView({
-  year: initialYear,
-  month: initialMonth,
+  year,
+  month,
   scheduled = [],
   routines = [],
 }: {
@@ -60,8 +60,6 @@ export default function CalendarView({
   routines: Routine[];
 }) {
   const router = useRouter();
-  const [year, setYear] = useState(initialYear);
-  const [month, setMonth] = useState(initialMonth);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedRoutineId, setSelectedRoutineId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -82,18 +80,22 @@ export default function CalendarView({
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
-  function prevMonth() {
-    if (month === 1) { setYear(y => y - 1); setMonth(12); }
-    else setMonth(m => m - 1);
+  // Navigate by pushing the target month into the URL so the server refetches
+  // that month's scheduled + completed workouts.
+  function goToMonth(y: number, m: number) {
     setSelectedDate(null);
     setMovingItem(null);
+    router.push(`/calendar?year=${y}&month=${m}`);
+  }
+
+  function prevMonth() {
+    if (month === 1) goToMonth(year - 1, 12);
+    else goToMonth(year, month - 1);
   }
 
   function nextMonth() {
-    if (month === 12) { setYear(y => y + 1); setMonth(1); }
-    else setMonth(m => m + 1);
-    setSelectedDate(null);
-    setMovingItem(null);
+    if (month === 12) goToMonth(year + 1, 1);
+    else goToMonth(year, month + 1);
   }
 
   function handleDayClick(dateStr: string) {
@@ -147,9 +149,23 @@ export default function CalendarView({
         >
           ← Prev
         </button>
-        <h2 className="text-xl font-bold text-white">
-          {MONTHS[month - 1]} {year}
-        </h2>
+        <div className="flex flex-col items-center gap-1">
+          <h2 className="text-xl font-bold text-white">
+            {MONTHS[month - 1]} {year}
+          </h2>
+          {(() => {
+            const nowD = new Date();
+            const isCurrent = year === nowD.getFullYear() && month === nowD.getMonth() + 1;
+            return isCurrent ? null : (
+              <button
+                onClick={() => goToMonth(nowD.getFullYear(), nowD.getMonth() + 1)}
+                className="text-xs text-emerald-400 hover:underline"
+              >
+                Jump to today
+              </button>
+            );
+          })()}
+        </div>
         <button
           onClick={nextMonth}
           className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:border-zinc-500"

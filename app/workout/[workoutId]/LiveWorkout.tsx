@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { logSet, deleteSet, getSubstituteExercises, getExerciseHistory, cancelWorkout } from '../../actions/workout-session';
 import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
@@ -591,18 +591,43 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
   }
 
   // ── Drag-to-reorder (pointer-based; works on touch + mouse) ────────────────
-  // Grab the grip handle and drag a card up/down; the list reflows live. Uses
-  // pointer capture so we keep getting move/up events even off the handle.
+  // Grab the grip handle; the card lifts and follows the finger while an emerald
+  // indicator shows where it will drop. The reorder is committed on release
+  // (deferred), so the list doesn't reflow under the finger mid-drag. Completed
+  // (green) cards can't be dragged and nothing can be dropped above them — the
+  // workflow completes top-to-bottom.
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const draggingRef = useRef<string | null>(null);
+  const dragOverIndexRef = useRef<number | null>(null);
+  const dragStartYRef = useRef(0);
+  const draggedElRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const exerciseOrderRef = useRef(exerciseOrder);
   useEffect(() => { exerciseOrderRef.current = exerciseOrder; }, [exerciseOrder]);
 
+  // Index just past the last completed card — nothing incomplete may drop above
+  // it. Read from the DOM (data-complete) so we don't duplicate the (nontrivial)
+  // completion math that lives in the render loop.
+  function completedFloor(ids: string[]): number {
+    let floor = 0;
+    ids.forEach((id, i) => {
+      if (cardRefs.current[id]?.dataset.complete === 'true') floor = i + 1;
+    });
+    return floor;
+  }
+
   function handleDragStart(e: React.PointerEvent, exId: string) {
+    // Completed cards are locked.
+    if (cardRefs.current[exId]?.dataset.complete === 'true') return;
     e.preventDefault();
     draggingRef.current = exId;
     setDraggingId(exId);
+    const startIndex = exerciseOrderRef.current.indexOf(exId);
+    dragOverIndexRef.current = startIndex;
+    setDragOverIndex(startIndex);
+    dragStartYRef.current = e.clientY;
+    draggedElRef.current = cardRefs.current[exId];
     // Collapse any open card so all rows are short and easy to drop between.
     setExpandedExercise(null);
     try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
@@ -612,29 +637,52 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     const id = draggingRef.current;
     if (!id) return;
     const ids = exerciseOrderRef.current;
-    const y = e.clientY;
-    // Target = first card whose vertical midpoint is below the pointer.
-    let target = ids.length - 1;
-    for (let i = 0; i < ids.length; i++) {
-      const el = cardRefs.current[ids[i]];
-      if (!el) continue;
-      const r = el.getBoundingClientRect();
-      if (y < r.top + r.height / 2) { target = i; break; }
+    // Card follows the finger (imperative transform → no re-render per move).
+    const dy = e.clientY - dragStartYRef.current;
+    if (draggedElRef.current) {
+      draggedElRef.current.style.transform = `translateY(${dy}px) scale(1.02)`;
     }
-    const from = ids.indexOf(id);
-    if (from === -1 || from === target) return;
-    const next = [...ids];
-    next.splice(from, 1);
-    next.splice(target, 0, id);
-    setExerciseOrder(next);
+    // Drop index = number of *other* cards whose midpoint sits above the pointer.
+    let target = 0;
+    ids.forEach((otherId) => {
+      if (otherId === id) return;
+      const el = cardRefs.current[otherId];
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (e.clientY > r.top + r.height / 2) target += 1;
+    });
+    target = Math.max(target, completedFloor(ids));
+    if (target !== dragOverIndexRef.current) {
+      dragOverIndexRef.current = target;
+      setDragOverIndex(target);
+    }
   }
 
   function handleDragEnd(e: React.PointerEvent) {
-    if (!draggingRef.current) return;
+    const id = draggingRef.current;
+    if (!id) return;
     try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    if (draggedElRef.current) draggedElRef.current.style.transform = '';
+    const ids = exerciseOrderRef.current;
+    const from = ids.indexOf(id);
+    const target = dragOverIndexRef.current;
+    if (from !== -1 && target != null && target !== from) {
+      const next = ids.filter((x) => x !== id);
+      next.splice(target, 0, id);
+      setExerciseOrder(next);
+    }
     draggingRef.current = null;
+    draggedElRef.current = null;
+    dragOverIndexRef.current = null;
     setDraggingId(null);
+    setDragOverIndex(null);
   }
+
+  // Where to render the drop indicator: just before this exId (or at the end).
+  const dragReduced = draggingId ? exerciseOrder.filter((x) => x !== draggingId) : [];
+  const dropBeforeId = draggingId && dragOverIndex != null && dragOverIndex < dragReduced.length
+    ? dragReduced[dragOverIndex] : null;
+  const dropAtEnd = draggingId != null && dragOverIndex != null && dragOverIndex >= dragReduced.length;
 
   // ── Log set helpers ──────────────────────────────────────────────────────
 
@@ -1425,10 +1473,16 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
         const dropSetsLogged = setsForExercise.filter((s) => s.setType === 'DROPSET_DROP').length;
 
         return (
-          <div key={exId}
+          <Fragment key={exId}>
+          {/* Drop indicator — where the dragged card will land */}
+          {draggingId && dropBeforeId === exId && (
+            <div className="mx-2 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px] shadow-emerald-500/60 animate-pulse" />
+          )}
+          <div
             ref={(el) => { cardRefs.current[exId] = el; }}
-            className={`rounded-xl border transition-all duration-300 ${
-            draggingId === exId ? 'border-emerald-500 bg-zinc-900 opacity-90 shadow-lg ring-1 ring-emerald-500/40'
+            data-complete={isComplete ? 'true' : 'false'}
+            className={`rounded-xl border ${draggingId === exId ? 'relative z-20 border-emerald-500 bg-zinc-900 shadow-2xl ring-2 ring-emerald-500 will-change-transform' : 'transition-all duration-300'} ${
+            draggingId === exId ? ''
             : flashingExercise === ex.exerciseId ? 'border-emerald-400 bg-emerald-950/40 scale-[1.01]'
             : isComplete ? 'border-green-700 bg-green-950/25'
             : isPivoting ? 'border-yellow-600 bg-yellow-950/10'
@@ -1438,23 +1492,26 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
 
             {/* Exercise header with drag handle + step arrows */}
             <div className="flex items-center p-4 gap-2">
-              {/* Drag to reorder (grip); arrows remain for single-step nudges */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  aria-label="Drag to reorder"
-                  onPointerDown={(e) => handleDragStart(e, exId)}
-                  onPointerMove={handleDragMove}
-                  onPointerUp={handleDragEnd}
-                  onPointerCancel={handleDragEnd}
-                  className={`cursor-grab touch-none select-none rounded px-1 text-base leading-none text-zinc-600 hover:text-zinc-300 ${draggingId === exId ? 'cursor-grabbing text-emerald-400' : ''}`}
-                >⠿</button>
-                <div className="flex flex-col gap-0.5">
-                  <button onClick={() => moveUp(exId)} disabled={index === 0}
-                    className="rounded px-1 py-0.5 text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▲</button>
-                  <button onClick={() => moveDown(exId)} disabled={index === exerciseOrder.length - 1}
-                    className="rounded px-1 py-0.5 text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▼</button>
+              {/* Drag to reorder (grip); arrows remain for single-step nudges.
+                  Completed cards are locked — no reorder controls. */}
+              {!isComplete && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    aria-label="Drag to reorder"
+                    onPointerDown={(e) => handleDragStart(e, exId)}
+                    onPointerMove={handleDragMove}
+                    onPointerUp={handleDragEnd}
+                    onPointerCancel={handleDragEnd}
+                    className={`flex h-10 w-7 touch-none select-none items-center justify-center rounded text-lg leading-none ${draggingId === exId ? 'cursor-grabbing bg-emerald-500/20 text-emerald-400' : 'cursor-grab text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
+                  >⠿</button>
+                  <div className="flex flex-col gap-0.5">
+                    <button onClick={() => moveUp(exId)} disabled={index === 0}
+                      className="rounded px-1 py-0.5 text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▲</button>
+                    <button onClick={() => moveDown(exId)} disabled={index === exerciseOrder.length - 1}
+                      className="rounded px-1 py-0.5 text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-20">▼</button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <button className="flex flex-1 items-center gap-3 text-left" onClick={() => { setExpandedExercise(isExpanded ? null : ex.exerciseId); setPivotingExerciseId(null); }}>
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isComplete ? 'bg-green-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
@@ -2184,6 +2241,11 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
               </div>
             )}
           </div>
+          {/* Drop indicator at the very bottom of the list */}
+          {dropAtEnd && index === exerciseOrder.length - 1 && (
+            <div className="mx-2 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px] shadow-emerald-500/60 animate-pulse" />
+          )}
+          </Fragment>
         );
       })}
 
