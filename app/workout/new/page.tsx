@@ -2,6 +2,7 @@ import prisma from '../../../lib/prisma';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../../lib/auth';
 import { redirect } from 'next/navigation';
+import { todayInZone, resolveTimeZone } from '../../../lib/timezone';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +23,11 @@ export default async function NewWorkoutPage() {
       routineId: null,
       focus: 'Ad-hoc Workout',
       durationMins: 0,
-      date: new Date(
-        new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10) + 'T12:00:00'
-      ),
+      // The lifter's local calendar day, anchored at UTC noon. The explicit Z
+      // matters: without it the string parses in the SERVER's timezone, so the
+      // stored instant (and therefore the day it reads back as) depends on where
+      // the app happens to be deployed.
+      date: new Date(todayInZone(resolveTimeZone(profile.timezone)) + 'T12:00:00Z'),
     },
   });
 

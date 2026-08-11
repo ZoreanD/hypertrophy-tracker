@@ -11,7 +11,12 @@ import { GLOSSARY } from '../components/glossary';
 import ProgressionChart from './ProgressionChart';
 import TodayWorkoutCard from './TodayWorkoutCard';
 import { getHourlyQuote } from './quotes';
-import { VOLUME_LANDMARKS, addSetVolume } from '../../lib/volume';
+import { VOLUME_LANDMARKS, addSetVolume, setCountWeight, countWorkingSets } from '../../lib/volume';
+import { todayInZone, resolveTimeZone } from '../../lib/timezone';
+import TimezoneSync from '../components/TimezoneSync';
+import WhatsNew from '../components/WhatsNew';
+import WrappedPrompt from '../components/WrappedPrompt';
+import { activeWrappedYear } from '../../lib/wrapped';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,7 +70,12 @@ export default async function Dashboard() {
   const weeklySetsByGroup: Record<string, number> = {};
   recentWorkouts.forEach((workout) => {
     workout.sets.forEach((set) => {
-      addSetVolume(weeklySetsByGroup, set.exercise.primaryMuscle, set.exercise.secondaryMuscles);
+      addSetVolume(
+        weeklySetsByGroup,
+        set.exercise.primaryMuscle,
+        set.exercise.secondaryMuscles,
+        setCountWeight(set.side),
+      );
     });
   });
 
@@ -107,7 +117,7 @@ export default async function Dashboard() {
     const weekWorkouts = allRecentWorkouts.filter(
       (w) => w.date >= weekStart && w.date <= weekEnd
     );
-    const totalSets = weekWorkouts.reduce((sum, w) => sum + w.sets.length, 0);
+    const totalSets = weekWorkouts.reduce((sum, w) => sum + countWorkingSets(w.sets), 0);
 
     weeklyVolume.push({
       week: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -174,10 +184,11 @@ export default async function Dashboard() {
     : 0;
   const mesocycleWeek = (weeksSinceStart % 6) + 1;
 
-  // Today's scheduled workouts
-// CST = UTC-6 (CDT = UTC-5, but hardcoding CST for now)
-const CDT_OFFSET = 5 * 60 * 60 * 1000;
-const todayDateStr = new Date(Date.now() - CDT_OFFSET).toISOString().split('T')[0];
+  // Today's scheduled workouts, resolved in the lifter's own timezone.
+const profileTz = resolveTimeZone(profile.timezone);
+const todayDateStr = todayInZone(profileTz);
+// Non-null only inside the Wrapped window (Dec 20 – Jan 7), in the user's zone.
+const wrappedYear = activeWrappedYear(todayDateStr);
 const todayStartUTC = new Date(todayDateStr + 'T00:00:00.000Z');
 const todayEndUTC = new Date(todayDateStr + 'T23:59:59.999Z');
 
@@ -205,14 +216,19 @@ const inProgressWorkouts = todayWorkouts.filter((w) => w.durationMins === 0 && !
 
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
+      {/* Silently keeps Profile.timezone current; renders nothing. */}
+      <TimezoneSync />
+      {/* Deploy-triggered changelog card; no-ops if already dismissed. */}
+      <WhatsNew />
       <div className="mx-auto max-w-4xl space-y-8">
+        {wrappedYear !== null && <WrappedPrompt year={wrappedYear} />}
 
         <header className="border-b border-zinc-800 pb-6 space-y-4">
           {/* Date + nav buttons */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-zinc-500">
-              {new Date(Date.now() - 5 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-                weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago',
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long', month: 'long', day: 'numeric', timeZone: profileTz,
               })}
             </p>
             <div className="ff-nav flex flex-wrap gap-2">

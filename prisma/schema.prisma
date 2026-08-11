@@ -31,6 +31,13 @@ model Profile {
   updatedAt      DateTime     @updatedAt
   weekStartDay   Int          @default(0)
 
+  // IANA zone (e.g. "America/Chicago"), captured from the browser at setup.
+  // "Today" is a per-user question the server can't answer without this — it
+  // replaces a hardcoded UTC-5 that was wrong for ~4 months a year (CST vs CDT)
+  // and for anyone outside Central. Null on older accounts; see
+  // lib/timezone.ts resolveTimeZone for the fallback.
+  timezone       String?
+
   // Rest-timer push: a scheduled push only fires if its nonce still matches —
   // lets us cancel/supersede a scheduled notification without deleting the
   // queued message (skip, finish, or a newer rest all rotate the nonce).

@@ -3,6 +3,37 @@
 import prisma from '../../lib/prisma';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
+import { isValidTimeZone } from '../../lib/timezone';
+
+/**
+ * Record the device's IANA timezone on the profile. The user is never asked —
+ * the browser already knows, so TimezoneSync reports it on load. Writes only
+ * when it actually changed, so this is a no-op on nearly every page view.
+ */
+export async function syncTimezone(timezone: string) {
+  try {
+    if (!isValidTimeZone(timezone)) return { success: false };
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    if (!token) return { success: false };
+    const decoded = await verifyToken(token);
+    if (!decoded) return { success: false };
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId: decoded.userId },
+      select: { id: true, timezone: true },
+    });
+    if (!profile || profile.timezone === timezone) return { success: true };
+
+    await prisma.profile.update({
+      where: { id: profile.id },
+      data: { timezone },
+    });
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
 
 // Add weeklyGoalRate to calculateMetrics data type
 function calculateMetricsWithRate(data: {
@@ -73,6 +104,7 @@ export async function createProfile(data: {
   goal: string;
   weeklyGoalRate: number | string;
   targetWeightLbs?: number | string;
+  timezone?: string;
 }) {
   try {
     const cookieStore = await cookies();
@@ -120,6 +152,7 @@ export async function createProfile(data: {
           currentGoal: safeGoal as any,
           weeklyGoalRate: numericWeeklyRate,
           targetWeightLbs: data.targetWeightLbs ? Number(data.targetWeightLbs) : null,
+          timezone: isValidTimeZone(data.timezone) ? data.timezone : null,
         },
       });
 

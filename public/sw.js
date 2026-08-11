@@ -1,5 +1,5 @@
 // Zorean Hypertrophy Service Worker
-const CACHE_NAME = 'zorean-hypertrophy-v6';
+const CACHE_NAME = 'zorean-hypertrophy-v7';
 
 // ── Rest-timer notifications ────────────────────────────────────────────────
 // The page's setInterval freezes while backgrounded, and an *orphaned* SW
@@ -121,17 +121,35 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Server-sent rest-complete push (reliable for long rests, since the push
-// service wakes the SW even after it's been frozen/killed). Always show a
-// notification — Chrome penalizes silent pushes under userVisibleOnly.
+// service wakes the SW even after it's been frozen/killed).
+//
+// If the app is already in the foreground there's nothing to notify about — the
+// user is looking at the live timer. We can't simply skip showing, because
+// Chrome penalizes silent pushes under userVisibleOnly, so we show it silently
+// and close it immediately: the bookkeeping is satisfied without a buzz.
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { /* non-JSON */ }
-  event.waitUntil(
-    self.registration.showNotification(
-      data.title || 'Rest complete',
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const anyVisible = windows.some((c) => c.visibilityState === 'visible');
+    const title = data.title || 'Rest complete';
+    if (anyVisible) {
+      await self.registration.showNotification(title, restNotifOptions({
+        body: data.body || undefined,
+        silent: true,
+        vibrate: undefined,
+        renotify: false,
+      }));
+      const shown = await self.registration.getNotifications({ tag: REST_NOTIF_TAG });
+      shown.forEach((n) => n.close());
+      return;
+    }
+    await self.registration.showNotification(
+      title,
       restNotifOptions(data.body ? { body: data.body } : {})
-    )
-  );
+    );
+  })());
 });
 
 // Re-subscribe transparently if the browser rotates the subscription.

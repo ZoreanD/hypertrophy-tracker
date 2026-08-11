@@ -476,6 +476,10 @@ export default function LiveWorkout({
         // very notification we want to deliver.
         if (document.visibilityState === 'visible') {
           messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
+          // Also cancel the QStash-scheduled server push. Without this the
+          // local SW notification is suppressed but the server push still
+          // lands, buzzing while the user is looking at the workout.
+          cancelPush();
         }
       } else {
         setRestTimer(remaining);
@@ -1967,7 +1971,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                     </button>
                     <button onClick={() => handleLogStraightSet(ex)} className="w-full rounded-md bg-zinc-700 py-2.5 text-sm font-semibold text-white hover:bg-zinc-600">
                       {ex.isUnilateral
-                        ? `Log ${unilateralPhase[ex.exerciseId] ?? 'LEFT'} — Set ${completedSetCount + (unilateralPendingSide[ex.exerciseId] ? 0 : 1)} of ${ex.targetSets}`
+                        ? `Log ${unilateralPhase[ex.exerciseId] ?? 'LEFT'} — Set ${completedSetCount + 1} of ${ex.targetSets}`
                         : `Log Set ${completedSetCount + 1} of ${ex.targetSets}`}
                     </button>
                   </div>

@@ -5,6 +5,7 @@ import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
 import { saveTrialAsRoutine } from '../../actions/social';
 import { reopenWorkout } from '../../actions/workout-session';
+import { countWorkingSets } from '../../../lib/volume';
 
 type LoggedSet = {
   id: string;
@@ -76,7 +77,8 @@ export default function CompletedWorkout({
 }) {
   const router = useRouter();
   const workingSets = loggedSets.filter((s) => !s.isWarmup);
-  const totalSets = workingSets.length;
+  // L/R rows collapse to one working set (see lib/volume).
+  const totalSets = countWorkingSets(workingSets);
 
   const [reopening, startReopen] = useTransition();
   function reopen() {

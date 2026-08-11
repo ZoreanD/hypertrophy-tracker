@@ -4,6 +4,8 @@ import prisma from '../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
+import { countWorkingSets } from '../../lib/volume';
+import { todayInZone, resolveTimeZone } from '../../lib/timezone';
 
 async function getProfile() {
   const cookieStore = await cookies();
@@ -266,8 +268,8 @@ export async function reopenWorkout(workoutId: string) {
       return { success: false, error: 'Workout not found' };
     }
 
-    // "Today" in the app's reference (Central, matches how workout dates are set).
-    const todayStr = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // "Today" in the lifter's own timezone (see lib/timezone.ts).
+    const todayStr = todayInZone(resolveTimeZone(profile.timezone));
     const workoutStr = new Date(workout.date).toISOString().slice(0, 10);
     if (workoutStr !== todayStr) {
       return { success: false, error: "Only today's workout can be reopened." };
@@ -614,7 +616,7 @@ export async function finishWorkout(workoutId: string, durationMins: number, rem
         summaryJson: {
           exerciseSummaries,
           deloadRecommended,
-          totalSets: workout.sets.length,
+          totalSets: countWorkingSets(workout.sets),
           durationMins,
         },
       },
@@ -658,7 +660,7 @@ export async function finishWorkout(workoutId: string, durationMins: number, rem
       summary: {
         exerciseSummaries,
         deloadRecommended,
-        totalSets: workout.sets.length,
+        totalSets: countWorkingSets(workout.sets),
         durationMins,
       },
     };

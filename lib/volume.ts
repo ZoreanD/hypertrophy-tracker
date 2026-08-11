@@ -85,20 +85,36 @@ export function groupOf(muscle: string): string {
   return MUSCLE_GROUP_MAP[muscle] ?? muscle;
 }
 
-// Credit one logged set into an accumulator: 1.0 to the primary group, then
-// INDIRECT_FRACTION to each distinct other group its secondary muscles hit.
+// A unilateral set is stored as TWO rows (side LEFT + RIGHT) but is one working
+// set for the muscle — 3×10 per arm is 3 sets, not 6. Weighting each row by its
+// side makes a L/R pair sum to 1.0 without needing to pair rows up. Rows with no
+// side (bilateral, and all pre-unilateral legacy rows) still count 1.0, and an
+// orphaned single side honestly counts 0.5.
+export function setCountWeight(side: string | null | undefined): number {
+  return side ? 0.5 : 1;
+}
+
+export function countWorkingSets(sets: { side?: string | null }[]): number {
+  return sets.reduce((n, s) => n + setCountWeight(s.side), 0);
+}
+
+// Credit one logged set into an accumulator: `setWeight` to the primary group,
+// then INDIRECT_FRACTION of that to each distinct other group its secondary
+// muscles hit. `setWeight` is normally 1, or 0.5 for one side of a unilateral
+// pair (see setCountWeight).
 export function addSetVolume(
   acc: Record<string, number>,
   primaryMuscle: string,
   secondaryMuscles: string[] | null | undefined,
+  setWeight: number = 1,
 ): void {
   const primaryGroup = groupOf(primaryMuscle);
-  acc[primaryGroup] = (acc[primaryGroup] ?? 0) + 1;
+  acc[primaryGroup] = (acc[primaryGroup] ?? 0) + setWeight;
   const credited = new Set<string>([primaryGroup]);
   for (const sec of secondaryMuscles ?? []) {
     const g = groupOf(sec);
     if (credited.has(g)) continue;
     credited.add(g);
-    acc[g] = (acc[g] ?? 0) + INDIRECT_FRACTION;
+    acc[g] = (acc[g] ?? 0) + setWeight * INDIRECT_FRACTION;
   }
 }

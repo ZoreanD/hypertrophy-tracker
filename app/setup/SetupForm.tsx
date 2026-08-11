@@ -63,6 +63,8 @@ export default function SetupForm() {
       goal: form.goal,
       weeklyGoalRate: parseFloat(form.weeklyGoalRate),
       targetWeightLbs: form.targetWeightLbs ? parseFloat(form.targetWeightLbs) : undefined,
+      // Detected, never asked — the browser already knows.
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
     if (result.success) {

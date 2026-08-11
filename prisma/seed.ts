@@ -951,7 +951,81 @@ const exercises = [
     secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD'],
     equipment: 'DUMBBELL',
     movementPattern: 'ISOLATION',
+    isUnilateral: true,
     weightIsPerSide: true,
+  },
+  // ── Hammer / neutral-grip curl variations ────────────────────────────────
+  // All share the hammer-grip profile: brachialis primary, with brachioradialis
+  // and the biceps long head assisting. FOREARMS is tagged as a secondary since
+  // the neutral grip loads the forearm noticeably more than a supinated curl.
+  // Preacher versions remove body english and bias the stretched position.
+  {
+    name: 'Preacher Hammer Curl (Dumbbell)',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD', 'FOREARMS'],
+    equipment: 'DUMBBELL',
+    movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
+  },
+  {
+    // The EZ bar's angled outer grip is semi-pronated rather than a true neutral
+    // hammer grip, but it loads brachialis/brachioradialis the same way.
+    name: 'Preacher Hammer Curl (EZ Bar)',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD', 'FOREARMS'],
+    equipment: 'BARBELL',
+    movementPattern: 'ISOLATION',
+  },
+  {
+    name: 'Preacher Hammer Curl (Machine)',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD', 'FOREARMS'],
+    equipment: 'MACHINE_SELECTORIZED',
+    movementPattern: 'ISOLATION',
+  },
+  {
+    // Both arms curling together — the bilateral counterpart to 'Hammer Curl'.
+    name: 'Standing Hammer Curl (Both Arms)',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD', 'FOREARMS'],
+    equipment: 'DUMBBELL',
+    movementPattern: 'ISOLATION',
+    weightIsPerSide: true,
+  },
+  {
+    name: 'Standing Hammer Curl (EZ Bar)',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD', 'FOREARMS'],
+    equipment: 'BARBELL',
+    movementPattern: 'ISOLATION',
+  },
+  {
+    name: 'Seated Hammer Curl (Dumbbell)',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD', 'FOREARMS'],
+    equipment: 'DUMBBELL',
+    movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
+  },
+  {
+    // Incline bench puts the shoulder in extension — biases the biceps long head
+    // more than the other hammer variations.
+    name: 'Incline Hammer Curl (Dumbbell)',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BICEPS_LONG_HEAD', 'BRACHIORADIALIS', 'FOREARMS'],
+    equipment: 'DUMBBELL',
+    movementPattern: 'ISOLATION',
+    isUnilateral: true,
+    weightIsPerSide: true,
+  },
+  {
+    name: 'Machine Hammer Curl',
+    primaryMuscle: 'BRACHIALIS',
+    secondaryMuscles: ['BRACHIORADIALIS', 'BICEPS_LONG_HEAD', 'FOREARMS'],
+    equipment: 'MACHINE_SELECTORIZED',
+    movementPattern: 'ISOLATION',
   },
   {
     name: 'Cross-Body Hammer Curl',

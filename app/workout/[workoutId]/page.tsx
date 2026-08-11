@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import LiveWorkout from './LiveWorkout';
 import CompletedWorkout from './CompletedWorkout';
 import { getCurrentBodyweight } from '../../actions/workout-session';
+import { todayInZone, resolveTimeZone } from '../../../lib/timezone';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,7 +80,7 @@ export default async function LiveWorkoutPage({
             summaryJson: workout.summaryJson ?? null,
           }}
           trialRoutineId={workout.routine?.isTrial ? workout.routineId : null}
-          canReopen={workout.date.toISOString().slice(0, 10) === new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10)}
+          canReopen={workout.date.toISOString().slice(0, 10) === todayInZone(resolveTimeZone(profile.timezone))}
           plannedExercises={(workout.routine?.exercises ?? []).map((re) => ({
             exerciseId: re.exerciseId,
             exerciseName: re.exercise.name,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { assignRoutineToDay, removeRoutineFromDay, moveScheduledWorkout } from '../actions/calendar';
 import { startWorkout } from '../actions/workout-session';
@@ -67,7 +67,14 @@ export default function CalendarView({
 
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
-  const today = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().split('T')[0];
+  // Browser-local calendar day, resolved AFTER mount. A client component is
+  // still server-rendered, so computing this inline would use the server's
+  // timezone and React would not correct it on hydration — highlighting the
+  // wrong cell and warning about a hydration mismatch. Empty on the first paint
+  // (no cell highlighted), then filled in with the device's real day, which is
+  // also what the `isPast` check below uses.
+  const [today, setToday] = useState('');
+  useEffect(() => { setToday(new Date().toLocaleDateString('en-CA')); }, []);
 
   const scheduledByDate: Record<string, ScheduledItem[]> = {};
   scheduled.forEach((s) => {

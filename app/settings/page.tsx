@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import SettingsForm from './SettingsForm';
 import ThemeSwitcher from './ThemeSwitcher';
+import { WhatsNewButton } from '../components/WhatsNew';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,20 @@ export default async function SettingsPage() {
           </Link>
         </header>
         <ThemeSwitcher />
+
+        <section className="space-y-2">
+          <WhatsNewButton />
+          <Link
+            href={`/wrapped/${new Date().getFullYear()}`}
+            className="block w-full rounded-lg border border-zinc-700 px-4 py-3 text-left text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white"
+          >
+            🏆 Year in Review
+            <span className="block text-xs font-normal text-zinc-500">
+              Your training year, any time
+            </span>
+          </Link>
+        </section>
+
         <SettingsForm
           initialValues={{
             heightFt: String(heightFt),
