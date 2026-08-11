@@ -6,6 +6,7 @@ import { logSet, deleteSet, getSubstituteExercises, getExerciseHistory, cancelWo
 import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
+import { validateSet } from '../../../lib/setValidation';
 
 // Compact labeled −/+ stepper used in the add-exercise config panel.
 function AdHocStepper({ label, value, onDec, onInc }: {
@@ -714,6 +715,18 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     if (now - (lastLoggedAt.current[debounceKey] ?? 0) < 300) return false;
     lastLoggedAt.current[debounceKey] = now;
 
+    // Catch out-of-range values before the optimistic insert, so a typo never
+    // flashes into the list and then vanishes. The server re-checks regardless.
+    const invalid = validateSet({
+      weightLbs: params.weight,
+      reps: params.reps,
+      rir: params.rir,
+      durationSeconds: params.durationSeconds ?? null,
+      assistanceWeightLbs: params.assistanceWeightLbs ?? null,
+      bodyweightLbs: params.bodyweightLbs ?? null,
+    });
+    if (invalid) { alert(invalid); return false; }
+
     const execOrder = exerciseOrder.indexOf(params.exerciseId);
     const tempId = `opt-${generateGroupId()}`;
 
@@ -761,7 +774,9 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
         }
       } else {
         setLoggedSets((prev) => prev.filter((s) => s.id !== tempId));
-        alert('Failed to save set — check your connection and try again.');
+        // A rejected set is usually out-of-range input, not a network problem —
+        // say which so the fix is obvious.
+        alert(result.error ?? 'Failed to save set — check your connection and try again.');
       }
     }).catch(() => {
       // Network error or server throw — roll back and unblock Finish Workout

@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.08.10';
+export const CHANGELOG_VERSION = '2026.08.11';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,12 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-08-11',
+    title: 'Set input safeguards',
+    body: 'Impossible values (negative weights or reps, absurd loads) are now rejected instead of quietly saved, so they can\'t skew your estimated 1RMs or totals.',
+    tag: 'fix',
+  },
   {
     date: '2026-08-10',
     title: 'Year in Review',

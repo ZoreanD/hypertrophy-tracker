@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../lib/auth';
 import { countWorkingSets } from '../../lib/volume';
 import { todayInZone, resolveTimeZone } from '../../lib/timezone';
+import { validateSet } from '../../lib/setValidation';
 
 async function getProfile() {
   const cookieStore = await cookies();
@@ -97,6 +98,11 @@ export async function logSet(data: {
   durationSeconds?: number | null;
 }) {
   try {
+    // Authoritative bounds check — every logging path (straight, superset,
+    // dropset, myorep, unilateral) funnels through here.
+    const invalid = validateSet(data);
+    if (invalid) return { success: false, error: invalid };
+
     const set = await prisma.set.create({
       data: {
         workoutId: data.workoutId,
