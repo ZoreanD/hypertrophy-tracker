@@ -339,7 +339,14 @@ export default function LiveWorkout({
   // localStorage so "Leave & resume later" returns you exactly where you were.
   // Logged sets already persist server-side; this covers the unsaved bits.
   const STATE_KEY = `zh-workout-${workout.id}`;
-  const restoredRef = useRef(false);
+  // Must be state, not a ref. A ref flipped at the end of the restore effect is
+  // already true when the persist effect runs in the SAME commit — but the
+  // restored values are still queued, so persist would write the initial (empty)
+  // state straight over the snapshot. For an ad-hoc workout the server supplies
+  // no exercises, so that wipe was unrecoverable: reopening one showed no
+  // exercises at all. Flipping state forces a re-render first, so persist only
+  // ever runs once the restored values are actually in state.
+  const [restored, setRestored] = useState(false);
 
   useEffect(() => {
     try {
@@ -357,18 +364,18 @@ export default function LiveWorkout({
         if (s.unilateralPhase) setUnilateralPhase(s.unilateralPhase);
       }
     } catch { /* ignore corrupt snapshot */ }
-    restoredRef.current = true;
+    setRestored(true);
   }, []);
 
   useEffect(() => {
-    if (!restoredRef.current) return; // don't clobber the snapshot before restore
+    if (!restored) return; // don't clobber the snapshot before restore lands
     try {
       localStorage.setItem(STATE_KEY, JSON.stringify({
         activeExercises, exerciseOrder, swaps, setModes, supersetPartners,
         removedExerciseIds, inputs, supersetInputs, unilateralPhase,
       }));
     } catch { /* storage full / unavailable */ }
-  }, [activeExercises, exerciseOrder, swaps, setModes, supersetPartners, removedExerciseIds, inputs, supersetInputs, unilateralPhase]);
+  }, [restored, activeExercises, exerciseOrder, swaps, setModes, supersetPartners, removedExerciseIds, inputs, supersetInputs, unilateralPhase]);
 
   // Tell the service worker to (de)schedule the background rest-complete
   // notification. The SW fires it only if no window is visible when time's up.
@@ -377,9 +384,9 @@ export default function LiveWorkout({
     navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(message)).catch(() => {});
   }
 
-  // Arm the server push when leaving mid-rest; cancel it (and snap the display)
-  // on return. Scheduling only on background means a fully-foreground rest never
-  // triggers a notification, and the remaining time is recomputed each time.
+  // The push is armed when the rest starts (see startRestTimer). Returning to
+  // the app cancels it — the page interval owns the countdown again — so leaving
+  // a second time has to re-arm it with the recomputed remaining time.
   useEffect(() => {
   function onVisibilityChange() {
     if (restEndTimeRef.current === null) return;
@@ -464,6 +471,12 @@ export default function LiveWorkout({
     setRestTimer(secs);
     // The SW fires the notification at endTime even if this page is frozen.
     messageRestTimerSW({ type: 'START_REST_TIMER', endTime });
+    // Arm the server push NOW rather than waiting until the app is backgrounded.
+    // Android can freeze the page during the switch away, losing the scheduling
+    // request entirely — which showed up as rest notifications that fired only
+    // sometimes. Queuing it up front means the safety net is already in place;
+    // it's cancelled if the rest finishes while the app is in the foreground.
+    schedulePush(secs);
     timerRef.current = setInterval(() => {
       const remaining = Math.round((restEndTimeRef.current! - Date.now()) / 1000);
       if (remaining <= 0) {

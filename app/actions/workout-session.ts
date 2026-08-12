@@ -268,7 +268,7 @@ export async function reopenWorkout(workoutId: string) {
 
     const workout = await prisma.workout.findUnique({
       where: { id: workoutId },
-      select: { profileId: true, date: true },
+      select: { profileId: true, date: true, durationMins: true },
     });
     if (!workout || workout.profileId !== profile.id) {
       return { success: false, error: 'Workout not found' };
@@ -283,7 +283,13 @@ export async function reopenWorkout(workoutId: string) {
 
     await prisma.workout.update({
       where: { id: workoutId },
-      data: { durationMins: 0, summaryJson: Prisma.DbNull },
+      data: {
+        durationMins: 0,
+        summaryJson: Prisma.DbNull,
+        // Rewind the start by the time already logged, so finishing again adds
+        // to the previous duration instead of counting from the reopen.
+        startedAt: new Date(Date.now() - workout.durationMins * 60000),
+      },
     });
 
     const { revalidatePath } = await import('next/cache');
@@ -295,7 +301,7 @@ export async function reopenWorkout(workoutId: string) {
   }
 }
 
-export async function finishWorkout(workoutId: string, durationMins: number, removedExerciseIds: string[] = []) {
+export async function finishWorkout(workoutId: string, clientDurationMins: number, removedExerciseIds: string[] = []) {
   try {
     const profile = await getProfile();
     if (!profile) throw new Error('Not authenticated');
@@ -330,6 +336,19 @@ export async function finishWorkout(workoutId: string, durationMins: number, rem
     });
 
     if (!workout) throw new Error('Workout not found');
+
+    // Duration comes from the server-side start time, not the client's. The
+    // client clock restarts whenever the live-workout component remounts (a trip
+    // to the dashboard, a reload, the PWA being killed), which silently
+    // under-reports long sessions. Take whichever is larger so an unusually
+    // clock-skewed device can't shorten a workout either, and clamp to a sane
+    // ceiling so a session left open overnight doesn't report 14 hours.
+    const MAX_SESSION_MINS = 6 * 60;
+    const serverMins = Math.round((Date.now() - workout.startedAt.getTime()) / 60000);
+    const durationMins = Math.min(
+      MAX_SESSION_MINS,
+      Math.max(1, serverMins, Math.round(clientDurationMins) || 1),
+    );
 
     const exerciseSummaries = [];
 

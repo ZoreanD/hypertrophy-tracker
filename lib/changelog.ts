@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.08.11';
+export const CHANGELOG_VERSION = '2026.08.11.1';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,24 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-08-11',
+    title: 'Accurate workout duration',
+    body: 'Session length is now tracked on the server, so checking the dashboard mid-workout (or the app restarting) no longer restarts the clock and under-reports your time.',
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-11',
+    title: 'More reliable rest alerts',
+    body: 'The rest notification is now queued the moment your rest starts instead of when you leave the app, so it no longer gets lost if the phone freezes the page on the way out.',
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-11',
+    title: 'Reopen keeps your exercises',
+    body: 'Reopening a workout you added exercises to mid-session now restores them along with everything you logged.',
+    tag: 'fix',
+  },
   {
     date: '2026-08-11',
     title: 'Set input safeguards',

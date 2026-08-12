@@ -213,13 +213,18 @@ const todayWorkouts = await prisma.workout.findMany({
 // scheduled "Today" cards, so surface them here so they're resumable. Scheduled
 // routine workouts already show their in-progress state in TodayWorkoutCard.
 const inProgressWorkouts = todayWorkouts.filter((w) => w.durationMins === 0 && !w.routineId);
+// Any unfinished session (routine or ad-hoc). Used to hold back interruptions
+// like the What's New card until the workout is done.
+const midWorkout = todayWorkouts.some((w) => w.durationMins === 0);
 
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">
       {/* Silently keeps Profile.timezone current; renders nothing. */}
       <TimezoneSync />
-      {/* Deploy-triggered changelog card; no-ops if already dismissed. */}
-      <WhatsNew />
+      {/* Deploy-triggered changelog card; no-ops if already dismissed. Held back
+          mid-workout so a deploy can't interrupt a session — it'll surface on
+          the next visit once the workout is finished. */}
+      {!midWorkout && <WhatsNew />}
       <div className="mx-auto max-w-4xl space-y-8">
         {wrappedYear !== null && <WrappedPrompt year={wrappedYear} />}
 

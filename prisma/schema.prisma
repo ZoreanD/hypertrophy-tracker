@@ -325,6 +325,13 @@ model Workout {
   notes        String?
   date         DateTime @default(now())
 
+  // When the session actually began. Duration used to be measured from the
+  // React component mounting, so navigating to the dashboard mid-workout (or
+  // the PWA being killed and reopened) restarted the clock and under-reported
+  // the workout. Set on creation; on reopen it's rewound by the already-logged
+  // duration so accumulated time carries over.
+  startedAt    DateTime @default(now())
+
   profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   routine Routine? @relation(fields: [routineId], references: [id])
   sets    Set[]
