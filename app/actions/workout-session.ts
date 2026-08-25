@@ -7,6 +7,7 @@ import { verifyToken } from '../../lib/auth';
 import { countWorkingSets } from '../../lib/volume';
 import { todayInZone, resolveTimeZone } from '../../lib/timezone';
 import { validateSet } from '../../lib/setValidation';
+import { TrainingState, suppressesDeclineFlags, stateLabel } from '../../lib/trainingState';
 
 async function getProfile() {
   const cookieStore = await cookies();
@@ -301,7 +302,12 @@ export async function reopenWorkout(workoutId: string) {
   }
 }
 
-export async function finishWorkout(workoutId: string, clientDurationMins: number, removedExerciseIds: string[] = []) {
+export async function finishWorkout(
+  workoutId: string,
+  clientDurationMins: number,
+  removedExerciseIds: string[] = [],
+  endedEarlyIds: string[] = [],
+) {
   try {
     const profile = await getProfile();
     if (!profile) throw new Error('Not authenticated');
@@ -367,6 +373,11 @@ export async function finishWorkout(workoutId: string, clientDurationMins: numbe
     // breakdown (unless sets somehow remain for them). The routine itself is
     // untouched — they reappear next time the routine is run.
     const removed = new Set(removedExerciseIds);
+    // Exercises the lifter deliberately stopped short on — reported as a
+    // choice, not a shortfall, and never counted as a performance decline.
+    const endedEarly = new Set(endedEarlyIds);
+    const trainingState = (workout.trainingState ?? 'NORMAL') as TrainingState;
+    const suppressDeclines = suppressesDeclineFlags(trainingState);
     const exercisesToSummarize: SummaryTarget[] = (workout.routine?.exercises ?? [])
       .filter((re) => !(removed.has(re.exerciseId) && !workout.sets.some((s) => s.exerciseId === re.exerciseId)))
       .map((re) => ({
@@ -529,7 +540,7 @@ export async function finishWorkout(workoutId: string, clientDurationMins: numbe
       const isGrouped = ['SUPERSET_A', 'SUPERSET_B', 'MYOREP_ACTIVATION', 'MYOREP_MINI', 'DROPSET_PRIMARY', 'DROPSET_DROP'].includes(matchingSetType);
       const isVolumeBased = ['MYOREP_MINI', 'DROPSET_DROP'].includes(matchingSetType);
 
-      let progressionFlag: 'improved' | 'maintained' | 'declined' | 'context_change' | 'first_time' = 'first_time';
+      let progressionFlag: 'improved' | 'maintained' | 'declined' | 'context_change' | 'first_time' | 'not_compared' = 'first_time';
       let progressionNote = '';
 
       const contextTag = isGrouped ? ` (${matchingSetType.replace(/_/g, ' ').toLowerCase()})` : '';
@@ -598,9 +609,23 @@ export async function finishWorkout(workoutId: string, clientDurationMins: numbe
           restNote = `Avg rest: ${avgRestSecs}s — unusually long. Equipment wait or distraction?`;
         }
 
+      const wasEndedEarly = endedEarly.has(target.exerciseId);
+
+      // A decline is only meaningful when a normal effort was intended. On a
+      // deload, on the first sessions back from a layoff, or on an exercise the
+      // lifter deliberately cut short, lower numbers are the plan — flagging
+      // them tells the lifter to deload when they are already deloading.
+      if (progressionFlag === 'declined' && (suppressDeclines || wasEndedEarly)) {
+        progressionFlag = 'not_compared';
+        progressionNote = wasEndedEarly
+          ? `Stopped at ${countWorkingSets(setsForExercise)}${plannedSummary ? ` of ${plannedSummary.sets}` : ''} sets by choice — not compared to last time.`
+          : `${stateLabel(trainingState as TrainingState)} session — lower numbers expected, not counted as a decline.`;
+      }
+
       exerciseSummaries.push({
         exerciseName: target.exercise.name,
         status: 'completed' as const,
+        endedEarly: wasEndedEarly,
         isUnilateral,
         isAssisted,
         isBodyweight,
@@ -631,7 +656,8 @@ export async function finishWorkout(workoutId: string, clientDurationMins: numbe
       (e) => e.status === 'completed'
     ).length;
 
-    const deloadRecommended = totalCompleted > 0 &&
+    // Never recommend a deload to someone already deloading or just back.
+    const deloadRecommended = !suppressDeclines && totalCompleted > 0 &&
       unexplainedDeclines / totalCompleted >= 0.5;
 
     await prisma.workout.update({

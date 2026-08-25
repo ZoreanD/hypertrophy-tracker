@@ -44,12 +44,19 @@ model Profile {
   restNonce      String?
   restFireAt     DateTime?
 
+  // Layoff nudges: the last gap-threshold (in days) we notified about, so the
+  // reminder escalates 7 -> 14 -> 21 -> 30 instead of repeating daily. Cleared
+  // as soon as a working set is logged again.
+  layoffNudgeDays Int?
+  layoffNudgeAt   DateTime?
+
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   bodyMetrics       BodyMetric[]
   workouts          Workout[]
   routines          Routine[]
   scheduledWorkouts ScheduledWorkout[]
   pushSubscriptions PushSubscription[]
+  suggestions       Suggestion[]
 
   // Social graph (Strava-style, one-way, open)
   following            Follow[]              @relation("Following")  // rows where I am the follower
@@ -332,6 +339,15 @@ model Workout {
   // duration so accumulated time carries over.
   startedAt    DateTime @default(now())
 
+  // How this session should be interpreted by progression + flagging.
+  // NORMAL    — standard accumulation
+  // DELOAD    — deliberately lighter; never flag the drop as a decline
+  // RETURNING — first sessions back after a real break (see lib/trainingState)
+  trainingState String @default("NORMAL")
+  // Days since the previous logged WORKING set, recorded when RETURNING so the
+  // load suggestion can scale with how long the break actually was.
+  gapDays       Int?
+
   profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   routine Routine? @relation(fields: [routineId], references: [id])
   sets    Set[]
@@ -386,4 +402,18 @@ enum FitnessGoal {
   BULK
   CUT
   MAINTAIN
+}
+// Feature requests / feedback left by any user, queryable so they can be
+// triaged and turned into real changes.
+model Suggestion {
+  id        String   @id @default(uuid())
+  profileId String
+  body      String
+  status    String   @default("NEW") // NEW | PLANNED | SHIPPED | DECLINED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
 }

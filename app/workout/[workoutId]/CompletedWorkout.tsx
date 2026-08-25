@@ -149,6 +149,7 @@ export default function CompletedWorkout({
     const maintained = summary.exerciseSummaries.filter((e) => e.progressionFlag === 'maintained').length;
     const declined = summary.exerciseSummaries.filter((e) => e.progressionFlag === 'declined').length;
     const contextChange = summary.exerciseSummaries.filter((e) => e.progressionFlag === 'context_change').length;
+    const notCompared = summary.exerciseSummaries.filter((e) => e.progressionFlag === 'not_compared').length;
     const skipped = summary.exerciseSummaries.filter((e) => e.status === 'skipped').length;
 
     let grade = '', gradeColor = '';
@@ -169,6 +170,7 @@ export default function CompletedWorkout({
             {maintained > 0 && <span className="text-zinc-400">→ {maintained} maintained</span>}
             {declined > 0 && <span className="text-red-400">↓ {declined} declined</span>}
             {contextChange > 0 && <span className="text-yellow-400">⇄ {contextChange} position change</span>}
+            {notCompared > 0 && <span className="text-zinc-400">— {notCompared} not compared</span>}
             {skipped > 0 && <span className="text-zinc-600">○ {skipped} skipped</span>}
           </div>
         </div>
@@ -195,6 +197,7 @@ export default function CompletedWorkout({
                   : ex.progressionFlag === 'maintained' ? 'text-zinc-400'
                   : ex.progressionFlag === 'declined' ? 'text-red-400'
                   : ex.progressionFlag === 'context_change' ? 'text-yellow-400'
+                  : ex.progressionFlag === 'not_compared' ? 'text-zinc-400'
                   : ex.progressionFlag === 'first_time' ? 'text-blue-400'
                   : 'text-zinc-600'
                 }`}>
@@ -202,6 +205,7 @@ export default function CompletedWorkout({
                   : ex.progressionFlag === 'maintained' ? '→ Maintained'
                   : ex.progressionFlag === 'declined' ? '↓ Declined'
                   : ex.progressionFlag === 'context_change' ? '⇄ Position change'
+                  : ex.progressionFlag === 'not_compared' ? '— Not compared'
                   : ex.progressionFlag === 'first_time' ? '★ First session'
                   : '○ Skipped'}
                 </span>

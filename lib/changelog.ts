@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.08.11.1';
+export const CHANGELOG_VERSION = '2026.08.25';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,30 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-08-25',
+    title: 'Deloads and comebacks are understood',
+    body: "Mark a session as a deload, and the app stops reading the lighter weights as failure. After a real break it offers a scaled starting load instead — and it measures breaks from sets you actually logged, so moving days around your week never counts as time off.",
+    tag: 'new',
+  },
+  {
+    date: '2026-08-25',
+    title: 'End an exercise early',
+    body: 'Two sets was enough today? Tap "Done with this exercise" — it keeps everything you logged and records it as a choice rather than a shortfall.',
+    tag: 'new',
+  },
+  {
+    date: '2026-08-25',
+    title: 'Suggestion box',
+    body: 'New Ideas tab. Leave a request or a gripe, see what everyone else has asked for, and watch items move from new to planned to shipped.',
+    tag: 'new',
+  },
+  {
+    date: '2026-08-25',
+    title: 'Nudges when you have been away',
+    body: 'If a week passes with nothing logged, you will get a reminder — and it explains what is actually happening to your muscle at one, two, three and four weeks, plus how to come back.',
+    tag: 'new',
+  },
   {
     date: '2026-08-11',
     title: 'Accurate workout duration',

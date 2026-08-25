@@ -7,6 +7,10 @@ import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
 import { validateSet } from '../../../lib/setValidation';
+import { setTrainingState } from '../../actions/training-state';
+import {
+  TrainingState, suggestedLoad, stateLabel, returnLoadFactor, returnExtraRir,
+} from '../../../lib/trainingState';
 
 // Compact labeled −/+ stepper used in the add-exercise config panel.
 function AdHocStepper({ label, value, onDec, onInc }: {
@@ -149,6 +153,8 @@ export default function LiveWorkout({
   currentBodyweight,
   allExercises,
   isAdHoc,
+  trainingState: initialTrainingState,
+  suggestedReturn,
 }: {
   workout: { id: string; focus: string; date: string };
   plannedExercises: PlannedExercise[];
@@ -157,6 +163,8 @@ export default function LiveWorkout({
   currentBodyweight: number | null;
   allExercises: ExerciseOption[];
   isAdHoc: boolean;
+  trainingState: TrainingState;
+  suggestedReturn: { gapDays: number; sessionIndex: number } | null;
 }) {
   const router = useRouter();
   const startTime = useRef(Date.now());
@@ -186,6 +194,27 @@ export default function LiveWorkout({
   // Passed to finishWorkout so they're excluded from the summary instead of
   // showing as "skipped".
   const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
+  // Exercises the user deliberately stopped short on ("2 sets was enough today").
+  // Distinct from removing: every logged set is kept, the card just stops asking
+  // for more, and the summary reports it as intentional rather than a shortfall.
+  const [endedEarlyIds, setEndedEarlyIds] = useState<string[]>([]);
+
+  // How this session should be read by progression + flagging. Persisted on the
+  // workout so the summary (server-side) sees the same intent.
+  const [trainingState, setTrainingStateLocal] = useState<TrainingState>(initialTrainingState);
+  const [returnDismissed, setReturnDismissed] = useState(false);
+  const gapDays = suggestedReturn?.gapDays ?? null;
+
+  function applyTrainingState(next: TrainingState) {
+    setTrainingStateLocal(next);
+    void setTrainingState(workout.id, next, next === 'RETURNING' ? gapDays : null);
+  }
+
+  // Load/RIR guidance for this session, if the state calls for it.
+  function stateAdvice(lastWeight: number | null | undefined) {
+    if (lastWeight == null) return null;
+    return suggestedLoad(trainingState, lastWeight, gapDays);
+  }
   const exMap = Object.fromEntries(activeExercises.map((e) => [e.exerciseId, e]));
 
   const [showAddExercise, setShowAddExercise] = useState(false);
@@ -359,6 +388,8 @@ export default function LiveWorkout({
         if (s.setModes) setSetModes(s.setModes);
         if (s.supersetPartners) setSupersetPartners(s.supersetPartners);
         if (s.removedExerciseIds) setRemovedExerciseIds(s.removedExerciseIds);
+        if (s.endedEarlyIds) setEndedEarlyIds(s.endedEarlyIds);
+        if (s.returnDismissed) setReturnDismissed(true);
         if (s.inputs) setInputs(s.inputs);
         if (s.supersetInputs) setSupersetInputs(s.supersetInputs);
         if (s.unilateralPhase) setUnilateralPhase(s.unilateralPhase);
@@ -372,10 +403,10 @@ export default function LiveWorkout({
     try {
       localStorage.setItem(STATE_KEY, JSON.stringify({
         activeExercises, exerciseOrder, swaps, setModes, supersetPartners,
-        removedExerciseIds, inputs, supersetInputs, unilateralPhase,
+        removedExerciseIds, endedEarlyIds, returnDismissed, inputs, supersetInputs, unilateralPhase,
       }));
     } catch { /* storage full / unavailable */ }
-  }, [restored, activeExercises, exerciseOrder, swaps, setModes, supersetPartners, removedExerciseIds, inputs, supersetInputs, unilateralPhase]);
+  }, [restored, activeExercises, exerciseOrder, swaps, setModes, supersetPartners, removedExerciseIds, endedEarlyIds, returnDismissed, inputs, supersetInputs, unilateralPhase]);
 
   // Tell the service worker to (de)schedule the background rest-complete
   // notification. The SW fires it only if no window is visible when time's up.
@@ -1197,7 +1228,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       const res = await fetch('/api/finish-workout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workoutId: workout.id, durationMins, removedExerciseIds }),
+        body: JSON.stringify({ workoutId: workout.id, durationMins, removedExerciseIds, endedEarlyIds }),
       });
       const result = await res.json();
       if (result.success && result.summary) {
@@ -1338,6 +1369,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                   : ex.progressionFlag === 'maintained' ? 'text-zinc-400'
                   : ex.progressionFlag === 'declined' ? 'text-red-400'
                   : ex.progressionFlag === 'context_change' ? 'text-yellow-400'
+                  : ex.progressionFlag === 'not_compared' ? 'text-zinc-400'
                   : ex.progressionFlag === 'first_time' ? 'text-blue-400'
                   : 'text-zinc-600'
                 }`}>
@@ -1345,6 +1377,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                   : ex.progressionFlag === 'maintained' ? '→ Maintained'
                   : ex.progressionFlag === 'declined' ? '↓ Declined'
                   : ex.progressionFlag === 'context_change' ? '⇄ Position change'
+                  : ex.progressionFlag === 'not_compared' ? '— Not compared'
                   : ex.progressionFlag === 'first_time' ? '★ First session'
                   : '○ Skipped'}
                 </span>
@@ -1427,6 +1460,75 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
         </button>
       </header>
 
+      {/* Returning from a real break — offered, never applied silently, since it
+          changes the suggested weights. Detected from logged working sets, so
+          rescheduling sessions within a week never triggers it. */}
+      {suggestedReturn && trainingState === 'NORMAL' && !returnDismissed && (
+        <div className="rounded-xl border border-blue-700 bg-blue-950/30 p-4">
+          <p className="text-sm font-semibold text-blue-300">
+            Coming back from a {gapDays}-day break
+            {suggestedReturn && suggestedReturn.sessionIndex > 0
+              && ` · session ${suggestedReturn.sessionIndex + 1} back`}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">
+            {gapDays != null && gapDays <= 10
+              ? 'Barely any loss at this point — ease in and you should be right back to it.'
+              : gapDays != null && gapDays <= 14
+              ? 'Some strength will have slipped, mostly nervous-system rust. It comes back fast.'
+              : 'Expect real losses — and expect them to return quicker than they took to build.'}
+            {' '}Start around{' '}
+            <strong className="text-blue-300">
+              {gapDays != null ? Math.round(returnLoadFactor(gapDays) * 100) : 100}%
+            </strong>{' '}
+            of your usual loads with{' '}
+            <strong className="text-blue-300">
+              +{gapDays != null ? returnExtraRir(gapDays) : 0} RIR
+            </strong>.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => applyTrainingState('RETURNING')}
+              className="rounded-md bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500"
+            >
+              Start in return mode
+            </button>
+            <button
+              onClick={() => setReturnDismissed(true)}
+              className="rounded-md border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+            >
+              No, train as normal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Active state banner + deload toggle */}
+      <div className="flex flex-wrap items-center gap-2">
+        {trainingState !== 'NORMAL' && (
+          <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
+            trainingState === 'DELOAD'
+              ? 'border-yellow-600 bg-yellow-900/40 text-yellow-300'
+              : 'border-blue-600 bg-blue-900/40 text-blue-300'
+          }`}>
+            {stateLabel(trainingState)} session
+            {trainingState === 'RETURNING' && gapDays != null && ` · ${gapDays}d off`}
+          </span>
+        )}
+        <button
+          onClick={() => applyTrainingState(trainingState === 'DELOAD' ? 'NORMAL' : 'DELOAD')}
+          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+            trainingState === 'DELOAD'
+              ? 'border-yellow-600 text-yellow-300'
+              : 'border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          {trainingState === 'DELOAD' ? '✓ Deload' : 'Mark as deload'}
+        </button>
+        {trainingState !== 'NORMAL' && (
+          <span className="text-xs text-zinc-600">Declines won&apos;t be flagged.</span>
+        )}
+      </div>
+
       {swaps.length > 0 && (
         <div className="rounded-lg border border-zinc-700 bg-zinc-900/50 px-4 py-2">
           <p className="text-xs text-zinc-500">
@@ -1491,7 +1593,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
           ownSets.filter((s) => s.setType === 'MYOREP_ACTIVATION').map((s) => s.setGroupId)
         ).size;
         const completedSetCount = straightCount + supersetGroups + dropsetGroups + myorepGroups;
-        const isComplete = completedSetCount >= ex.targetSets;
+        const endedEarly = endedEarlyIds.includes(ex.exerciseId);
+        const isComplete = completedSetCount >= ex.targetSets || endedEarly;
         const isExpanded = expandedExercise === ex.exerciseId;
         const isPivoting = pivotingExerciseId === ex.exerciseId;
         const wasSwapped = swaps.some((s) => s.replacement.id === ex.exerciseId);
@@ -1609,8 +1712,22 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                   </div>
                 )}
 
+                {/* Deload / return guidance overrides the normal progression
+                    hint: on these sessions "add weight" is the wrong advice. */}
+                {(() => {
+                  const advice = stateAdvice(ex.history?.lastWeight);
+                  if (!advice) return null;
+                  return (
+                    <div className={`rounded-lg p-3 text-xs ${trainingState === 'DELOAD' ? 'bg-yellow-900/30 text-yellow-300' : 'bg-blue-900/30 text-blue-300'}`}>
+                      <span className="font-semibold">Try {advice.weight} lbs</span>
+                      {' '}· leave {ex.targetRir + advice.extraRir} RIR
+                      <span className="mt-1 block text-zinc-400">{advice.reason}</span>
+                    </div>
+                  );
+                })()}
+
                 {/* Progression hint */}
-                {hint && (
+                {hint && trainingState === 'NORMAL' && (
                   <div className={`rounded-lg p-3 text-xs ${hint.type === 'increase' ? 'bg-emerald-900/30 text-emerald-400' : hint.type === 'context' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-zinc-800/50 text-zinc-400'}`}>
                     {hint.text}
                   </div>
@@ -2259,10 +2376,37 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 )}
 
                 {isComplete && (
-                  <p className="text-center text-sm text-emerald-400">✓ All {ex.targetSets} sets complete</p>
+                  endedEarly ? (
+                    <div className="space-y-1 text-center">
+                      <p className="text-sm text-emerald-400">
+                        ✓ Done at {completedSetCount} of {ex.targetSets} sets
+                      </p>
+                      <button
+                        onClick={() => setEndedEarlyIds((prev) => prev.filter((id) => id !== ex.exerciseId))}
+                        className="text-xs text-zinc-500 hover:text-zinc-300"
+                      >
+                        Actually, keep going
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-center text-sm text-emerald-400">✓ All {ex.targetSets} sets complete</p>
+                  )
                 )}
 
-                <div className="border-t border-zinc-800 pt-3 text-center">
+                <div className="space-y-2 border-t border-zinc-800 pt-3 text-center">
+                  {/* Stop short but KEEP the sets — for a 2-set day. Removing,
+                      below, deletes them instead. */}
+                  {!isComplete && completedSetCount > 0 && (
+                    <button
+                      onClick={() => {
+                        setEndedEarlyIds((prev) => prev.includes(ex.exerciseId) ? prev : [...prev, ex.exerciseId]);
+                        setExpandedExercise(null);
+                      }}
+                      className="w-full rounded-md border border-emerald-800 py-2 text-xs font-semibold text-emerald-400 hover:border-emerald-600 hover:bg-emerald-950/30"
+                    >
+                      ✓ Done with this exercise ({completedSetCount} of {ex.targetSets} sets)
+                    </button>
+                  )}
                   <button
                     onClick={() => handleRemoveExercise(ex)}
                     className="text-xs text-zinc-600 hover:text-red-400"

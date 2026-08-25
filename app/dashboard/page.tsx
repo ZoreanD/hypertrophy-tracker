@@ -252,6 +252,9 @@ const midWorkout = todayWorkouts.some((w) => w.durationMins === 0);
               <Link href="/history" title="History" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
                 <span className="nav-ico" aria-hidden><NavIcon name="history" /></span><span className="nav-label">History</span>
               </Link>
+              <Link href="/suggestions" title="Suggestions" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
+                <span className="nav-ico" aria-hidden><NavIcon name="suggestions" /></span><span className="nav-label">Ideas</span>
+              </Link>
               <Link href="/settings" title="Settings" className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white">
                 <span className="nav-ico" aria-hidden><NavIcon name="settings" /></span><span className="nav-label">Settings</span>
               </Link>

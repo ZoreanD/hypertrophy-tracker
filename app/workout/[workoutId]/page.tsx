@@ -6,6 +6,8 @@ import LiveWorkout from './LiveWorkout';
 import CompletedWorkout from './CompletedWorkout';
 import { getCurrentBodyweight } from '../../actions/workout-session';
 import { todayInZone, resolveTimeZone } from '../../../lib/timezone';
+import { returnContext } from '../../../lib/trainingGap';
+import { RETURNING_GAP_DAYS, RETURNING_SESSIONS, TrainingState } from '../../../lib/trainingState';
 
 export const dynamic = 'force-dynamic';
 
@@ -160,6 +162,13 @@ export default async function LiveWorkoutPage({
     };
   }
 
+// Offer return mode only when there's a genuine break behind this session.
+  // Measured from logged working sets (never the planned calendar), and it
+  // expires on its own once RETURNING_SESSIONS have been logged.
+  const ret = await returnContext(
+    profile.id, workout.id, workout.date, RETURNING_GAP_DAYS, RETURNING_SESSIONS,
+  );
+
 return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <LiveWorkout
@@ -205,6 +214,8 @@ return (
         currentBodyweight={currentBodyweight}
         allExercises={allExercises}
         isAdHoc={!workout.routineId}
+        trainingState={(workout.trainingState ?? 'NORMAL') as TrainingState}
+        suggestedReturn={ret}
       />
     </main>
   );

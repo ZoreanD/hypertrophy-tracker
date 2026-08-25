@@ -55,7 +55,9 @@
       "Bash(node -e 'require\\('\\\\''dotenv'\\\\''\\).config\\({path:'\\\\''.env'\\\\''}\\); const {Client}=require\\('\\\\''pg'\\\\''\\); const P='\\\\''520f99eb-7c84-4919-9f55-8ad4230258b4'\\\\''; const c=new Client\\({connectionString:process.env.POSTGRES_PRISMA_URL}\\); c.connect\\(\\).then\\(async\\(\\)=>{ *)",
       "Bash(node -e \"require\\('dotenv'\\).config\\({path:'.env'}\\); const {Client}=require\\('pg'\\); const P='520f99eb-7c84-4919-9f55-8ad4230258b4'; const c=new Client\\({connectionString:process.env.POSTGRES_PRISMA_URL}\\); c.connect\\(\\).then\\(async\\(\\)=>{ const q=async\\(s,a\\)=>\\(await c.query\\(s,a\\)\\).rows[0].c; console.log\\('Workout',await q\\('SELECT count\\(*\\)::int c FROM \\\\\"Workout\\\\\" WHERE \\\\\"profileId\\\\\"=\\\\$1',[P]\\)\\); console.log\\('Set',await q\\('SELECT count\\(*\\)::int c FROM \\\\\"Set\\\\\" WHERE \\\\\"workoutId\\\\\" IN \\(SELECT id FROM \\\\\"Workout\\\\\" WHERE \\\\\"profileId\\\\\"=\\\\$1\\)',[P]\\)\\); console.log\\('ScheduledWorkout',await q\\('SELECT count\\(*\\)::int c FROM \\\\\"ScheduledWorkout\\\\\" WHERE \\\\\"profileId\\\\\"=\\\\$1',[P]\\)\\); console.log\\('Routine',await q\\('SELECT count\\(*\\)::int c FROM \\\\\"Routine\\\\\" WHERE \\\\\"profileId\\\\\"=\\\\$1',[P]\\)\\); console.log\\('RoutineExercise',await q\\('SELECT count\\(*\\)::int c FROM \\\\\"RoutineExercise\\\\\" WHERE \\\\\"routineId\\\\\" IN \\(SELECT id FROM \\\\\"Routine\\\\\" WHERE \\\\\"profileId\\\\\"=\\\\$1\\)',[P]\\)\\); await c.end\\(\\); }\\).catch\\(e=>{console.error\\(e.message\\);process.exit\\(1\\)}\\);\")",
       "Bash(gh auth *)",
-      "Bash(command -v gh)"
+      "Bash(command -v gh)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)"
     ],
     "additionalDirectories": [
       "/home/zorean/hypertrophy-tracker/app/workout/[workoutId]"
