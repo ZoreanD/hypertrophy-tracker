@@ -20,22 +20,41 @@ export default async function SuggestionsPage() {
   });
   if (!profile) return redirect('/setup');
 
-  // Everyone's suggestions are visible — seeing what others asked for avoids
-  // duplicates and shows what's already been picked up.
+  // Public ideas are visible to everyone (seeing what others asked for avoids
+  // duplicates); private ones only ever come back for their author.
   const rows = await prisma.suggestion.findMany({
+    where: {
+      OR: [{ visibility: 'PUBLIC' }, { profileId: profile.id }],
+    },
     orderBy: [{ createdAt: 'desc' }],
-    take: 100,
-    include: { profile: { include: { user: { select: { username: true } } } } },
+    take: 200,
+    include: {
+      profile: { include: { user: { select: { username: true } } } },
+      votes: { select: { profileId: true, value: true } },
+    },
   });
 
   const suggestions = rows.map((s) => ({
     id: s.id,
     body: s.body,
     status: s.status,
+    visibility: s.visibility,
     createdAt: s.createdAt.toISOString(),
     username: s.profile.user.username,
     isMine: s.profileId === profile.id,
+    score: s.votes.reduce((n, v) => n + v.value, 0),
+    myVote: s.votes.find((v) => v.profileId === profile.id)?.value ?? 0,
   }));
+
+  // Unresolved public ideas rank by demand so the loudest asks float up;
+  // shipped/declined ones sink out of the way. Private stay chronological
+  // alongside, since a vote count would be meaningless there.
+  const isOpen = (st: string) => st === 'NEW' || st === 'PLANNED';
+  suggestions.sort((a, b) => {
+    if (isOpen(a.status) !== isOpen(b.status)) return isOpen(a.status) ? -1 : 1;
+    if (b.score !== a.score) return b.score - a.score;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 
   return (
     <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-12">

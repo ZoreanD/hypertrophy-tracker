@@ -2,15 +2,18 @@
 
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { submitSuggestion, deleteSuggestion } from '../actions/suggestions';
+import { submitSuggestion, deleteSuggestion, voteSuggestion } from '../actions/suggestions';
 
 type Suggestion = {
   id: string;
   body: string;
   status: string;
+  visibility: string;
   createdAt: string;
   username: string;
   isMine: boolean;
+  score: number;
+  myVote: number;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -25,6 +28,7 @@ const MAX = 2000;
 export default function SuggestionBox({ suggestions }: { suggestions: Suggestion[] }) {
   const router = useRouter();
   const [body, setBody] = useState('');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -40,7 +44,7 @@ export default function SuggestionBox({ suggestions }: { suggestions: Suggestion
     setError(null);
     inFlight.current = true;
     startTransition(async () => {
-      const res = await submitSuggestion(text);
+      const res = await submitSuggestion(text, visibility);
       inFlight.current = false;
       if (res.success) {
         setBody('');
@@ -50,6 +54,13 @@ export default function SuggestionBox({ suggestions }: { suggestions: Suggestion
       } else {
         setError(res.error ?? 'Could not save that.');
       }
+    });
+  }
+
+  function vote(id: string, value: 1 | -1) {
+    startTransition(async () => {
+      await voteSuggestion(id, value);
+      router.refresh();
     });
   }
 
@@ -76,6 +87,25 @@ export default function SuggestionBox({ suggestions }: { suggestions: Suggestion
           placeholder="What would make this better?"
           className="w-full resize-y rounded-md border border-zinc-700 bg-zinc-950 p-3 text-sm text-white focus:border-emerald-500 focus:outline-none"
         />
+        <div className="flex gap-2">
+          {(['PUBLIC', 'PRIVATE'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setVisibility(v)}
+              className={`flex-1 rounded-md border px-3 py-2 text-xs font-semibold ${
+                visibility === v
+                  ? 'border-emerald-600 bg-emerald-950/40 text-emerald-300'
+                  : 'border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {v === 'PUBLIC' ? '🌐 Public' : '🔒 Private'}
+              <span className="mt-0.5 block text-[10px] font-normal text-zinc-500">
+                {v === 'PUBLIC' ? 'Others can see and vote' : 'Only you can see it'}
+              </span>
+            </button>
+          ))}
+        </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-zinc-600">{body.length}/{MAX}</span>
           <button
@@ -106,6 +136,11 @@ export default function SuggestionBox({ suggestions }: { suggestions: Suggestion
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_STYLES[s.status] ?? STATUS_STYLES.NEW}`}>
                     {s.status.toLowerCase()}
                   </span>
+                  {s.visibility === 'PRIVATE' && (
+                    <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-500">
+                      🔒 private
+                    </span>
+                  )}
                   <span className="text-xs text-zinc-500">
                     @{s.username}
                     {s.isMine && <span className="ml-1 text-emerald-500">(you)</span>}
@@ -115,6 +150,29 @@ export default function SuggestionBox({ suggestions }: { suggestions: Suggestion
                   </span>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-300">{s.body}</p>
+                {s.visibility === 'PUBLIC' && (
+                  <div className="mt-2 flex items-center gap-1">
+                    <button
+                      onClick={() => vote(s.id, 1)}
+                      aria-label="Upvote"
+                      className={`rounded px-2 py-1 text-xs ${s.myVote === 1 ? 'bg-emerald-900/50 text-emerald-400' : 'text-zinc-500 hover:text-emerald-400'}`}
+                    >
+                      ▲
+                    </button>
+                    <span className={`w-6 text-center text-xs font-bold ${
+                      s.score > 0 ? 'text-emerald-400' : s.score < 0 ? 'text-red-400' : 'text-zinc-600'
+                    }`}>
+                      {s.score}
+                    </span>
+                    <button
+                      onClick={() => vote(s.id, -1)}
+                      aria-label="Downvote"
+                      className={`rounded px-2 py-1 text-xs ${s.myVote === -1 ? 'bg-red-900/50 text-red-400' : 'text-zinc-500 hover:text-red-400'}`}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                )}
                 {s.isMine && (
                   <button
                     onClick={() => remove(s.id)}

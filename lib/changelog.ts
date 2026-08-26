@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.08.25';
+export const CHANGELOG_VERSION = '2026.08.26';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,24 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-08-26',
+    title: 'Added exercises remember your history',
+    body: 'An exercise you add mid-workout now loads its own past sessions, so the weight prefills and the "last time" reference shows up instead of starting blank.',
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-26',
+    title: 'Progression notices when the weight went down',
+    body: "If your load dropped last session, you'll be told to work back to it rather than to add weight on top of it. The reference numbers now stay visible when an exercise moves position too.",
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-26',
+    title: 'Private ideas and voting',
+    body: 'Suggestions can be public or private. Public ones can be voted up or down, and the most-wanted open ideas rise to the top.',
+    tag: 'new',
+  },
   {
     date: '2026-08-25',
     title: 'Deloads and comebacks are understood',

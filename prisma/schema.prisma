@@ -57,6 +57,7 @@ model Profile {
   scheduledWorkouts ScheduledWorkout[]
   pushSubscriptions PushSubscription[]
   suggestions       Suggestion[]
+  suggestionVotes   SuggestionVote[]
 
   // Social graph (Strava-style, one-way, open)
   following            Follow[]              @relation("Following")  // rows where I am the follower
@@ -410,10 +411,30 @@ model Suggestion {
   profileId String
   body      String
   status    String   @default("NEW") // NEW | PLANNED | SHIPPED | DECLINED
+  // PUBLIC ideas are visible to everyone and can be voted on, so demand sorts
+  // itself. PRIVATE ones are only ever shown to their author.
+  visibility String  @default("PUBLIC") // PUBLIC | PRIVATE
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  votes   SuggestionVote[]
 
   @@index([status, createdAt])
+  @@index([visibility, createdAt])
+}
+
+// One vote per person per suggestion; value is +1 or -1.
+model SuggestionVote {
+  id           String   @id @default(uuid())
+  suggestionId String
+  profileId    String
+  value        Int
+  createdAt    DateTime @default(now())
+
+  suggestion Suggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  profile    Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([suggestionId, profileId])
+  @@index([suggestionId])
 }

@@ -54,6 +54,9 @@ type PlannedExercise = {
     lastRir: number;
     lastDate: string;
     lastExecutionOrder: number;
+    // Top-set load from the session BEFORE last, so progression can tell a real
+    // advance from a rebound after a lighter day.
+    prevWeight?: number | null;
     allSets: { weight: number; reps: number | null; rir: number; durationSeconds: number | null }[];
   } | null;
 };
@@ -277,6 +280,28 @@ export default function LiveWorkout({
     setAddExerciseSearch('');
     setConfiguringId(null);
     setShowAddExercise(false);
+
+    // Backfill this exercise's own prior history, the same way a swap does.
+    // Without it an exercise added mid-session starts blank — no weight prefill
+    // and no "last time" reference — even when it's been trained for months.
+    void (async () => {
+      const fetched = await getExerciseHistory(ex.id, profileId, newEntry.plannedOrder);
+      if (!fetched) return;
+      const history = {
+        lastWeight: fetched.lastWeight,
+        lastReps: fetched.lastReps,
+        lastRir: fetched.lastRir,
+        lastDate: String(fetched.lastDate),
+        lastExecutionOrder: fetched.lastExecutionOrder,
+        prevWeight: fetched.prevWeight,
+        allSets: fetched.allSets.map((s) => ({
+          weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
+        })),
+      };
+      setActiveExercises((prev) => prev.map((e) =>
+        e.exerciseId === ex.id ? { ...e, history } : e
+      ));
+    })();
   }
 
   // Drop an exercise from the current session only. Deletes any sets logged for
@@ -1167,6 +1192,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       lastRir: fetched.lastRir,
       lastDate: String(fetched.lastDate),
       lastExecutionOrder: fetched.lastExecutionOrder,
+      prevWeight: fetched.prevWeight,
       allSets: fetched.allSets.map((s) => ({
         weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
       })),
@@ -1251,12 +1277,49 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     if (ex.history.lastReps == null) return null;
     const hitTopOfRange = ex.history.lastReps >= ex.targetRepMax;
     const rirWasGood = ex.history.lastRir >= ex.targetRir;
+    // Always keep the reference numbers visible — they're the thing you actually
+    // need at the machine, and hiding them on a position change left the card
+    // with no idea what you lifted last time.
+    const ref = `Last: ${ex.history.lastReps} reps @ ${ex.history.lastWeight}lbs (${ex.history.lastRir} RIR)`;
+
     if (positionChanged) {
       const direction = currentOrder > lastOrder ? 'later' : 'earlier';
-      return { type: 'context' as const, text: `Exercise ${direction} in session vs last time. ${direction === 'later' ? 'Expect slightly fewer reps.' : 'May perform better fresh.'}` };
+      // Fatigue shows up as EITHER fewer reps or a lighter load — saying only
+      // "expect fewer reps" implies the weight is the part you must hold fixed.
+      return {
+        type: 'context' as const,
+        text: `${ref} · Now ${direction} in the session. ${
+          direction === 'later'
+            ? 'Expect fewer reps, or drop the load a little to stay in range.'
+            : 'You may have more in the tank fresh.'
+        }`,
+      };
     }
-    if (hitTopOfRange && rirWasGood) return { type: 'increase' as const, text: `Hit ${ex.history.lastReps} reps last time — ready to add weight.` };
-    return { type: 'maintain' as const, text: `Last: ${ex.history.lastReps} reps @ ${ex.history.lastWeight}lbs (${ex.history.lastRir} RIR)` };
+
+    // A load drop last session means the top of the rep range was reached on a
+    // LIGHTER weight — that's recovering ground, not new progress, so telling
+    // the lifter to add weight would push them past where they actually are.
+    // Compare EFFECTIVE load, not the number on the pin. On an assisted machine
+    // a lower selection means less assistance — i.e. progress — so comparing raw
+    // weights would read getting stronger as a regression and tell the lifter to
+    // go back to an easier setting.
+    const prev = ex.history.prevWeight;
+    if (prev != null && effectiveOf(ex, ex.history.lastWeight) < effectiveOf(ex, prev)) {
+      const backAtTop = hitTopOfRange && rirWasGood;
+      return {
+        type: 'context' as const,
+        text: `${ref} · Load dropped from ${prev}lbs last time. ${
+          backAtTop
+            ? `Work back toward ${prev}lbs before adding.`
+            : 'Rebuild here before pushing the weight up.'
+        }`,
+      };
+    }
+
+    if (hitTopOfRange && rirWasGood) {
+      return { type: 'increase' as const, text: `Hit ${ex.history.lastReps} reps @ ${ex.history.lastWeight}lbs — ready to add weight.` };
+    }
+    return { type: 'maintain' as const, text: ref };
   }
 
   // Convert between the weight you SELECT and the effective working load.

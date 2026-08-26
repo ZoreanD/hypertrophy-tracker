@@ -181,6 +181,7 @@ export async function getExerciseHistory(
 
     const sessions = Array.from(byWorkout.values());
     const lastSession = sessions[0];
+    const prevSession = sessions[1];
     const lastExecutionOrder = lastSession[0]?.executionOrder ?? 0;
     const positionChanged = Math.abs(lastExecutionOrder - currentExecutionOrder) >= 2;
 
@@ -211,6 +212,14 @@ export async function getExerciseHistory(
       lastRir: bestSet.rir,
       lastDate: lastSession[0].workout.date,
       lastExecutionOrder,
+      // Top-set load of the session before last. Without this the load-drop
+      // guard in getProgressionHint can't fire for exercises added or swapped
+      // in mid-session, and they'd be told to add weight on top of a load that
+      // was just reduced.
+      prevWeight: prevSession
+        ? prevSession.reduce((bs, s2) =>
+            (s2.weightLbs * s2.reps > bs.weightLbs * bs.reps ? s2 : bs)).weightLbs
+        : null,
       positionChanged,
       currentExecutionOrder,
       e1RM,

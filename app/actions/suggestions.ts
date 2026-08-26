@@ -16,7 +16,7 @@ async function getProfile() {
   return prisma.profile.findUnique({ where: { userId: decoded.userId } });
 }
 
-export async function submitSuggestion(body: string) {
+export async function submitSuggestion(body: string, visibility: 'PUBLIC' | 'PRIVATE' = 'PUBLIC') {
   try {
     const profile = await getProfile();
     if (!profile) return { success: false, error: 'Not signed in.' };
@@ -28,7 +28,11 @@ export async function submitSuggestion(body: string) {
     }
 
     await prisma.suggestion.create({
-      data: { profileId: profile.id, body: text },
+      data: {
+        profileId: profile.id,
+        body: text,
+        visibility: visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
+      },
     });
     revalidatePath('/suggestions');
     return { success: true };
@@ -49,6 +53,44 @@ export async function deleteSuggestion(id: string) {
     revalidatePath('/suggestions');
     return { success: result.count > 0 };
   } catch {
+    return { success: false };
+  }
+}
+
+/**
+ * Cast, flip, or clear a vote. Only public suggestions are votable — a private
+ * one is between its author and whoever triages it.
+ *
+ * Voting the same way twice clears the vote, so the button doubles as an undo.
+ */
+export async function voteSuggestion(suggestionId: string, value: 1 | -1) {
+  try {
+    const profile = await getProfile();
+    if (!profile) return { success: false };
+
+    const target = await prisma.suggestion.findUnique({
+      where: { id: suggestionId },
+      select: { visibility: true },
+    });
+    if (!target || target.visibility !== 'PUBLIC') return { success: false };
+
+    const existing = await prisma.suggestionVote.findUnique({
+      where: { suggestionId_profileId: { suggestionId, profileId: profile.id } },
+    });
+
+    if (existing?.value === value) {
+      await prisma.suggestionVote.delete({ where: { id: existing.id } });
+    } else if (existing) {
+      await prisma.suggestionVote.update({ where: { id: existing.id }, data: { value } });
+    } else {
+      await prisma.suggestionVote.create({
+        data: { suggestionId, profileId: profile.id, value },
+      });
+    }
+    revalidatePath('/suggestions');
+    return { success: true };
+  } catch (error) {
+    console.error('voteSuggestion failed:', error);
     return { success: false };
   }
 }

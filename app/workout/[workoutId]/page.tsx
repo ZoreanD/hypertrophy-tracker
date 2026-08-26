@@ -122,7 +122,10 @@ export default async function LiveWorkoutPage({
       },
       include: { workout: { select: { date: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 10,
+      // Needs to span at least TWO sessions so prevWeight can be derived. A
+      // single myo-rep or drop-set session can write well over 10 rows for one
+      // exercise, which would swallow the previous session entirely.
+      take: 40,
     });
 
     if (lastSets.length === 0) {
@@ -137,7 +140,9 @@ export default async function LiveWorkoutPage({
       byWorkout.get(wid)!.push(s);
     });
 
-    const lastSession = Array.from(byWorkout.values())[0];
+    const sessionsDesc = Array.from(byWorkout.values());
+    const lastSession = sessionsDesc[0];
+    const prevSession = sessionsDesc[1];
     // Time-based exercises store reps=0, so weight×reps is always 0 — rank by
     // duration instead so the "best set" is the longest hold, not the first.
     const isTimeBased = re.exercise.isTimeBased;
@@ -153,6 +158,9 @@ export default async function LiveWorkoutPage({
       lastRir: bestSet.rir,
       lastDate: lastSession[0].workout.date,
       lastExecutionOrder: bestSet.executionOrder,
+      prevWeight: prevSession
+        ? prevSession.reduce((b, s) => (s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b)).weightLbs
+        : null,
       allSets: lastSession.map((s) => ({
         weight: s.weightLbs,
         reps: s.reps,
