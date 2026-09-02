@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.08.26';
+export const CHANGELOG_VERSION = '2026.08.27';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,24 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-08-27',
+    title: 'Assisted machines chart correctly',
+    body: 'Progress graphs treated a lower pin on an assisted machine as a lighter set, when it actually means less help and a harder rep — so getting stronger plotted as a decline. They now chart the load you truly worked against.',
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-27',
+    title: 'Backing off mid-workout is no longer read as regression',
+    body: "Going heavy on set 1, missing the range, then dropping weight to hit it is autoregulation — your top-end load never moved. The app now records your heaviest set as the day's best instead of the lighter back-off set, and only warns about a load drop if your actual top-end load fell.",
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-27',
+    title: 'Reps falling across sets is normal',
+    body: 'Losing reps set to set is fatigue, not proof the weight was too heavy — pooled data has set 3 around 55% of set 1. The app now judges the load from set 1, the only one you take fresh, and says so instead of leaving you guessing.',
+    tag: 'new',
+  },
   {
     date: '2026-08-26',
     title: 'Added exercises remember your history',

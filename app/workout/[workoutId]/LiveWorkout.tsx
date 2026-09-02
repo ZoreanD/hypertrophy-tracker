@@ -57,6 +57,8 @@ type PlannedExercise = {
     // Top-set load from the session BEFORE last, so progression can tell a real
     // advance from a rebound after a lighter day.
     prevWeight?: number | null;
+    topLoad?: number | null;
+    prevTopLoad?: number | null;
     allSets: { weight: number; reps: number | null; rir: number; durationSeconds: number | null }[];
   } | null;
 };
@@ -294,6 +296,8 @@ export default function LiveWorkout({
         lastDate: String(fetched.lastDate),
         lastExecutionOrder: fetched.lastExecutionOrder,
         prevWeight: fetched.prevWeight,
+        topLoad: fetched.topLoad,
+        prevTopLoad: fetched.prevTopLoad,
         allSets: fetched.allSets.map((s) => ({
           weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
         })),
@@ -1193,6 +1197,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       lastDate: String(fetched.lastDate),
       lastExecutionOrder: fetched.lastExecutionOrder,
       prevWeight: fetched.prevWeight,
+      topLoad: fetched.topLoad,
+      prevTopLoad: fetched.prevTopLoad,
       allSets: fetched.allSets.map((s) => ({
         weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
       })),
@@ -1303,8 +1309,14 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     // a lower selection means less assistance — i.e. progress — so comparing raw
     // weights would read getting stronger as a regression and tell the lifter to
     // go back to an easier setting.
+    // Compare the heaviest EFFECTIVE load touched in each session, not the best
+    // set's weight. Going heavy on set 1, missing the rep range, then dropping
+    // weight to hit it is autoregulation — the top-end load never moved, so it
+    // must not read as a regression.
+    const prevTop = ex.history.prevTopLoad ?? (ex.history.prevWeight != null ? effectiveOf(ex, ex.history.prevWeight) : null);
+    const lastTop = ex.history.topLoad ?? effectiveOf(ex, ex.history.lastWeight);
     const prev = ex.history.prevWeight;
-    if (prev != null && effectiveOf(ex, ex.history.lastWeight) < effectiveOf(ex, prev)) {
+    if (prev != null && prevTop != null && lastTop < prevTop) {
       const backAtTop = hitTopOfRange && rirWasGood;
       return {
         type: 'context' as const,
@@ -1774,6 +1786,52 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                     {' '}— log sets from that card.
                   </div>
                 )}
+
+                {/* Within-session read on the load itself.
+                    Reps falling across sets is normal fatigue, not evidence the
+                    weight was wrong — pooled data has set 3 landing near 55% of
+                    set 1's reps, set 4 near 50%, set 5 near 45%, then levelling
+                    off. So readiness is judged from SET 1, the only set taken
+                    fresh: if that one lands under the range the load is above
+                    the range; if it lands in range, later drop-off is expected. */}
+                {(() => {
+                  const straight = setsForExercise
+                    .filter((st) => st.setType === 'STRAIGHT' && !st.isWarmup);
+                  if (straight.length === 0 || ex.isTimeBased) return null;
+                  const first = straight[0];
+                  if (first.reps == null) return null;
+                  const firstUnder = first.reps < ex.targetRepMin;
+
+                  if (firstUnder) {
+                    return (
+                      <div className="rounded-lg bg-orange-900/25 p-3 text-xs text-orange-300">
+                        Set 1 came in at {first.reps} (target {ex.targetRepMin}–{ex.targetRepMax}).
+                        That load sits above this rep range — drop roughly 5–10% and
+                        the remaining sets should land in range. Backing off to stay
+                        in range is the right call, not lost progress.
+                      </div>
+                    );
+                  }
+                  if (straight.length >= 2) {
+                    // Lowest of the later sets, not merely the most recent one —
+                    // otherwise recovering on the final set hides that a drop
+                    // happened at all (8 -> 6 -> 8 would show nothing).
+                    const laterReps = straight.slice(1)
+                      .map((st) => st.reps)
+                      .filter((r): r is number => r != null);
+                    const lowest = laterReps.length ? Math.min(...laterReps) : null;
+                    if (lowest != null && lowest < first.reps) {
+                      return (
+                        <div className="rounded-lg bg-zinc-800/50 p-3 text-xs text-zinc-400">
+                          Reps are dropping across sets ({first.reps} → {lowest}) —
+                          normal fatigue, not a sign the weight was too heavy. Set 1 hit
+                          the range, so the load was right.
+                        </div>
+                      );
+                    }
+                  }
+                  return null;
+                })()}
 
                 {/* Deload / return guidance overrides the normal progression
                     hint: on these sessions "add weight" is the wrong advice. */}

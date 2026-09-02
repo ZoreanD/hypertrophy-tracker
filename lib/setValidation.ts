@@ -45,6 +45,14 @@ export function validateSet(data: {
   assistanceWeightLbs?: number | null;
   bodyweightLbs?: number | null;
 }): string | null {
+  // 0 reps is only legitimate for a timed hold, which records durationSeconds
+  // instead. Without this an empty set persists, fires the "set 1 under range"
+  // hint, and inflates the working-set count.
+  const timed = data.durationSeconds != null && data.durationSeconds > 0;
+  if (data.reps === 0 && !timed) {
+    return 'Log at least 1 rep, or record a duration for a timed hold.';
+  }
+
   return (
     checkNumber('Weight', data.weightLbs, SET_LIMITS.weightLbs) ??
     checkNumber('Reps', data.reps, SET_LIMITS.reps, { integer: true }) ??

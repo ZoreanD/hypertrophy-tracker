@@ -13,6 +13,7 @@ import TodayWorkoutCard from './TodayWorkoutCard';
 import { getHourlyQuote } from './quotes';
 import { VOLUME_LANDMARKS, addSetVolume, setCountWeight, countWorkingSets } from '../../lib/volume';
 import { todayInZone, resolveTimeZone } from '../../lib/timezone';
+import { effectiveLoadOf, e1RMOf } from '../../lib/effectiveLoad';
 import TimezoneSync from '../components/TimezoneSync';
 import WhatsNew from '../components/WhatsNew';
 import WrappedPrompt from '../components/WrappedPrompt';
@@ -134,7 +135,7 @@ export default async function Dashboard() {
 
   const loggedExercises = await prisma.exercise.findMany({
     where: { id: { in: loggedExerciseIds.map((s) => s.exerciseId) } },
-    select: { id: true, name: true },
+    select: { id: true, name: true, isAssisted: true, isBodyweight: true, weightIsPerSide: true },
     orderBy: { name: 'asc' },
   });
 
@@ -163,12 +164,17 @@ export default async function Dashboard() {
     progressionData = Array.from(byDate.entries()).flatMap(([date, dateSets]) => {
       const repSets = dateSets.filter((s) => s.reps != null && !(s.durationSeconds != null && s.durationSeconds > 0));
       if (repSets.length === 0) return [];
+      // Rank by estimated 1RM on EFFECTIVE load, matching the workout screen.
+      // Ranking by weight x reps picked the lighter back-off set, and using the
+      // raw selection inverts assisted machines.
+      const eff = (s: typeof repSets[number]) =>
+        effectiveLoadOf(s.weightLbs, defaultExercise!, s.bodyweightLbs, s.assistanceWeightLbs);
       const best = repSets.reduce((b, s) =>
-        s.weightLbs * s.reps! > b.weightLbs * b.reps! ? s : b
+        e1RMOf(eff(s), s.reps!) > e1RMOf(eff(b), b.reps!) ? s : b
       );
       return [{
         date,
-        e1RM: Math.round(best.weightLbs * (1 + best.reps! / 30)),
+        e1RM: Math.round(e1RMOf(eff(best), best.reps!)),
         weight: best.weightLbs,
         reps: best.reps!,
       }];

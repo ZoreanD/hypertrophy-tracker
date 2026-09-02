@@ -7,6 +7,7 @@ import { verifyToken } from '../../lib/auth';
 import { countWorkingSets } from '../../lib/volume';
 import { todayInZone, resolveTimeZone } from '../../lib/timezone';
 import { validateSet } from '../../lib/setValidation';
+import { bestSetBy1RM, topEffectiveLoad } from '../../lib/effectiveLoad';
 import { TrainingState, suppressesDeclineFlags, stateLabel } from '../../lib/trainingState';
 
 async function getProfile() {
@@ -185,13 +186,18 @@ export async function getExerciseHistory(
     const lastExecutionOrder = lastSession[0]?.executionOrder ?? 0;
     const positionChanged = Math.abs(lastExecutionOrder - currentExecutionOrder) >= 2;
 
-    // Time-based exercises store reps=0, so rank by duration, not weight×reps.
+    // Time-based exercises store reps=0, so rank by duration. Everything else
+    // ranks by estimated 1RM (see lib/effectiveLoad) so a heavy top set isn't
+    // discarded in favour of a lighter, higher-volume back-off set.
     const isTimeBased = lastSession[0]?.exercise?.isTimeBased ?? false;
-    const bestSet = lastSession.reduce((best, s) =>
-      isTimeBased
-        ? ((s.durationSeconds ?? 0) > (best.durationSeconds ?? 0) ? s : best)
-        : (s.weightLbs * s.reps > best.weightLbs * best.reps ? s : best)
-    );
+    const shape = {
+      isAssisted: lastSession[0]?.exercise?.isAssisted ?? false,
+      isBodyweight: lastSession[0]?.exercise?.isBodyweight ?? false,
+      weightIsPerSide: lastSession[0]?.exercise?.weightIsPerSide ?? false,
+    };
+    const bestSet = isTimeBased
+      ? lastSession.reduce((best, s) => ((s.durationSeconds ?? 0) > (best.durationSeconds ?? 0) ? s : best))
+      : (bestSetBy1RM(lastSession, shape) ?? lastSession[0]);
 
     const isAssisted = bestSet.exercise?.isAssisted ?? false;
     const isBodyweight = bestSet.exercise?.isBodyweight ?? false;
@@ -216,10 +222,9 @@ export async function getExerciseHistory(
       // guard in getProgressionHint can't fire for exercises added or swapped
       // in mid-session, and they'd be told to add weight on top of a load that
       // was just reduced.
-      prevWeight: prevSession
-        ? prevSession.reduce((bs, s2) =>
-            (s2.weightLbs * s2.reps > bs.weightLbs * bs.reps ? s2 : bs)).weightLbs
-        : null,
+      prevWeight: prevSession ? (bestSetBy1RM(prevSession, shape)?.weightLbs ?? null) : null,
+      topLoad: topEffectiveLoad(lastSession, shape),
+      prevTopLoad: prevSession ? topEffectiveLoad(prevSession, shape) : null,
       positionChanged,
       currentExecutionOrder,
       e1RM,

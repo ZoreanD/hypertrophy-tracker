@@ -7,6 +7,7 @@ import CompletedWorkout from './CompletedWorkout';
 import { getCurrentBodyweight } from '../../actions/workout-session';
 import { todayInZone, resolveTimeZone } from '../../../lib/timezone';
 import { returnContext } from '../../../lib/trainingGap';
+import { bestSetBy1RM, topEffectiveLoad } from '../../../lib/effectiveLoad';
 import { RETURNING_GAP_DAYS, RETURNING_SESSIONS, TrainingState } from '../../../lib/trainingState';
 
 export const dynamic = 'force-dynamic';
@@ -143,14 +144,20 @@ export default async function LiveWorkoutPage({
     const sessionsDesc = Array.from(byWorkout.values());
     const lastSession = sessionsDesc[0];
     const prevSession = sessionsDesc[1];
-    // Time-based exercises store reps=0, so weight×reps is always 0 — rank by
-    // duration instead so the "best set" is the longest hold, not the first.
+    const shape = {
+      isAssisted: re.exercise.isAssisted,
+      isBodyweight: re.exercise.isBodyweight,
+      weightIsPerSide: re.exercise.weightIsPerSide,
+    };
+    // Time-based exercises store reps=0, so rank by duration — the "best set"
+    // is the longest hold. Everything else ranks by estimated 1RM, matching the
+    // summary. Ranking by weight x reps favoured the lighter back-off set, so a
+    // heavy top set followed by an autoregulated drop was recorded as if the
+    // lighter load were the day's best.
     const isTimeBased = re.exercise.isTimeBased;
-    const bestSet = lastSession.reduce((b, s) =>
-      isTimeBased
-        ? ((s.durationSeconds ?? 0) > (b.durationSeconds ?? 0) ? s : b)
-        : (s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b)
-    );
+    const bestSet = isTimeBased
+      ? lastSession.reduce((b, s) => ((s.durationSeconds ?? 0) > (b.durationSeconds ?? 0) ? s : b))
+      : (bestSetBy1RM(lastSession, shape) ?? lastSession[0]);
 
     exerciseHistories[re.exerciseId] = {
       lastWeight: bestSet.weightLbs,
@@ -158,8 +165,13 @@ export default async function LiveWorkoutPage({
       lastRir: bestSet.rir,
       lastDate: lastSession[0].workout.date,
       lastExecutionOrder: bestSet.executionOrder,
+      // Heaviest EFFECTIVE load touched, per session. "Did you back off?" is a
+      // question about top-end load, not about the best set — dropping weight
+      // mid-session to stay in the rep range is autoregulation, not regression.
+      topLoad: topEffectiveLoad(lastSession, shape),
+      prevTopLoad: prevSession ? topEffectiveLoad(prevSession, shape) : null,
       prevWeight: prevSession
-        ? prevSession.reduce((b, s) => (s.weightLbs * s.reps > b.weightLbs * b.reps ? s : b)).weightLbs
+        ? (bestSetBy1RM(prevSession, shape)?.weightLbs ?? null)
         : null,
       allSets: lastSession.map((s) => ({
         weight: s.weightLbs,
