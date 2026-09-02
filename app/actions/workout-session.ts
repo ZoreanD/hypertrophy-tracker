@@ -8,7 +8,10 @@ import { countWorkingSets } from '../../lib/volume';
 import { todayInZone, resolveTimeZone } from '../../lib/timezone';
 import { validateSet } from '../../lib/setValidation';
 import { bestSetBy1RM, topEffectiveLoad } from '../../lib/effectiveLoad';
+import { countsForStrength } from '../../lib/setQuality';
+import { findComparableSession, PositionedSession } from '../../lib/positionHistory';
 import { TrainingState, suppressesDeclineFlags, stateLabel } from '../../lib/trainingState';
+import { isRealDrop, NOISE_FLOOR_PCT, pctChange } from '../../lib/declineDetection';
 
 async function getProfile() {
   const cookieStore = await cookies();
@@ -180,9 +183,23 @@ export async function getExerciseHistory(
       byWorkout.get(id)!.push(s);
     });
 
-    const sessions = Array.from(byWorkout.values());
-    const lastSession = sessions[0];
-    const prevSession = sessions[1];
+    // Match the routine path: compare against the most recent session at a
+    // COMPARABLE slot. Without this, an exercise added or swapped in mid-session
+    // was compared against whatever it did most recently — often a fresh, much
+    // heavier session — with no caveat at all.
+    const rawSessions = Array.from(byWorkout.values());
+    const positioned: PositionedSession<(typeof rawSessions)[number][number]>[] =
+      rawSessions.map((sets) => ({
+        executionOrder: sets[0]?.executionOrder ?? 0,
+        date: sets[0].workout.date,
+        sets,
+      }));
+    const match = findComparableSession(positioned, currentExecutionOrder);
+    const lastSession = match ? match.session.sets : rawSessions[0];
+    const matchIdx = match ? positioned.indexOf(match.session) : 0;
+    const prevMatch = findComparableSession(positioned.slice(matchIdx + 1), currentExecutionOrder);
+    const prevSession = prevMatch ? prevMatch.session.sets : rawSessions[matchIdx + 1];
+    const sessions = rawSessions;
     const lastExecutionOrder = lastSession[0]?.executionOrder ?? 0;
     const positionChanged = Math.abs(lastExecutionOrder - currentExecutionOrder) >= 2;
 
@@ -218,6 +235,8 @@ export async function getExerciseHistory(
       lastRir: bestSet.rir,
       lastDate: lastSession[0].workout.date,
       lastExecutionOrder,
+      samePosition: match?.samePosition ?? true,
+      slotDelta: match?.slotDelta ?? 0,
       // Top-set load of the session before last. Without this the load-drop
       // guard in getProgressionHint can't fire for exercises added or swapped
       // in mid-session, and they'd be told to add weight on top of a load that
@@ -533,7 +552,13 @@ export async function finishWorkout(
         ? prevMatchingSets.reduce((b, s) => calcE1RM(s) > calcE1RM(b) ? s : b)
         : null;
 
-      const currBest = setsForExercise.reduce((b, s) => calcE1RM(s) > calcE1RM(b) ? s : b);
+      // Exclude fatigued fragments. prevE1RM is already fragment-free (previous
+      // sets are filtered to the matching set type), so leaving drops in here
+      // compared a drop against a top set and reported a PR on an identical
+      // session — which then fed the decline/deload flags.
+      const strengthSets = setsForExercise.filter((s) => countsForStrength(s.setType));
+      const currBest = (strengthSets.length > 0 ? strengthSets : setsForExercise)
+        .reduce((b, s) => calcE1RM(s) > calcE1RM(b) ? s : b);
 
       const currE1RM = calcE1RM(currBest);
       const prevE1RM = prevBest ? calcE1RM(prevBest) : null;
@@ -574,6 +599,9 @@ export async function finishWorkout(
         } else if (currTotalVolume === prevTotalVolume) {
           progressionFlag = 'maintained';
           progressionNote = `Total volume held at ${Math.round(currTotalVolume)}lbs${contextTag}.`;
+        } else if (!isRealDrop(prevTotalVolume, currTotalVolume)) {
+          progressionFlag = 'maintained';
+          progressionNote = `Total volume: ${Math.round(prevTotalVolume)}lbs → ${Math.round(currTotalVolume)}lbs — within normal variation${contextTag}.`;
         } else {
           progressionFlag = 'declined';
           progressionNote = `Total volume: ${Math.round(prevTotalVolume)}lbs → ${Math.round(currTotalVolume)}lbs${contextTag}.`;
@@ -585,9 +613,14 @@ export async function finishWorkout(
         } else if (currE1RM === prevE1RM) {
           progressionFlag = 'maintained';
           progressionNote = `${loadLabel} held at ${currE1RM}lbs${contextTag}.`;
+        } else if (!isRealDrop(prevE1RM, currE1RM)) {
+          // Inside measurement noise (1RM test-retest sits near a 4.2% median
+          // CV), so this is day-to-day variation, not a decline.
+          progressionFlag = 'maintained';
+          progressionNote = `${loadLabel}: ${prevE1RM}lbs → ${currE1RM}lbs — within normal day-to-day variation${contextTag}.`;
         } else {
           progressionFlag = 'declined';
-          progressionNote = `${loadLabel}: ${prevE1RM}lbs → ${currE1RM}lbs (${currE1RM - prevE1RM}lbs)${contextTag}. Check position, rest, fatigue.`;
+          progressionNote = `${loadLabel}: ${prevE1RM}lbs → ${currE1RM}lbs (${Math.round(pctChange(prevE1RM, currE1RM))}%)${contextTag}. Check position, rest, fatigue.`;
         }
       }
 
@@ -670,9 +703,41 @@ export async function finishWorkout(
       (e) => e.status === 'completed'
     ).length;
 
+    // A deload recommendation now needs the decline to PERSIST. One rough
+    // session is mostly noise, and the old rule (>= 50% declined in a single
+    // session) fired on a bad night's sleep. Require the same exercises to have
+    // declined in the previous completed session too.
+    let repeatDecliners = 0;
+    if (!suppressDeclines && unexplainedDeclines > 0) {
+      const prevCompleted = await prisma.workout.findFirst({
+        where: {
+          profileId: profile.id,
+          durationMins: { gt: 0 },
+          id: { not: workoutId },
+          date: { lte: workout.date },
+          // Same focus only. On a split, the most recent completed workout is a
+          // different day type with no overlapping exercises, so an unfiltered
+          // lookup found zero repeat decliners and a deload could never fire.
+          focus: workout.focus,
+        },
+        orderBy: { date: 'desc' },
+        select: { summaryJson: true },
+      });
+      const prevSummaries = (prevCompleted?.summaryJson as any)?.exerciseSummaries;
+      if (Array.isArray(prevSummaries)) {
+        const declinedLastTime = new Set(
+          prevSummaries.filter((e: any) => e.progressionFlag === 'declined')
+            .map((e: any) => e.exerciseName),
+        );
+        repeatDecliners = exerciseSummaries.filter(
+          (e) => e.progressionFlag === 'declined' && declinedLastTime.has(e.exerciseName),
+        ).length;
+      }
+    }
+
     // Never recommend a deload to someone already deloading or just back.
     const deloadRecommended = !suppressDeclines && totalCompleted > 0 &&
-      unexplainedDeclines / totalCompleted >= 0.5;
+      repeatDecliners > 0 && repeatDecliners / totalCompleted >= 0.5;
 
     await prisma.workout.update({
       where: { id: workoutId },

@@ -14,6 +14,7 @@ import { getHourlyQuote } from './quotes';
 import { VOLUME_LANDMARKS, addSetVolume, setCountWeight, countWorkingSets } from '../../lib/volume';
 import { todayInZone, resolveTimeZone } from '../../lib/timezone';
 import { effectiveLoadOf, e1RMOf } from '../../lib/effectiveLoad';
+import { countsForStrength } from '../../lib/setQuality';
 import TimezoneSync from '../components/TimezoneSync';
 import WhatsNew from '../components/WhatsNew';
 import WrappedPrompt from '../components/WrappedPrompt';
@@ -162,7 +163,11 @@ export default async function Dashboard() {
     });
 
     progressionData = Array.from(byDate.entries()).flatMap(([date, dateSets]) => {
-      const repSets = dateSets.filter((s) => s.reps != null && !(s.durationSeconds != null && s.durationSeconds > 0));
+      // Drop-set drops and myo-rep minis are fatigued fragments — they must
+      // never set an estimated 1RM (see lib/setQuality).
+      const repSets = dateSets.filter((s) => s.reps != null
+        && !(s.durationSeconds != null && s.durationSeconds > 0)
+        && countsForStrength(s.setType));
       if (repSets.length === 0) return [];
       // Rank by estimated 1RM on EFFECTIVE load, matching the workout screen.
       // Ranking by weight x reps picked the lighter back-off set, and using the

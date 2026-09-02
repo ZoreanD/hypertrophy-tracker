@@ -7,6 +7,9 @@ import { EXERCISE_SCIENCE_NOTES } from '../../routines/new/exerciseNotes';
 import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
 import { validateSet } from '../../../lib/setValidation';
+import { positionCaveat } from '../../../lib/positionHistory';
+import { assessRestDropoff } from '../../../lib/restQuality';
+import { countsForRepRange } from '../../../lib/setQuality';
 import { setTrainingState } from '../../actions/training-state';
 import {
   TrainingState, suggestedLoad, stateLabel, returnLoadFactor, returnExtraRir,
@@ -59,6 +62,8 @@ type PlannedExercise = {
     prevWeight?: number | null;
     topLoad?: number | null;
     prevTopLoad?: number | null;
+    samePosition?: boolean;
+    slotDelta?: number;
     allSets: { weight: number; reps: number | null; rir: number; durationSeconds: number | null }[];
   } | null;
 };
@@ -204,6 +209,20 @@ export default function LiveWorkout({
   // for more, and the summary reports it as intentional rather than a shortfall.
   const [endedEarlyIds, setEndedEarlyIds] = useState<string[]>([]);
 
+  // Transient between-sets coaching. Auto-dismisses; never blocks logging.
+  const [restToast, setRestToast] = useState<string | null>(null);
+  const restToastTimer = useRef<NodeJS.Timeout | null>(null);
+  // When the previous set of each exercise was logged, so actual rest taken can
+  // be measured live rather than only reconstructed after the workout.
+  const lastSetAtRef = useRef<Record<string, number>>({});
+
+  function showRestToast(message: string) {
+    if (restToastTimer.current) clearTimeout(restToastTimer.current);
+    setRestToast(message);
+    restToastTimer.current = setTimeout(() => setRestToast(null), 8000);
+  }
+  useEffect(() => () => { if (restToastTimer.current) clearTimeout(restToastTimer.current); }, []);
+
   // How this session should be read by progression + flagging. Persisted on the
   // workout so the summary (server-side) sees the same intent.
   const [trainingState, setTrainingStateLocal] = useState<TrainingState>(initialTrainingState);
@@ -298,6 +317,8 @@ export default function LiveWorkout({
         prevWeight: fetched.prevWeight,
         topLoad: fetched.topLoad,
         prevTopLoad: fetched.prevTopLoad,
+        samePosition: fetched.samePosition,
+        slotDelta: fetched.slotDelta,
         allSets: fetched.allSets.map((s) => ({
           weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
         })),
@@ -816,6 +837,28 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       setGroupId: params.setGroupId,
       side: params.side ?? null,
     }]);
+    // Between-sets rest check, before the rest timer restarts the clock.
+    // Only for straight-style working sets: drop sets and myo-reps are SUPPOSED
+    // to be short-rested with collapsing reps, so nudging there is nonsense.
+    if (!params.isWarmup && countsForRepRange(params.setType) && params.setType !== 'SUPERSET_B') {
+      const priorStraight = loggedSets.filter(
+        (st) => st.exerciseId === params.exerciseId && !st.isWarmup && countsForRepRange(st.setType),
+      );
+      const prevAt = lastSetAtRef.current[params.exerciseId];
+      const first = priorStraight[0];
+      if (first?.reps != null && prevAt != null) {
+        const verdict = assessRestDropoff({
+          firstSetReps: first.reps,
+          currentSetReps: params.reps,
+          setNumber: priorStraight.length + 1,
+          actualRestSecs: (now - prevAt) / 1000,
+          plannedRestSecs: params.restSecs,
+        });
+        if (verdict.steep) showRestToast(verdict.message);
+      }
+      lastSetAtRef.current[params.exerciseId] = now;
+    }
+
     if (!params.isWarmup && !params.skipTimer) startRestTimer(params.restSecs);
 
     // Guard #1: increment pending count so Finish is blocked until this resolves
@@ -1199,6 +1242,8 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       prevWeight: fetched.prevWeight,
       topLoad: fetched.topLoad,
       prevTopLoad: fetched.prevTopLoad,
+      samePosition: fetched.samePosition,
+      slotDelta: fetched.slotDelta,
       allSets: fetched.allSets.map((s) => ({
         weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
       })),
@@ -1288,17 +1333,13 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     // with no idea what you lifted last time.
     const ref = `Last: ${ex.history.lastReps} reps @ ${ex.history.lastWeight}lbs (${ex.history.lastRir} RIR)`;
 
-    if (positionChanged) {
-      const direction = currentOrder > lastOrder ? 'later' : 'earlier';
-      // Fatigue shows up as EITHER fewer reps or a lighter load — saying only
-      // "expect fewer reps" implies the weight is the part you must hold fixed.
+    // The reference above is now drawn from the last session at a COMPARABLE
+    // slot where one exists, so a position change no longer forces the app to
+    // give up on comparing. It only caveats when no positional match was found.
+    if (ex.history.samePosition === false && positionChanged) {
       return {
         type: 'context' as const,
-        text: `${ref} · Now ${direction} in the session. ${
-          direction === 'later'
-            ? 'Expect fewer reps, or drop the load a little to stay in range.'
-            : 'You may have more in the tank fresh.'
-        }`,
+        text: `${ref} · ${positionCaveat(ex.history.slotDelta ?? (currentOrder - lastOrder))}`,
       };
     }
 
@@ -2545,6 +2586,20 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
           </Fragment>
         );
       })}
+
+      {restToast && (
+        <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 w-[92%] max-w-md -translate-x-1/2 rounded-xl border border-yellow-700 bg-yellow-950/95 p-3 shadow-2xl backdrop-blur">
+          <div className="flex items-start gap-2">
+            <span aria-hidden className="text-base leading-none">⏱</span>
+            <p className="flex-1 text-xs text-yellow-200">{restToast}</p>
+            <button
+              onClick={() => setRestToast(null)}
+              aria-label="Dismiss"
+              className="pointer-events-auto text-sm leading-none text-yellow-600 hover:text-yellow-300"
+            >×</button>
+          </div>
+        </div>
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 bg-zinc-950/95 p-4 backdrop-blur">
         <div className="mx-auto max-w-2xl space-y-2">

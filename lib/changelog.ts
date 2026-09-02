@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.08.27';
+export const CHANGELOG_VERSION = '2026.08.28';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,30 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-08-28',
+    title: 'Compares like with like',
+    body: "An exercise done last, on already-fatigued muscles, is now compared against the last time it ran in that slot — not against a day you did it fresh. Less weight at the end of a session isn't a decline, and it's no longer treated as one.",
+    tag: 'new',
+  },
+  {
+    date: '2026-08-28',
+    title: 'One bad day is no longer a deload signal',
+    body: 'A decline now has to clear normal day-to-day variation and repeat across two sessions before the app suggests deloading. Holding steady is reported as a plateau, which is normal and not a warning.',
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-28',
+    title: 'Drop sets counted honestly',
+    body: 'Drop-set and myo-rep fragments still count as volume, but no longer set estimated 1RMs — a fatigued set understates what you can actually lift. This also removes a phantom PR that appeared on every drop-set session.',
+    tag: 'fix',
+  },
+  {
+    date: '2026-08-28',
+    title: 'Rest reminder between sets',
+    body: "If reps fall unusually steeply AND you cut the rest short, a brief note now appears suggesting a longer rest — because short rest, not the weight, is often the cause.",
+    tag: 'new',
+  },
   {
     date: '2026-08-27',
     title: 'Assisted machines chart correctly',

@@ -9,6 +9,8 @@
 //
 // Shared so every consumer ranks sets the same way; they used to disagree.
 
+import { countsForStrength, isReliableRepRangeFor1RM } from './setQuality';
+
 export type LoadShape = {
   isAssisted?: boolean;
   isBodyweight?: boolean;
@@ -44,12 +46,20 @@ export function e1RMOf(effective: number, reps: number): number {
  * lighter back-off set, so a heavy top set followed by an autoregulated drop
  * would be recorded as if the lighter load were the day's best.
  */
-export function bestSetBy1RM<T extends { weightLbs: number; reps: number; bodyweightLbs?: number | null; assistanceWeightLbs?: number | null }>(
+export function bestSetBy1RM<T extends { weightLbs: number; reps: number; setType?: string | null; bodyweightLbs?: number | null; assistanceWeightLbs?: number | null }>(
   sets: T[],
   shape: LoadShape,
 ): T | null {
   if (sets.length === 0) return null;
-  return sets.reduce((best, s) => {
+  // Fatigued fragments (drop-set drops, myo-rep minis) are excluded outright —
+  // a 1RM must never be estimated from a set taken in a fatigued state.
+  const eligible = sets.filter((s) => countsForStrength(s.setType));
+  if (eligible.length === 0) return null;
+  // Prefer sets inside Epley's dependable 2-10 rep window; only fall back to
+  // high-rep sets when there's nothing cleaner, since Epley drifts upward there.
+  const reliable = eligible.filter((s) => isReliableRepRangeFor1RM(s.reps));
+  const pool = reliable.length > 0 ? reliable : eligible;
+  return pool.reduce((best, s) => {
     const a = e1RMOf(effectiveLoadOf(s.weightLbs, shape, s.bodyweightLbs, s.assistanceWeightLbs), s.reps);
     const b = e1RMOf(effectiveLoadOf(best.weightLbs, shape, best.bodyweightLbs, best.assistanceWeightLbs), best.reps);
     return a > b ? s : best;
@@ -61,11 +71,12 @@ export function bestSetBy1RM<T extends { weightLbs: number; reps: number; bodywe
  * "did you back off?" — dropping weight mid-session to stay in the rep range is
  * autoregulation, and shouldn't read as a reduced top-end load.
  */
-export function topEffectiveLoad<T extends { weightLbs: number; reps: number; bodyweightLbs?: number | null; assistanceWeightLbs?: number | null }>(
+export function topEffectiveLoad<T extends { weightLbs: number; reps: number; setType?: string | null; bodyweightLbs?: number | null; assistanceWeightLbs?: number | null }>(
   sets: T[],
   shape: LoadShape,
 ): number | null {
-  if (sets.length === 0) return null;
-  return Math.max(...sets.map((s) =>
+  const eligible = sets.filter((s) => countsForStrength(s.setType));
+  if (eligible.length === 0) return null;
+  return Math.max(...eligible.map((s) =>
     effectiveLoadOf(s.weightLbs, shape, s.bodyweightLbs, s.assistanceWeightLbs)));
 }

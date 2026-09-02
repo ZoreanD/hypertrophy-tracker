@@ -3,6 +3,7 @@
 
 import prisma from '../../lib/prisma';
 import { effectiveLoadOf, e1RMOf } from '../../lib/effectiveLoad';
+import { countsForStrength } from '../../lib/setQuality';
 
 export async function getExerciseHistory(profileId: string, exerciseId: string) {
   // Fetch all sets for a specific exercise for this user, ordered chronologically
@@ -37,17 +38,19 @@ export async function getExerciseHistory(profileId: string, exerciseId: string) 
 
   sets.forEach((set: any) => {
     if (set.reps == null || (set.durationSeconds != null && set.durationSeconds > 0)) return;
+    // Fatigued fragments still represent work, but must not drive maxE1RM.
+    const strengthEligible = countsForStrength(set.setType);
     const dateStr = set.workout.date.toISOString().split('T')[0];
     const eff = effectiveLoadOf(set.weightLbs, shape, set.bodyweightLbs, set.assistanceWeightLbs);
     const e1RM = Math.round(e1RMOf(eff, set.reps));
     const volume = eff * set.reps; // simplified 1-set volume
 
     if (!historyMap.has(dateStr)) {
-      historyMap.set(dateStr, { date: dateStr, maxE1RM: e1RM, totalVolume: volume });
+      historyMap.set(dateStr, { date: dateStr, maxE1RM: strengthEligible ? e1RM : 0, totalVolume: volume });
     } else {
       const existing = historyMap.get(dateStr);
-      existing.maxE1RM = Math.max(existing.maxE1RM, e1RM); // Track the best set
-      existing.totalVolume += volume; // Accumulate volume
+      if (strengthEligible) existing.maxE1RM = Math.max(existing.maxE1RM, e1RM);
+      existing.totalVolume += volume; // fragments DO count as volume
     }
   });
 

@@ -8,6 +8,7 @@ import { getCurrentBodyweight } from '../../actions/workout-session';
 import { todayInZone, resolveTimeZone } from '../../../lib/timezone';
 import { returnContext } from '../../../lib/trainingGap';
 import { bestSetBy1RM, topEffectiveLoad } from '../../../lib/effectiveLoad';
+import { findComparableSession, PositionedSession } from '../../../lib/positionHistory';
 import { RETURNING_GAP_DAYS, RETURNING_SESSIONS, TrainingState } from '../../../lib/trainingState';
 
 export const dynamic = 'force-dynamic';
@@ -113,7 +114,9 @@ export default async function LiveWorkoutPage({
   // Active workout — build exercise histories
   const exerciseHistories: Record<string, any> = {};
 
-  for (const re of workout.routine?.exercises ?? []) {
+  // Index is this exercise's planned slot today — the position we compare against.
+  const plannedList = workout.routine?.exercises ?? [];
+  for (const [index, re] of plannedList.entries()) {
     const lastSets = await prisma.set.findMany({
       where: {
         exerciseId: re.exerciseId,
@@ -141,9 +144,23 @@ export default async function LiveWorkoutPage({
       byWorkout.get(wid)!.push(s);
     });
 
-    const sessionsDesc = Array.from(byWorkout.values());
-    const lastSession = sessionsDesc[0];
-    const prevSession = sessionsDesc[1];
+    const rawSessions = Array.from(byWorkout.values());
+    // Compare against the last time this exercise ran in a COMPARABLE slot.
+    // An exercise done last, on pre-fatigued muscles, isn't comparable to the
+    // same movement done fresh — treating them as equivalent is what makes a
+    // reasonable session look like a decline.
+    const positioned: PositionedSession<(typeof rawSessions)[number][number]>[] =
+      rawSessions.map((sets) => ({
+        executionOrder: sets[0]?.executionOrder ?? 0,
+        date: sets[0].workout.date,
+        sets,
+      }));
+    const match = findComparableSession(positioned, index);
+    const lastSession = match ? match.session.sets : rawSessions[0];
+    // The session before the compared one, at a comparable slot too.
+    const matchIdx = match ? positioned.indexOf(match.session) : 0;
+    const prevMatch = findComparableSession(positioned.slice(matchIdx + 1), index);
+    const prevSession = prevMatch ? prevMatch.session.sets : rawSessions[matchIdx + 1];
     const shape = {
       isAssisted: re.exercise.isAssisted,
       isBodyweight: re.exercise.isBodyweight,
@@ -165,6 +182,10 @@ export default async function LiveWorkoutPage({
       lastRir: bestSet.rir,
       lastDate: lastSession[0].workout.date,
       lastExecutionOrder: bestSet.executionOrder,
+      // Whether the comparison above is positionally like-for-like, so the UI
+      // can caveat rather than silently compare across different fatigue states.
+      samePosition: match?.samePosition ?? true,
+      slotDelta: match?.slotDelta ?? 0,
       // Heaviest EFFECTIVE load touched, per session. "Did you back off?" is a
       // question about top-end load, not about the best set — dropping weight
       // mid-session to stay in the rep range is autoregulation, not regression.
