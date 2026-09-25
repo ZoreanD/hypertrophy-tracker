@@ -10,13 +10,25 @@
 // set-1 readiness hint, which correctly tells the lifter that drop-off is
 // expected.
 
-/** Expected fraction of set 1's reps, by set number (1-indexed). */
+/**
+ * Expected fraction of set 1's reps, by set number (1-indexed).
+ *
+ * From a meta-analysis of 29 studies of >= 4 sets to failure at a FIXED load:
+ * sets 2-6 came in at roughly 70, 55, 50, 45 and 45% of set 1. The loss is
+ * curvilinear and flattens out after about 5 sets.
+ *
+ * Two things follow. First, the same absolute drop means different things
+ * depending on WHICH set it is: 8 -> 6 on set 2 is 75% (right on the curve),
+ * while 8 -> 6 on set 3 is well ABOVE the 55% expected. Second, these figures
+ * come from sets taken to failure — training at 1-2 RIR should drop off less
+ * than this, so falling short of the curve is meaningful rather than routine.
+ */
 export function expectedRetention(setNumber: number): number {
   if (setNumber <= 1) return 1;
-  if (setNumber === 2) return 0.75;
+  if (setNumber === 2) return 0.70;
   if (setNumber === 3) return 0.55;
   if (setNumber === 4) return 0.50;
-  return 0.45;
+  return 0.45; // sets 5+ plateau here
 }
 
 /**
@@ -28,6 +40,16 @@ export const STEEP_MARGIN = 0.15;
 
 /** Matches the post-workout under-resting threshold so the two never disagree. */
 export const SHORT_REST_RATIO = 0.7;
+
+/**
+ * Reps above this still produce comparable growth per hard set, so falling out
+ * of the prescribed rep range is not itself a problem — growth is similar from
+ * roughly 5 to 30 reps when sets are taken near failure, and proximity to
+ * failure matters more than the specific range. Below this the set drifts toward
+ * a load/rep profile that buys more fatigue and joint stress per unit stimulus,
+ * which IS worth mentioning.
+ */
+export const EFFECTIVE_REP_FLOOR = 5;
 
 export type RestVerdict = { steep: true; message: string } | { steep: false };
 

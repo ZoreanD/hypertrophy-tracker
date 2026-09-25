@@ -125,7 +125,9 @@ export default async function LiveWorkoutPage({
         NOT: { workoutId: workout.id },
       },
       include: { workout: { select: { date: true } } },
-      orderBy: { createdAt: 'desc' },
+      // By workout DAY first — createdAt alone sorts by insert time, which can
+      // put an older session ahead of the genuine previous one.
+      orderBy: [{ workout: { date: 'desc' } }, { createdAt: 'desc' }],
       // Needs to span at least TWO sessions so prevWeight can be derived. A
       // single myo-rep or drop-set session can write well over 10 rows for one
       // exercise, which would swallow the previous session entirely.

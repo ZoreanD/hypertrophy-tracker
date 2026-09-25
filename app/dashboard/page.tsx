@@ -128,19 +128,46 @@ export default async function Dashboard() {
     });
   }
 
-  const loggedExerciseIds = await prisma.set.findMany({
-    where: { workout: { profileId: profile.id } },
-    select: { exerciseId: true },
-    distinct: ['exerciseId'],
+  // What the lifter has ACTUALLY completed, with how recently and how often.
+  // The picker used to be a flat alphabetical list defaulting to whatever sorted
+  // first, so the chart opened on an exercise that might not have been trained
+  // in months. Recency and frequency come from logged sets, not from routines —
+  // what was planned isn't necessarily what got done.
+  const exerciseStats = await prisma.set.groupBy({
+    by: ['exerciseId'],
+    where: { workout: { profileId: profile.id }, isWarmup: false },
+    _count: { _all: true },
+    _max: { createdAt: true },
   });
 
   const loggedExercises = await prisma.exercise.findMany({
-    where: { id: { in: loggedExerciseIds.map((s) => s.exerciseId) } },
+    where: { id: { in: exerciseStats.map((s) => s.exerciseId) } },
     select: { id: true, name: true, isAssisted: true, isBodyweight: true, weightIsPerSide: true },
     orderBy: { name: 'asc' },
   });
 
-  const defaultExercise = loggedExercises[0] ?? null;
+  const statById = new Map(exerciseStats.map((s) => [s.exerciseId, s]));
+  const byRecency = [...loggedExercises].sort((a, b) =>
+    (statById.get(b.id)?._max.createdAt?.getTime() ?? 0)
+    - (statById.get(a.id)?._max.createdAt?.getTime() ?? 0));
+  const byFrequency = [...loggedExercises].sort((a, b) =>
+    (statById.get(b.id)?._count._all ?? 0) - (statById.get(a.id)?._count._all ?? 0));
+
+  const recentExercises = byRecency.slice(0, 8).map((e) => ({ id: e.id, name: e.name }));
+  const recentIds = new Set(recentExercises.map((e) => e.id));
+  const frequentExercises = byFrequency
+    .filter((e) => !recentIds.has(e.id))
+    .slice(0, 8)
+    .map((e) => ({ id: e.id, name: e.name, sets: statById.get(e.id)?._count._all ?? 0 }));
+
+  // Open on a RANDOM one of the recently trained exercises rather than always
+  // the latest. Finishing a workout and scrolling down should surface something
+  // you just did, but always showing the same lift makes the card stale — this
+  // rotates through the recent ones on each visit. The page is force-dynamic, so
+  // the pick is re-rolled per load.
+  const defaultExercise = recentExercises.length > 0
+    ? (byRecency[Math.floor(Math.random() * Math.min(recentExercises.length, byRecency.length))] ?? byRecency[0])
+    : (byRecency[0] ?? null);
   let progressionData: { date: string; e1RM: number; weight: number; reps: number }[] = [];
 
   if (defaultExercise) {
@@ -402,6 +429,8 @@ const midWorkout = todayWorkouts.some((w) => w.durationMins === 0);
           ) : (
             <ProgressionChart
               exercises={loggedExercises}
+              recentExercises={recentExercises}
+              frequentExercises={frequentExercises}
               defaultExerciseId={defaultExercise?.id ?? ''}
               initialData={progressionData}
               profileId={profile.id}

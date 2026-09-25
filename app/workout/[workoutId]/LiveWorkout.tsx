@@ -8,7 +8,7 @@ import Tooltip from '../../components/Tooltip';
 import { GLOSSARY } from '../../components/glossary';
 import { validateSet } from '../../../lib/setValidation';
 import { positionCaveat } from '../../../lib/positionHistory';
-import { assessRestDropoff } from '../../../lib/restQuality';
+import { assessRestDropoff, expectedRetention, STEEP_MARGIN, EFFECTIVE_REP_FLOOR } from '../../../lib/restQuality';
 import { countsForRepRange } from '../../../lib/setQuality';
 import { setTrainingState } from '../../actions/training-state';
 import {
@@ -1853,20 +1853,35 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                       </div>
                     );
                   }
+                  // Only worth saying anything once a set falls BELOW the rep
+                  // range. A drop that stays in range (10 -> 8 in an 8-12 range)
+                  // needs no comment — the load is doing its job, and remarking
+                  // on every small dip is just noise.
                   if (straight.length >= 2) {
-                    // Lowest of the later sets, not merely the most recent one —
-                    // otherwise recovering on the final set hides that a drop
-                    // happened at all (8 -> 6 -> 8 would show nothing).
-                    const laterReps = straight.slice(1)
-                      .map((st) => st.reps)
-                      .filter((r): r is number => r != null);
-                    const lowest = laterReps.length ? Math.min(...laterReps) : null;
-                    if (lowest != null && lowest < first.reps) {
+                    const later = straight.slice(1)
+                      .map((st, i) => ({ reps: st.reps, setNumber: i + 2 }))
+                      .filter((x): x is { reps: number; setNumber: number } => x.reps != null);
+                    const worst = later.reduce<{ reps: number; setNumber: number } | null>(
+                      (acc, x) => (acc == null || x.reps < acc.reps ? x : acc), null);
+                    // Falling out of the prescribed range is NOT a problem in
+                    // itself: growth is comparable from roughly 5 to 30 reps when
+                    // sets are near failure, and proximity to failure matters more
+                    // than the range. So stay quiet unless the set drops below the
+                    // effective floor, or the drop-off is steeper than typical.
+                    const belowFloor = worst != null && worst.reps < EFFECTIVE_REP_FLOOR;
+                    const steeper = worst != null
+                      && (worst.reps / first.reps) < expectedRetention(worst.setNumber) - STEEP_MARGIN;
+                    if (worst != null && (belowFloor || steeper)) {
+                      // Is the drop itself typical? Pooled data has set 2 landing
+                      // near 75% of set 1, set 3 near 55%, set 4 near 50%. Falling
+                      // out of range on later sets is expected with a fixed load —
+                      // the question is whether it's steeper than that curve.
                       return (
-                        <div className="rounded-lg bg-zinc-800/50 p-3 text-xs text-zinc-400">
-                          Reps are dropping across sets ({first.reps} → {lowest}) —
-                          normal fatigue, not a sign the weight was too heavy. Set 1 hit
-                          the range, so the load was right.
+                        <div className={`rounded-lg p-3 text-xs ${belowFloor ? 'bg-orange-900/25 text-orange-300' : 'bg-zinc-800/50 text-zinc-400'}`}>
+                          Set {worst.setNumber} fell to {worst.reps} rep{worst.reps === 1 ? '' : 's'}.{' '}
+                          {belowFloor
+                            ? `Under ${EFFECTIVE_REP_FLOOR} reps you're buying more fatigue than stimulus — drop the load so later sets land back in the ${ex.targetRepMin}–${ex.targetRepMax} range.`
+                            : 'That drop is steeper than usual — try a longer rest before the next set.'}
                         </div>
                       );
                     }

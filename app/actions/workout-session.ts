@@ -170,7 +170,7 @@ export async function getExerciseHistory(
         workout: { select: { date: true, id: true } },
         exercise: { select: { isAssisted: true, isBodyweight: true, isTimeBased: true, equipment: true, weightIsPerSide: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ workout: { date: 'desc' } }, { createdAt: 'desc' }],
       take: 30,
     });
 
@@ -375,6 +375,13 @@ export async function finishWorkout(
     });
 
     if (!workout) throw new Error('Workout not found');
+    // Ownership check. Without this any authenticated user could finish someone
+    // else's in-progress workout — and because previousSets is scoped to the
+    // CALLER's profile, the summary written onto it would be computed from the
+    // wrong person's history.
+    if (workout.profileId !== profile.id) {
+      return { success: false, error: 'Workout not found' };
+    }
 
     // Duration comes from the server-side start time, not the client's. The
     // client clock restarts whenever the live-workout component remounts (a trip
@@ -534,13 +541,44 @@ export async function finishWorkout(
           isWarmup: false,
           NOT: { workoutId },
         },
-        include: { workout: { select: { date: true } }, exercise: { select: { equipment: true, weightIsPerSide: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
+        include: { workout: { select: { id: true, date: true } }, exercise: { select: { equipment: true, weightIsPerSide: true } } },
+        // Order by the DAY the work happened, not when the rows were written.
+        // Keying off createdAt means a backfilled or re-entered session sorts by
+        // insert time, so "the previous session" could be an older, stronger day.
+        orderBy: [{ workout: { date: 'desc' } }, { createdAt: 'desc' }],
+        // Must span at least two prior sessions so the previous one is reachable
+        // even after a set-heavy day.
+        take: 60,
       });
 
       const matchingSetType = setsForExercise[0]?.setType ?? 'STRAIGHT';
-      const prevMatchingSets = previousSets.filter((s) => s.setType === matchingSetType);
+
+      // Compare against ONE previous session, not the best of recent history.
+      // This used to take the best set out of the last 20 sets, which spanned
+      // several sessions — so anything short of a recent PR was reported as a
+      // decline. Real case: identical dip sessions a week apart were called
+      // -11.5% because the comparison reached back six weeks to a harder day.
+      const prevCandidates = previousSets.filter((s) => s.setType === matchingSetType);
+      const prevByWorkout = new Map<string, typeof prevCandidates>();
+      prevCandidates.forEach((s) => {
+        const wid = s.workout.id;
+        if (!prevByWorkout.has(wid)) prevByWorkout.set(wid, []);
+        prevByWorkout.get(wid)!.push(s);
+      });
+      const prevSessions = Array.from(prevByWorkout.values());
+      // And prefer a previous session at a comparable position, for the same
+      // reason the live hint does (see lib/positionHistory).
+      const currentOrder = setsForExercise[0]?.executionOrder ?? 0;
+      const prevPositioned: PositionedSession<(typeof prevCandidates)[number]>[] =
+        prevSessions.map((sets) => ({
+          executionOrder: sets[0]?.executionOrder ?? 0,
+          date: sets[0].workout.date,
+          sets,
+        }));
+      const prevSessionMatch = findComparableSession(prevPositioned, currentOrder);
+      const prevMatchingSets = prevSessionMatch
+        ? prevSessionMatch.session.sets
+        : (prevSessions[0] ?? []);
 
       // Use effective load for e1RM calculation
       const calcE1RM = (s: { weightLbs: number; reps: number; bodyweightLbs: number | null; assistanceWeightLbs: number | null }) => {

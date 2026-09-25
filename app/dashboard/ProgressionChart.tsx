@@ -22,11 +22,17 @@ type Metric = 'weight' | 'e1RM';
 
 export default function ProgressionChart({
   exercises,
+  recentExercises = [],
+  frequentExercises = [],
   defaultExerciseId,
   initialData,
   profileId,
 }: {
   exercises: Exercise[];
+  /** Most recently trained, surfaced at the top of the picker. */
+  recentExercises?: Exercise[];
+  /** Most-performed movements (by logged sets), excluding the recent ones. */
+  frequentExercises?: (Exercise & { sets: number })[];
   defaultExerciseId: string;
   initialData: DataPoint[];
   profileId: string;
@@ -39,7 +45,7 @@ export default function ProgressionChart({
   async function handleExerciseChange(exerciseId: string) {
     setSelectedId(exerciseId);
     setLoading(true);
-    const res = await fetch(`/api/progression?exerciseId=${exerciseId}&profileId=${profileId}`);
+    const res = await fetch(`/api/progression?exerciseId=${exerciseId}`);
     if (res.ok) {
       const json = await res.json();
       setData(json.data);
@@ -71,9 +77,27 @@ export default function ProgressionChart({
           onChange={(e) => handleExerciseChange(e.target.value)}
           className="rounded-md border border-zinc-700 bg-zinc-950 p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
         >
-          {exercises.map((ex) => (
-            <option key={ex.id} value={ex.id}>{ex.name}</option>
-          ))}
+          {/* Recently trained and most-performed float to the top; the full
+              all-time list stays available underneath. */}
+          {recentExercises.length > 0 && (
+            <optgroup label="Recently trained">
+              {recentExercises.map((ex) => (
+                <option key={`r-${ex.id}`} value={ex.id}>{ex.name}</option>
+              ))}
+            </optgroup>
+          )}
+          {frequentExercises.length > 0 && (
+            <optgroup label="Most performed">
+              {frequentExercises.map((ex) => (
+                <option key={`f-${ex.id}`} value={ex.id}>{ex.name} ({ex.sets} sets)</option>
+              ))}
+            </optgroup>
+          )}
+          <optgroup label={recentExercises.length > 0 ? 'All exercises' : 'Exercises'}>
+            {exercises.map((ex) => (
+              <option key={ex.id} value={ex.id}>{ex.name}</option>
+            ))}
+          </optgroup>
         </select>
         <div className="flex gap-1">
           {(['weight', 'e1RM'] as Metric[]).map((m) => (

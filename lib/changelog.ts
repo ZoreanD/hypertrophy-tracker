@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.08.28';
+export const CHANGELOG_VERSION = '2026.09.24';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,24 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-24',
+    title: 'Declines compared to your last session, not your best one',
+    body: "Progress was being measured against your best set in recent history, so anything short of a near-PR looked like a decline — identical dip sessions a week apart were reported as -11%. It now compares against your previous session at a comparable point in the workout.",
+    tag: 'fix',
+  },
+  {
+    date: '2026-09-24',
+    title: 'Quieter between-set feedback',
+    body: 'Reps dipping while you stay in range no longer prompts anything. Growth is similar from about 5 to 30 reps when sets are near failure, so falling out of the range is not a problem — you will only hear about it below 5 reps, or when the drop is steeper than typical for that set number.',
+    tag: 'improved',
+  },
+  {
+    date: '2026-09-24',
+    title: 'Progress graph surfaces what you actually train',
+    body: 'The graph now opens on one of your recently trained lifts, rotating between them, and the picker groups Recently trained and Most performed above the full list — based on sets you completed, not what was planned.',
+    tag: 'new',
+  },
   {
     date: '2026-08-28',
     title: 'Compares like with like',
