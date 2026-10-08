@@ -190,3 +190,51 @@ export async function deleteRoutine(routineId: string) {
     return { success: false };
   }
 }
+export async function applyConsistentSwap(
+  routineId: string,
+  originalId: string, // the actual Exercise.id, not RoutineExercise.id
+  substituteId: string,
+  config?: { sets: number; repMin: number; repMax: number; rir: number; restTimerSecs: number }
+) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    if (!token) return { success: false };
+    const decoded = await verifyToken(token);
+    if (!decoded || !decoded.userId) return { success: false };
+
+    const profile = await prisma.profile.findUnique({ where: { userId: decoded.userId } });
+    if (!profile) return { success: false };
+
+    const routine = await prisma.routine.findUnique({
+      where: { id: routineId, profileId: profile.id },
+      include: { exercises: true }
+    });
+    if (!routine) return { success: false };
+
+    const targetEx = routine.exercises.find(e => e.exerciseId === originalId);
+    if (!targetEx) return { success: false };
+
+    const data: any = { exerciseId: substituteId };
+    if (config) {
+      data.targetSets = config.sets;
+      data.targetRepMin = config.repMin;
+      data.targetRepMax = config.repMax;
+      data.targetRir = config.rir;
+      data.restTimerSecs = config.restTimerSecs;
+    }
+
+    await prisma.routineExercise.update({
+      where: { id: targetEx.id },
+      data,
+    });
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath(`/routines/${routineId}`);
+    revalidatePath('/routines');
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to apply swap:', error);
+    return { success: false };
+  }
+}

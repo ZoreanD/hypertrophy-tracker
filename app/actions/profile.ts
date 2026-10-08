@@ -268,3 +268,23 @@ export async function updateProfile(data: {
     return { success: false };
   }
 }
+export async function resetMesocycle() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  if (!token) return;
+  const payload = await verifyToken(token);
+  if (!payload || !payload.userId) return;
+
+  const profile = await prisma.profile.findUnique({
+    where: { userId: payload.userId },
+  });
+  if (!profile) return;
+
+  await prisma.profile.update({
+    where: { id: profile.id },
+    data: { mesocycleStartDate: new Date() },
+  });
+
+  const { revalidatePath } = await import('next/cache');
+  revalidatePath('/dashboard');
+}

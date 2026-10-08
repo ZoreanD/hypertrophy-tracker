@@ -32,6 +32,8 @@ export type PositionMatch<S> = {
   samePosition: boolean;
   /** Slot difference vs the current position (signed: + = later today). */
   slotDelta: number;
+  /** Number of newer sessions that were skipped to find this match */
+  skippedNewerCount: number;
 };
 
 /**
@@ -46,10 +48,11 @@ export function findComparableSession<S>(
 ): PositionMatch<S> | null {
   if (sessionsNewestFirst.length === 0) return null;
 
-  const match = sessionsNewestFirst.find((s) =>
+  const matchIdx = sessionsNewestFirst.findIndex((s) =>
     isComparablePosition(s.executionOrder, currentOrder));
-  if (match) {
-    return { session: match, samePosition: true, slotDelta: currentOrder - match.executionOrder };
+  if (matchIdx !== -1) {
+    const match = sessionsNewestFirst[matchIdx];
+    return { session: match, samePosition: true, slotDelta: currentOrder - match.executionOrder, skippedNewerCount: matchIdx };
   }
 
   const fallback = sessionsNewestFirst[0];
@@ -57,6 +60,7 @@ export function findComparableSession<S>(
     session: fallback,
     samePosition: false,
     slotDelta: currentOrder - fallback.executionOrder,
+    skippedNewerCount: 0,
   };
 }
 

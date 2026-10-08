@@ -30,6 +30,7 @@ model Profile {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   weekStartDay   Int          @default(0)
+  mesocycleStartDate DateTime?
 
   // IANA zone (e.g. "America/Chicago"), captured from the browser at setup.
   // "Today" is a per-user question the server can't answer without this — it

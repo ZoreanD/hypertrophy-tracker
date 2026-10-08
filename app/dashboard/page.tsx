@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { resetMesocycle } from "../actions/profile";
 import { verifyToken } from '../../lib/auth';
 import LogoutButton from './LogoutButton';
 import NavIcon from '../components/NavIcon';
@@ -217,10 +218,10 @@ export default async function Dashboard() {
     where: { profileId: profile.id },
     orderBy: { date: 'asc' },
   });
-  const weeksSinceStart = firstWorkout
-    ? Math.floor((Date.now() - firstWorkout.date.getTime()) / (7 * 24 * 60 * 60 * 1000))
-    : 0;
-  const mesocycleWeek = (weeksSinceStart % 6) + 1;
+  const mesoAnchor = profile.mesocycleStartDate ?? firstWorkout?.date;
+  const mesocycleWeek = mesoAnchor
+    ? Math.floor((Date.now() - mesoAnchor.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+    : 1;
 
   // Today's scheduled workouts, resolved in the lifter's own timezone.
 const profileTz = resolveTimeZone(profile.timezone);
@@ -394,6 +395,9 @@ const midWorkout = todayWorkouts.some((w) => w.durationMins === 0);
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-zinc-400"><Tooltip definition={GLOSSARY.mesocycle}>Mesocycle</Tooltip></p>
+              <form action={resetMesocycle}>
+                <button type="submit" className="text-xs text-emerald-500 hover:text-emerald-400">Restart Today</button>
+              </form>
             </div>
             <p className="mt-2 text-4xl font-bold text-zinc-300">
               Week {mesocycleWeek}
@@ -403,7 +407,8 @@ const midWorkout = todayWorkouts.some((w) => w.durationMins === 0);
               {mesocycleWeek <= 2 ? 'Accumulation — start conservative'
                 : mesocycleWeek <= 4 ? 'Intensification — push hard'
                 : mesocycleWeek === 5 ? 'Peak — near MRV'
-                : 'Deload next week'}
+                : mesocycleWeek === 6 ? 'Deload week'
+                : 'Overdue for a new mesocycle'}
             </p>
           </div>
         </section>

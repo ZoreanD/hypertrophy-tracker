@@ -237,6 +237,7 @@ export async function getExerciseHistory(
       lastExecutionOrder,
       samePosition: match?.samePosition ?? true,
       slotDelta: match?.slotDelta ?? 0,
+      skippedNewerCount: match?.skippedNewerCount ?? 0,
       // Top-set load of the session before last. Without this the load-drop
       // guard in getProgressionHint can't fire for exercises added or swapped
       // in mid-session, and they'd be told to add weight on top of a load that
@@ -340,6 +341,7 @@ export async function finishWorkout(
   clientDurationMins: number,
   removedExerciseIds: string[] = [],
   endedEarlyIds: string[] = [],
+  clientSwaps: any[] = [],
 ) {
   try {
     const profile = await getProfile();
@@ -823,6 +825,27 @@ export async function finishWorkout(
     revalidate('/dashboard');
     revalidate('/calendar');
 
+    let suggestedSwaps: any[] = [];
+    if (clientSwaps.length > 0 && workout.routineId) {
+      const pastWorkouts = await prisma.workout.findMany({
+        where: { routineId: workout.routineId, profileId: profile.id, durationMins: { gt: 0 }, id: { not: workoutId } },
+        orderBy: { date: 'desc' },
+        take: 2,
+        include: { sets: { select: { exerciseId: true } } }
+      });
+      if (pastWorkouts.length === 2) {
+        for (const swap of clientSwaps) {
+          const wasSubstitutedInBoth = pastWorkouts.every(pw => 
+            pw.sets.some(s => s.exerciseId === swap.replacement.id) &&
+            !pw.sets.some(s => s.exerciseId === swap.originalId)
+          );
+          if (wasSubstitutedInBoth) {
+            suggestedSwaps.push(swap);
+          }
+        }
+      }
+    }
+
     return {
       success: true,
       summary: {
@@ -830,6 +853,7 @@ export async function finishWorkout(
         deloadRecommended,
         totalSets: countWorkingSets(workout.sets),
         durationMins,
+        suggestedSwaps,
       },
     };
   } catch (error) {

@@ -188,6 +188,7 @@ export default async function LiveWorkoutPage({
       // can caveat rather than silently compare across different fatigue states.
       samePosition: match?.samePosition ?? true,
       slotDelta: match?.slotDelta ?? 0,
+      skippedNewerCount: match?.skippedNewerCount ?? 0,
       // Heaviest EFFECTIVE load touched, per session. "Did you back off?" is a
       // question about top-end load, not about the best set — dropping weight
       // mid-session to stay in the rep range is autoregulation, not regression.
@@ -219,6 +220,7 @@ return (
           id: workout.id,
           focus: workout.focus,
           date: workout.date.toISOString(),
+          routineId: workout.routineId,
         }}
         plannedExercises={(workout.routine?.exercises ?? []).map((re, index) => ({
           routineExerciseId: re.id,

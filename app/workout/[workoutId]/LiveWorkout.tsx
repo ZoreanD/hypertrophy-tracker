@@ -64,6 +64,7 @@ type PlannedExercise = {
     prevTopLoad?: number | null;
     samePosition?: boolean;
     slotDelta?: number;
+    skippedNewerCount?: number;
     allSets: { weight: number; reps: number | null; rir: number; durationSeconds: number | null }[];
   } | null;
 };
@@ -87,6 +88,7 @@ type Summary = {
   deloadRecommended: boolean;
   totalSets: number;
   durationMins: number;
+  suggestedSwaps?: any[];
 };
 
 type Substitute = {
@@ -166,7 +168,7 @@ export default function LiveWorkout({
   trainingState: initialTrainingState,
   suggestedReturn,
 }: {
-  workout: { id: string; focus: string; date: string };
+  workout: { id: string; focus: string; date: string; routineId?: string | null };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
   profileId: string;
@@ -246,21 +248,22 @@ export default function LiveWorkout({
   // The search result currently expanded for target config (sets/reps/RIR)
   // before it's added. Null = list is collapsed to plain rows.
   const [configuringId, setConfiguringId] = useState<string | null>(null);
-  type AdHocConfig = { sets: number; repMin: number; repMax: number; rir: number };
+  type AdHocConfig = { sets: number; repMin: number; repMax: number; rir: number; restTimerSecs: number };
   const [adHocConfigs, setAdHocConfigs] = useState<Record<string, AdHocConfig>>({});
 
-  function getAdHocConfig(exId: string): AdHocConfig {
-    return adHocConfigs[exId] ?? { sets: 3, repMin: 8, repMax: 12, rir: 1 };
+  function getAdHocConfig(exId: string, seed?: AdHocConfig): AdHocConfig {
+    return adHocConfigs[exId] ?? seed ?? { sets: 3, repMin: 8, repMax: 12, rir: 1, restTimerSecs: 90 };
   }
 
-  function adjustAdHocConfig(exId: string, field: keyof AdHocConfig, delta: number) {
+  function adjustAdHocConfig(exId: string, field: keyof AdHocConfig, delta: number, seed?: AdHocConfig) {
     setAdHocConfigs((prev) => {
-      const cur = prev[exId] ?? { sets: 3, repMin: 8, repMax: 12, rir: 1 };
+      const cur = prev[exId] ?? seed ?? { sets: 3, repMin: 8, repMax: 12, rir: 1, restTimerSecs: 90 };
       const next = { ...cur };
       if (field === 'sets') next.sets = Math.min(10, Math.max(1, cur.sets + delta));
       else if (field === 'rir') next.rir = Math.min(6, Math.max(0, cur.rir + delta));
       else if (field === 'repMin') next.repMin = Math.min(next.repMax, Math.max(1, cur.repMin + delta));
       else if (field === 'repMax') next.repMax = Math.max(next.repMin, Math.min(300, cur.repMax + delta));
+      else if (field === 'restTimerSecs') next.restTimerSecs = Math.max(0, Math.min(600, cur.restTimerSecs + delta));
       return { ...prev, [exId]: next };
     });
   }
@@ -290,7 +293,7 @@ export default function LiveWorkout({
       targetRepMin: cfg.repMin,
       targetRepMax: cfg.repMax,
       targetRir: cfg.rir,
-      restTimerSecs: 120,
+      restTimerSecs: cfg.restTimerSecs,
       progressionStyle: 'DOUBLE_PROGRESSION',
       plannedOrder: activeExercises.length,
       history: null,
@@ -319,6 +322,7 @@ export default function LiveWorkout({
         prevTopLoad: fetched.prevTopLoad,
         samePosition: fetched.samePosition,
         slotDelta: fetched.slotDelta,
+        skippedNewerCount: fetched.skippedNewerCount,
         allSets: fetched.allSets.map((s) => ({
           weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
         })),
@@ -1202,10 +1206,29 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
   }
 
   async function handleConfirmSwap(originalEx: PlannedExercise, substitute: Substitute) {
-    setSwaps((prev) => [...prev, { originalId: originalEx.exerciseId, originalName: originalEx.exerciseName, replacement: substitute }]);
+    const seedConfig = { sets: originalEx.targetSets, repMin: originalEx.targetRepMin, repMax: originalEx.targetRepMax, rir: originalEx.targetRir, restTimerSecs: originalEx.restTimerSecs };
+    const cfg = getAdHocConfig(substitute.id, seedConfig);
+
+    setSwaps((prev) => [...prev, { originalId: originalEx.exerciseId, originalName: originalEx.exerciseName, replacement: substitute, config: cfg }]);
     setActiveExercises((prev) => prev.map((ex) =>
       ex.exerciseId === originalEx.exerciseId
-        ? { ...ex, exerciseId: substitute.id, exerciseName: substitute.name, primaryMuscle: substitute.primaryMuscle, equipment: substitute.equipment, isUnilateral: substitute.isUnilateral, isTimeBased: substitute.isTimeBased, isBodyweight: substitute.isBodyweight, isAssisted: substitute.isAssisted, history: null }
+        ? {
+            ...ex,
+            exerciseId: substitute.id,
+            exerciseName: substitute.name,
+            primaryMuscle: substitute.primaryMuscle,
+            equipment: substitute.equipment,
+            isUnilateral: substitute.isUnilateral,
+            isTimeBased: substitute.isTimeBased ?? false,
+            isBodyweight: substitute.isBodyweight,
+            isAssisted: substitute.isAssisted,
+            targetSets: cfg.sets,
+            targetRepMin: cfg.repMin,
+            targetRepMax: cfg.repMax,
+            targetRir: cfg.rir,
+            restTimerSecs: cfg.restTimerSecs,
+            history: null
+          }
         : ex
     ));
     // Update the order list too
@@ -1213,21 +1236,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
     setPivotingExerciseId(null);
     setSubstitutes([]);
     setExpandedExercise(substitute.id);
-
-    // Ask whether to keep the original rest timer or set a new one — a swapped
-    // movement often warrants a different rest (e.g. leg ext -> Bulgarians).
-    const currentRest = originalEx.restTimerSecs;
-    const answer = window.prompt(
-      `Rest timer for ${substitute.name} (seconds).\nKeep ${currentRest}s, or type a new value:`,
-      String(currentRest)
-    );
-    if (answer !== null) {
-      const parsed = parseInt(answer, 10);
-      const newRest = Number.isFinite(parsed) && parsed > 0 ? parsed : currentRest;
-      setActiveExercises((prev) => prev.map((ex) =>
-        ex.exerciseId === substitute.id ? { ...ex, restTimerSecs: newRest } : ex
-      ));
-    }
+    setConfiguringId(null);
 
     // Backfill the substitute's own prior history so weight prefill and the
     // "last time" hints work after a swap (fetched async, patched in on arrival).
@@ -1244,6 +1253,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       prevTopLoad: fetched.prevTopLoad,
       samePosition: fetched.samePosition,
       slotDelta: fetched.slotDelta,
+      skippedNewerCount: fetched.skippedNewerCount,
       allSets: fetched.allSets.map((s) => ({
         weight: s.weight, reps: s.reps, rir: s.rir, durationSeconds: s.durationSeconds,
       })),
@@ -1305,7 +1315,7 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       const res = await fetch('/api/finish-workout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workoutId: workout.id, durationMins, removedExerciseIds, endedEarlyIds }),
+        body: JSON.stringify({ workoutId: workout.id, durationMins, removedExerciseIds, endedEarlyIds, swaps }),
       });
       const result = await res.json();
       if (result.success && result.summary) {
@@ -1340,6 +1350,14 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       return {
         type: 'context' as const,
         text: `${ref} · ${positionCaveat(ex.history.slotDelta ?? (currentOrder - lastOrder))}`,
+      };
+    }
+    
+    if (ex.history.samePosition === true && (ex.history.skippedNewerCount ?? 0) > 0) {
+      const positionText = currentOrder <= 1 ? 'fresh' : `in this position (slot ${currentOrder + 1})`;
+      return {
+        type: 'context' as const,
+        text: `${ref} · Last time you did this ${positionText}`,
       };
     }
 
@@ -1471,6 +1489,45 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
             <p className="mt-1 text-sm text-yellow-300/70">
               Multiple unexplained performance declines detected. Consider a <Tooltip definition={GLOSSARY.deload}>deload</Tooltip> week — reduce load by 40–50%, cut volume by half, keep <Tooltip definition={GLOSSARY.RIR}>RIR</Tooltip> high.
             </p>
+          </div>
+        )}
+
+        {(summary.suggestedSwaps?.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-emerald-700 bg-emerald-900/20 p-4">
+            <p className="font-semibold text-emerald-400">Update Routine?</p>
+            <p className="mt-1 text-sm text-emerald-300/70 mb-3">
+              You've consistently swapped these exercises for the past few workouts. Would you like to update the routine permanently?
+            </p>
+            <div className="space-y-2">
+              {summary.suggestedSwaps!.map((s: any, i: number) => (
+                <div key={i} className="flex flex-col gap-2 rounded-lg bg-emerald-950/40 p-3">
+                  <div className="flex items-center gap-2 text-sm text-emerald-100">
+                    <span className="line-through text-zinc-500">{s.originalName}</span>
+                    <span>→</span>
+                    <span className="font-medium">{s.replacement.name}</span>
+                  </div>
+                  <button 
+                    onClick={async (e) => {
+                      const btn = e.currentTarget;
+                      btn.disabled = true;
+                      btn.textContent = 'Updating...';
+                      const { applyConsistentSwap } = await import('../../actions/routine');
+                      const res = await applyConsistentSwap(workout.routineId!, s.originalId, s.replacement.id, s.config);
+                      if (res.success) {
+                        btn.textContent = 'Routine Updated ✓';
+                        btn.className = 'w-full rounded bg-emerald-800/50 py-1.5 text-xs font-semibold text-emerald-300';
+                      } else {
+                        btn.textContent = 'Update Failed';
+                        btn.className = 'w-full rounded bg-red-800/50 py-1.5 text-xs font-semibold text-red-300';
+                      }
+                    }}
+                    className="w-full rounded bg-emerald-700 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition-colors"
+                  >
+                    Apply Update
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1797,15 +1854,53 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                 : substitutes.length === 0 ? <p className="text-xs text-zinc-500">No substitutes found for this exact muscle + movement combination.</p>
                 : (
                   <div className="space-y-2">
-                    {substitutes.map((sub) => (
-                      <button key={sub.id} onClick={() => handleConfirmSwap(ex, sub)} className="flex w-full items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-2.5 text-left hover:border-emerald-600 hover:bg-emerald-950/20">
-                        <div>
-                          <p className="text-sm font-medium text-white">{sub.name}</p>
-                          <p className="text-xs text-zinc-500">{sub.equipment.replace(/_/g, ' ').toLowerCase()}</p>
+                    {substitutes.map((sub) => {
+                      const isConfiguring = configuringId === sub.id;
+                      const timeBased = sub.isTimeBased ?? false;
+                      const seedConfig = { sets: ex.targetSets, repMin: ex.targetRepMin, repMax: ex.targetRepMax, rir: ex.targetRir, restTimerSecs: ex.restTimerSecs };
+                      const cfg = getAdHocConfig(sub.id, seedConfig);
+
+                      return (
+                        <div key={sub.id} className={`rounded-lg border border-zinc-700 ${isConfiguring ? 'bg-zinc-800' : 'bg-zinc-800/50'}`}>
+                          <button onClick={() => setConfiguringId(isConfiguring ? null : sub.id)} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:border-emerald-600 hover:bg-emerald-950/20">
+                            <div>
+                              <p className="text-sm font-medium text-white">{sub.name}</p>
+                              <p className="text-xs text-zinc-500">{sub.equipment.replace(/_/g, ' ').toLowerCase()}</p>
+                            </div>
+                            <span className="text-xs text-emerald-400">{isConfiguring ? '▼' : 'Configure →'}</span>
+                          </button>
+                          
+                          {isConfiguring && (
+                            <div className="space-y-3 border-t border-zinc-800 bg-zinc-950/40 px-4 py-3">
+                              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                                <AdHocStepper label="Sets" value={cfg.sets}
+                                  onDec={() => adjustAdHocConfig(sub.id, 'sets', -1, seedConfig)}
+                                  onInc={() => adjustAdHocConfig(sub.id, 'sets', 1, seedConfig)} />
+                                <AdHocStepper label={timeBased ? 'Min sec' : 'Min reps'} value={cfg.repMin}
+                                  onDec={() => adjustAdHocConfig(sub.id, 'repMin', timeBased ? -5 : -1, seedConfig)}
+                                  onInc={() => adjustAdHocConfig(sub.id, 'repMin', timeBased ? 5 : 1, seedConfig)} />
+                                <AdHocStepper label={timeBased ? 'Max sec' : 'Max reps'} value={cfg.repMax}
+                                  onDec={() => adjustAdHocConfig(sub.id, 'repMax', timeBased ? -5 : -1, seedConfig)}
+                                  onInc={() => adjustAdHocConfig(sub.id, 'repMax', timeBased ? 5 : 1, seedConfig)} />
+                                <AdHocStepper label="RIR" value={cfg.rir}
+                                  onDec={() => adjustAdHocConfig(sub.id, 'rir', -1, seedConfig)}
+                                  onInc={() => adjustAdHocConfig(sub.id, 'rir', 1, seedConfig)} />
+                                <AdHocStepper label="Rest (s)" value={cfg.restTimerSecs}
+                                  onDec={() => adjustAdHocConfig(sub.id, 'restTimerSecs', -15, seedConfig)}
+                                  onInc={() => adjustAdHocConfig(sub.id, 'restTimerSecs', 15, seedConfig)} />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmSwap(ex, sub)}
+                                className="w-full rounded-md bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                              >
+                                Swap · {cfg.sets} × {cfg.repMin}–{cfg.repMax}{timeBased ? 's' : ''} · {cfg.rir} RIR · {cfg.restTimerSecs}s rest
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <span className="text-xs text-emerald-400">Use this →</span>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -2666,13 +2761,16 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
                             <AdHocStepper label="RIR" value={cfg.rir}
                               onDec={() => adjustAdHocConfig(ex.id, 'rir', -1)}
                               onInc={() => adjustAdHocConfig(ex.id, 'rir', 1)} />
+                            <AdHocStepper label="Rest (s)" value={cfg.restTimerSecs}
+                              onDec={() => adjustAdHocConfig(ex.id, 'restTimerSecs', -15)}
+                              onInc={() => adjustAdHocConfig(ex.id, 'restTimerSecs', 15)} />
                           </div>
                           <button
                             type="button"
                             onClick={() => addAdHocExercise(ex)}
                             className="w-full rounded-md bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
                           >
-                            Add · {cfg.sets} × {cfg.repMin}–{cfg.repMax}{timeBased ? 's' : ''} · {cfg.rir} RIR
+                            Add · {cfg.sets} × {cfg.repMin}–{cfg.repMax}{timeBased ? 's' : ''} · {cfg.rir} RIR · {cfg.restTimerSecs}s rest
                           </button>
                         </div>
                       )}
