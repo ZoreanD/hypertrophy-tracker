@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.09.24';
+export const CHANGELOG_VERSION = '2026.10.08';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,30 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-10-08',
+    title: 'Routine auto-updates on consistent swaps',
+    body: 'If you swap an exercise for the same alternative two sessions in a row, the app now notices and offers to permanently update your routine with the new exercise.',
+    tag: 'new',
+  },
+  {
+    date: '2026-10-08',
+    title: 'Mesocycle tracking',
+    body: 'You can now explicitly restart your 6-week mesocycle from the dashboard, keeping your progression blocks organized.',
+    tag: 'new',
+  },
+  {
+    date: '2026-10-08',
+    title: 'Full control when swapping exercises',
+    body: 'When you swap an exercise mid-workout, you now get the full setup panel — customize sets, reps, RIR, and rest timers exactly how you want them.',
+    tag: 'improved',
+  },
+  {
+    date: '2026-10-08',
+    title: 'Clearer history context',
+    body: 'The app now clearly tells you if it\'s comparing your current set to a past session where you did the exercise "fresh" (at the start of a workout) rather than fatigued.',
+    tag: 'improved',
+  },
   {
     date: '2026-09-24',
     title: 'Declines compared to your last session, not your best one',
