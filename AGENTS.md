@@ -98,7 +98,8 @@ Prefer read-only queries. Only run writes for data corrections — make them ide
 3. Fix with minimal, root-cause changes
 4. Pass all verification gates
 5. Mark suggestion as `SHIPPED` in DB
-6. Git commit + push to `main`
+6. Bump `lib/changelog.ts` with the new feature/fix and today's date.
+7. Git commit + push to `main`
 
 ## Key Files
 

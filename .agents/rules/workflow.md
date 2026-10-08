@@ -22,7 +22,8 @@ Run in this order — all must pass:
 4. Activate the `qa-tester` skill for thorough E2E testing
 5. Pass all verification gates
 6. Update suggestion status to `SHIPPED` in DB
-7. Commit + push to `main`
+7. **BUMP CHANGELOG**: Add a new entry to `lib/changelog.ts` and update `CHANGELOG_VERSION` to today's date so the "What's New" popup triggers for the user.
+8. Commit + push to `main`
 
 ## Database Access
 - Use Neon PostgreSQL via `POSTGRES_PRISMA_URL` from `.env`

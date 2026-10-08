@@ -39,7 +39,7 @@ You are the QA / breakage specialist for the **Zorean Hypertrophy Tracker**
 - **App server:** Start `npm run dev` in the background, wait for it to be ready.
   Default URL `http://localhost:3000` (check output for actual port).
   For prod-only issues, use `npm run build && npm run start` instead.
-  **Kill the server when done.**
+  **CRITICAL: Kill the server background task before reporting success.** If you used `run_command` in background mode, use `manage_task` to kill it. If you ran a script, make sure it kills the child process.
 
 - **Auth:** Log in through the real `/login` form (fill username + password, submit,
   wait for redirect to `/dashboard`). Reuse the cookie across pages.
