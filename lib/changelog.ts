@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.10.08';
+export const CHANGELOG_VERSION = '2026.10.15';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,18 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-10-15',
+    title: 'Persistent workout & rest timers',
+    body: 'Workout elapsed time now stays accurate across navigation, and active rest countdowns persist seamlessly if you step out to the dashboard and back — complete with live rest timers right on your in-progress cards.',
+    tag: 'improved',
+  },
+  {
+    date: '2026-10-15',
+    title: 'Smarter set-to-set fatigue coaching',
+    body: 'Increasing weight on subsequent sets naturally results in fewer reps. The coach now evaluates effective load retention and target rep ranges, eliminating false fatigue warnings when you increase weight.',
+    tag: 'improved',
+  },
   {
     date: '2026-10-08',
     title: 'Routine auto-updates on consistent swaps',

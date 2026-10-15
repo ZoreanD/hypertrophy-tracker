@@ -44,6 +44,7 @@ type PlannedExercise = {
   isAssisted: boolean;
   isBodyweight: boolean;
   isTimeBased: boolean;
+  weightIsPerSide?: boolean;
   targetSets: number;
   targetRepMin: number;
   targetRepMax: number;
@@ -168,7 +169,7 @@ export default function LiveWorkout({
   trainingState: initialTrainingState,
   suggestedReturn,
 }: {
-  workout: { id: string; focus: string; date: string; routineId?: string | null };
+  workout: { id: string; focus: string; date: string; routineId?: string | null; startedAt?: string };
   plannedExercises: PlannedExercise[];
   loggedSets: LoggedSet[];
   profileId: string;
@@ -179,7 +180,27 @@ export default function LiveWorkout({
   suggestedReturn: { gapDays: number; sessionIndex: number } | null;
 }) {
   const router = useRouter();
-  const startTime = useRef(Date.now());
+  const startTime = useRef(workout.startedAt ? new Date(workout.startedAt).getTime() : Date.now());
+  const [sessionElapsed, setSessionElapsed] = useState<number>(() =>
+    Math.max(0, Math.floor((Date.now() - startTime.current) / 1000))
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSessionElapsed(Math.max(0, Math.floor((Date.now() - startTime.current) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  function formatElapsed(secs: number): string {
+    const hrs = Math.floor(secs / 3600);
+    const mins = Math.floor((secs % 3600) / 60);
+    const remSecs = secs % 60;
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
+    }
+    return `${mins}:${String(remSecs).padStart(2, '0')}`;
+  }
   // Tracks how many logSet calls are still in flight. Used to gate Finish Workout.
   const pendingLogs = useRef(0);
   // Temp IDs that were deleted before the server confirmed them. On confirmation
@@ -359,6 +380,7 @@ export default function LiveWorkout({
   const [restTarget, setRestTarget] = useState(120);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const restEndTimeRef = useRef<number | null>(null);
+  const [stopwatches, setStopwatches] = useState<Record<string, { running: boolean; elapsedSec: number; startedAt: number | null }>>({});
 
   // Per-exercise input state
   const [inputs, setInputs] = useState<Record<string, {
@@ -436,7 +458,10 @@ export default function LiveWorkout({
       const raw = localStorage.getItem(STATE_KEY);
       if (raw) {
         const s = JSON.parse(raw);
-        if (s.activeExercises) setActiveExercises(s.activeExercises);
+        if (s.activeExercises && s.activeExercises.length > 0) {
+          setActiveExercises(s.activeExercises);
+          setExpandedExercise((prev) => prev ?? s.activeExercises[0].exerciseId);
+        }
         if (s.exerciseOrder) setExerciseOrder(s.exerciseOrder);
         if (s.swaps) setSwaps(s.swaps);
         if (s.setModes) setSetModes(s.setModes);
@@ -447,9 +472,25 @@ export default function LiveWorkout({
         if (s.inputs) setInputs(s.inputs);
         if (s.supersetInputs) setSupersetInputs(s.supersetInputs);
         if (s.unilateralPhase) setUnilateralPhase(s.unilateralPhase);
+        if (s.stopwatches) setStopwatches(s.stopwatches);
       }
     } catch { /* ignore corrupt snapshot */ }
     setRestored(true);
+
+    try {
+      const rawRest = localStorage.getItem('zh-active-rest-timer');
+      if (rawRest) {
+        const saved = JSON.parse(rawRest);
+        if (saved && saved.workoutId === workout.id && typeof saved.endTime === 'number') {
+          const remaining = Math.round((saved.endTime - Date.now()) / 1000);
+          if (remaining > 0) {
+            startRestTimer(saved.targetSecs || 120, saved.endTime);
+          } else {
+            localStorage.removeItem('zh-active-rest-timer');
+          }
+        }
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -457,10 +498,10 @@ export default function LiveWorkout({
     try {
       localStorage.setItem(STATE_KEY, JSON.stringify({
         activeExercises, exerciseOrder, swaps, setModes, supersetPartners,
-        removedExerciseIds, endedEarlyIds, returnDismissed, inputs, supersetInputs, unilateralPhase,
+        removedExerciseIds, endedEarlyIds, returnDismissed, inputs, supersetInputs, unilateralPhase, stopwatches,
       }));
     } catch { /* storage full / unavailable */ }
-  }, [restored, activeExercises, exerciseOrder, swaps, setModes, supersetPartners, removedExerciseIds, endedEarlyIds, returnDismissed, inputs, supersetInputs, unilateralPhase]);
+  }, [restored, activeExercises, exerciseOrder, swaps, setModes, supersetPartners, removedExerciseIds, endedEarlyIds, returnDismissed, inputs, supersetInputs, unilateralPhase, stopwatches]);
 
   // Tell the service worker to (de)schedule the background rest-complete
   // notification. The SW fires it only if no window is visible when time's up.
@@ -548,20 +589,33 @@ export default function LiveWorkout({
     fetch('/api/push/cancel', { method: 'POST', keepalive: true }).catch(() => {});
   }
 
-  function startRestTimer(secs: number) {
+  function startRestTimer(secs: number, customEndTime?: number) {
     if (timerRef.current) clearInterval(timerRef.current);
-    const endTime = Date.now() + secs * 1000;
+    const endTime = customEndTime ?? (Date.now() + secs * 1000);
     restEndTimeRef.current = endTime;
     setRestTarget(secs);
-    setRestTimer(secs);
-    // The SW fires the notification at endTime even if this page is frozen.
-    messageRestTimerSW({ type: 'START_REST_TIMER', endTime });
-    // Arm the server push NOW rather than waiting until the app is backgrounded.
-    // Android can freeze the page during the switch away, losing the scheduling
-    // request entirely — which showed up as rest notifications that fired only
-    // sometimes. Queuing it up front means the safety net is already in place;
-    // it's cancelled if the rest finishes while the app is in the foreground.
-    schedulePush(secs);
+    const remainingNow = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+    setRestTimer(remainingNow);
+
+    try {
+      localStorage.setItem('zh-active-rest-timer', JSON.stringify({
+        endTime,
+        targetSecs: secs,
+        workoutId: workout.id,
+      }));
+    } catch {}
+
+    if (!customEndTime) {
+      // The SW fires the notification at endTime even if this page is frozen.
+      messageRestTimerSW({ type: 'START_REST_TIMER', endTime });
+      // Arm the server push NOW rather than waiting until the app is backgrounded.
+      // Android can freeze the page during the switch away, losing the scheduling
+      // request entirely — which showed up as rest notifications that fired only
+      // sometimes. Queuing it up front means the safety net is already in place;
+      // it's cancelled if the rest finishes while the app is in the foreground.
+      schedulePush(secs);
+    }
+
     timerRef.current = setInterval(() => {
       const remaining = Math.round((restEndTimeRef.current! - Date.now()) / 1000);
       if (remaining <= 0) {
@@ -569,6 +623,7 @@ export default function LiveWorkout({
         timerRef.current = null;
         restEndTimeRef.current = null;
         setRestTimer(null);
+        try { localStorage.removeItem('zh-active-rest-timer'); } catch {}
         // Only suppress the notification if the app is genuinely in the
         // foreground. A backgrounded tab's interval is throttled (not frozen),
         // so it can tick late while hidden — cancelling here would kill the
@@ -591,6 +646,7 @@ export default function LiveWorkout({
     timerRef.current = null;
     restEndTimeRef.current = null;
     setRestTimer(null);
+    try { localStorage.removeItem('zh-active-rest-timer'); } catch {}
     messageRestTimerSW({ type: 'CANCEL_REST_TIMER' });
     cancelPush();
   }
@@ -613,7 +669,6 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
 }
 
   // ── Stopwatch (time-based exercises) ────────────────────────────────────
-  const [stopwatches, setStopwatches] = useState<Record<string, { running: boolean; elapsedSec: number; startedAt: number | null }>>({});
   const [stopwatchTick, setStopwatchTick] = useState(0);
 
   useEffect(() => {
@@ -848,15 +903,29 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
       const priorStraight = loggedSets.filter(
         (st) => st.exerciseId === params.exerciseId && !st.isWarmup && countsForRepRange(st.setType),
       );
+      const ex = exMap[params.exerciseId];
       const prevAt = lastSetAtRef.current[params.exerciseId];
       const first = priorStraight[0];
       if (first?.reps != null && prevAt != null) {
+        const shape = {
+          isAssisted: ex?.isAssisted,
+          isBodyweight: ex?.isBodyweight,
+          weightIsPerSide: ex?.weightIsPerSide,
+        };
         const verdict = assessRestDropoff({
           firstSetReps: first.reps,
+          firstSetWeightLbs: first.weightLbs,
           currentSetReps: params.reps,
+          currentSetWeightLbs: params.weight,
           setNumber: priorStraight.length + 1,
           actualRestSecs: (now - prevAt) / 1000,
           plannedRestSecs: params.restSecs,
+          targetRepMin: ex?.targetRepMin,
+          targetRepMax: ex?.targetRepMax,
+          shape,
+          bodyweightLbs: currentBodyweight,
+          firstAssistanceWeightLbs: params.assistanceWeightLbs,
+          currentAssistanceWeightLbs: params.assistanceWeightLbs,
         });
         if (verdict.steep) showRestToast(verdict.message);
       }
@@ -1623,7 +1692,12 @@ function updateInput(exerciseId: string, field: string, value: string | boolean,
           <button onClick={() => router.push('/dashboard')} className="mb-1 text-sm text-zinc-500 hover:text-zinc-300">
             ← Dashboard
           </button>
-          <h1 className="text-2xl font-bold text-white">{workout.focus}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">{workout.focus}</h1>
+            <span className="flex items-center gap-1 rounded-md bg-zinc-800/80 px-2 py-0.5 text-xs font-mono font-medium text-zinc-300">
+              ⏱ {formatElapsed(sessionElapsed)}
+            </span>
+          </div>
           <p className="text-sm text-zinc-400">
             {new Date(workout.date.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>

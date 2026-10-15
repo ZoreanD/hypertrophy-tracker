@@ -11,6 +11,7 @@ import Tooltip from '../components/Tooltip';
 import { GLOSSARY } from '../components/glossary';
 import ProgressionChart from './ProgressionChart';
 import TodayWorkoutCard from './TodayWorkoutCard';
+import InProgressWorkoutCard from './InProgressWorkoutCard';
 import { getHourlyQuote } from './quotes';
 import { VOLUME_LANDMARKS, addSetVolume, setCountWeight, countWorkingSets } from '../../lib/volume';
 import { todayInZone, resolveTimeZone } from '../../lib/timezone';
@@ -316,18 +317,12 @@ const midWorkout = todayWorkouts.some((w) => w.durationMins === 0);
             <h2 className="mb-3 text-xl font-semibold text-zinc-200">In progress</h2>
             <div className="space-y-2">
               {inProgressWorkouts.map((w) => (
-                <div key={w.id} className="flex items-center justify-between rounded-xl border border-yellow-800/60 bg-yellow-950/10 p-4">
-                  <div>
-                    <p className="font-semibold text-white">{w.focus}</p>
-                    <p className="text-xs text-yellow-400">⏳ In progress{w.routineId ? '' : ' · ad-hoc'}</p>
-                  </div>
-                  <Link
-                    href={`/workout/${w.id}`}
-                    className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
-                  >
-                    Resume
-                  </Link>
-                </div>
+                <InProgressWorkoutCard
+                  key={w.id}
+                  workoutId={w.id}
+                  focus={w.focus}
+                  isAdHoc={!w.routineId}
+                />
               ))}
             </div>
           </section>

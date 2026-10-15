@@ -221,6 +221,7 @@ return (
           focus: workout.focus,
           date: workout.date.toISOString(),
           routineId: workout.routineId,
+          startedAt: workout.startedAt.toISOString(),
         }}
         plannedExercises={(workout.routine?.exercises ?? []).map((re, index) => ({
           routineExerciseId: re.id,
@@ -233,6 +234,7 @@ return (
           isAssisted: re.exercise.isAssisted,
           isBodyweight: re.exercise.isBodyweight,
           isTimeBased: re.exercise.isTimeBased,
+          weightIsPerSide: re.exercise.weightIsPerSide,
           targetSets: re.targetSets,
           targetRepMin: re.targetRepMin,
           targetRepMax: re.targetRepMax,

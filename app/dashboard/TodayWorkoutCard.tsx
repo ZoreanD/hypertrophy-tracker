@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { startWorkout } from '../actions/workout-session';
 
@@ -36,6 +37,7 @@ export default function TodayWorkoutCard({
   existingDurationMins: number | null;
 }) {
   const router = useRouter();
+  const [activeRestRemaining, setActiveRestRemaining] = useState<number | null>(null);
 
   async function handleStart() {
     const result = await startWorkout(routineId, scheduledDate);
@@ -48,6 +50,30 @@ export default function TodayWorkoutCard({
   const isCompleted = existingWorkoutId !== null && existingDurationMins !== null && existingDurationMins > 0;
   const isInProgress = existingWorkoutId !== null && (existingDurationMins === null || existingDurationMins === 0);
 
+  useEffect(() => {
+    if (!isInProgress || !existingWorkoutId) return;
+    function checkRest() {
+      try {
+        const raw = localStorage.getItem('zh-active-rest-timer');
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved && saved.workoutId === existingWorkoutId && typeof saved.endTime === 'number') {
+            const rem = Math.max(0, Math.round((saved.endTime - Date.now()) / 1000));
+            if (rem > 0) {
+              setActiveRestRemaining(rem);
+              return;
+            }
+          }
+        }
+      } catch {}
+      setActiveRestRemaining(null);
+    }
+
+    checkRest();
+    const interval = setInterval(checkRest, 1000);
+    return () => clearInterval(interval);
+  }, [isInProgress, existingWorkoutId]);
+
   return (
     <div className={`flex items-center justify-between rounded-xl border p-4 ${colorClass}`}>
       <div>
@@ -57,7 +83,9 @@ export default function TodayWorkoutCard({
           <p className="mt-0.5 text-xs font-semibold text-green-500">✓ Completed · {existingDurationMins} mins</p>
         )}
         {isInProgress && (
-          <p className="mt-0.5 text-xs text-yellow-400">⏳ In progress</p>
+          <p className="mt-0.5 text-xs text-yellow-400">
+            ⏳ In progress{activeRestRemaining != null && ` · Rest: ${Math.floor(activeRestRemaining / 60)}:${String(activeRestRemaining % 60).padStart(2, '0')}`}
+          </p>
         )}
       </div>
       <div className="flex gap-2">
