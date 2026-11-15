@@ -7,7 +7,7 @@
 //
 // Only the newest WHATS_NEW_LIMIT entries are ever shown; older ones age out.
 
-export const CHANGELOG_VERSION = '2026.10.15';
+export const CHANGELOG_VERSION = '2026.11.14';
 export const WHATS_NEW_LIMIT = 5;
 
 export type ChangelogEntry = {
@@ -18,6 +18,12 @@ export type ChangelogEntry = {
 };
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-11-14',
+    title: 'Dual Pulley Lat Pulldown variations',
+    body: 'Added separate Dual Pulley Lat Pulldown exercises (Wide Grip, Close Grip, and Dual Handles) configured as unilateral with single-stack pin weight so their felt load and progression stay separate from single-pulley lat pulldowns.',
+    tag: 'new',
+  },
   {
     date: '2026-10-15',
     title: 'Persistent workout & rest timers',
